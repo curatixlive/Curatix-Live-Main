@@ -86,3 +86,7 @@ desktop.ini
 # Throwaway browser probes written while debugging a page (Playwright one-offs).
 # Not application code, and not something a checkout should carry.
 _*probe*.mjs
+.neon
+
+# Local embedded Postgres + dev server logs
+.localdb/
