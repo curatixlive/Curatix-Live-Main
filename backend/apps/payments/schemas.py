@@ -158,3 +158,24 @@ class RefundRequestSerializer(serializers.Serializer):
     refund_reference = serializers.CharField(allow_null=True)
     refund_amount_minor = serializers.IntegerField(allow_null=True)
     refunded_at = serializers.CharField(allow_null=True)
+
+
+class GatewayChoiceSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    configured = serializers.BooleanField()
+    can_pay_out = serializers.BooleanField()
+
+
+class GatewaySwitchSerializer(serializers.Serializer):
+    """What the admin console shows: which gateway checkout uses now, the
+    deployment's own default, and every known gateway with whether this server
+    can use it and whether it can pay organizers."""
+
+    active = serializers.CharField()
+    override = serializers.CharField(allow_blank=True)
+    default = serializers.CharField()
+    gateways = GatewayChoiceSerializer(many=True)
+
+
+class SetGatewayRequestSerializer(serializers.Serializer):
+    gateway = serializers.ChoiceField(choices=["razorpay", "cashfree"])

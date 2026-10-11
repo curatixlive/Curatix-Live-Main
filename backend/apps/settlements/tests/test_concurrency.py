@@ -13,7 +13,7 @@ from apps.settlements.models import PayoutAttemptStatus, SettlementStatus
 from apps.settlements.repositories import SettlementRepository
 from core.adapters.local.fake_payment import FakePaymentAdapter
 
-from .conftest import book_and_pay, make_service
+from .conftest import approve, book_and_pay, make_service
 
 
 def _run_concurrently(fn, n: int) -> list:
@@ -42,6 +42,7 @@ def test_concurrent_release_attempts_pay_exactly_once(
     )
     settlement = SettlementRepository().get_by_event(finished_event.id)
     assert settlement is not None
+    approve(settlement)
 
     def release(_i: int) -> None:
         make_service(payments_port=payout_adapter).release_payout(settlement.id)

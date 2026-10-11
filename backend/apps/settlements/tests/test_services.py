@@ -15,6 +15,7 @@ from core.models import OutboxEvent
 from .conftest import (
     FailingPayoutAdapter,
     InlineReleaseQueue,
+    approve,
     book_and_pay,
     make_service,
     refund,
@@ -24,6 +25,7 @@ from .conftest import (
 def _settlement(event) -> Settlement:
     s = SettlementRepository().get_by_event(event.id)
     assert s is not None
+    approve(s)
     return s
 
 
@@ -216,8 +218,116 @@ def test_release_due_job_enqueues_only_releasable_settlements(
         booking_service, service, buyer=buyer, event=upcoming_event, tier=tier_for(upcoming_event)
     )
 
+    assert service.release_due_payouts() == 0  # due, but nobody has approved it
+
+    due = _settlement(finished_event)  # approves it
     count = service.release_due_payouts()
 
     assert count == 1  # only the finished event's settlement is due
-    due = _settlement(finished_event)
     assert queue.enqueued == [(RELEASE_TASK, {"settlement_id": str(due.id)}, 0)]
+
+
+@pytest.mark.django_db
+def test_an_unapproved_settlement_is_never_paid(
+    settlement_service, payout_adapter, booking_service, buyer, finished_event, tier_for
+):
+    book_and_pay(
+        booking_service,
+        settlement_service,
+        buyer=buyer,
+        event=finished_event,
+        tier=tier_for(finished_event),
+    )
+    s = SettlementRepository().get_by_event(finished_event.id)
+    assert s is not None
+
+    settlement_service.release_payout(s.id)  # a stray task, a hand-run command
+
+    s.refresh_from_db()
+    assert s.status == SettlementStatus.PENDING
+    assert payout_adapter.payouts_by_key == {}
+
+
+@pytest.mark.django_db
+def test_approval_records_who_and_which_gateway_then_enqueues(
+    booking_service, buyer, finished_event, tier_for, organizer
+):
+    from .conftest import RecordingQueue
+
+    queue = RecordingQueue()
+    service = make_service(queue=queue)
+    book_and_pay(
+        booking_service, service, buyer=buyer, event=finished_event, tier=tier_for(finished_event)
+    )
+    s = SettlementRepository().get_by_event(finished_event.id)
+    assert s is not None
+
+    service.approve_payout(s.id, gateway="fake", actor_id=organizer.id)
+
+    s.refresh_from_db()
+    assert (s.payout_gateway, str(s.approved_by_id)) == ("fake", str(organizer.id))
+    assert s.approved_at is not None
+    assert queue.enqueued == [(RELEASE_TASK, {"settlement_id": str(s.id)}, 0)]
+
+
+@pytest.mark.django_db
+def test_the_approved_gateway_is_the_one_that_pays(
+    booking_service, buyer, finished_event, tier_for, organizer
+):
+    from core.adapters.local.fake_payment import FakePaymentAdapter
+
+    chosen, other = FakePaymentAdapter(), FakePaymentAdapter()
+    service = make_service(payments_port=other)
+    service._port_for = lambda gateway: chosen if gateway == "razorpay" else other
+    service._payout_gateways = lambda: frozenset({"razorpay"})
+    book_and_pay(
+        booking_service, service, buyer=buyer, event=finished_event, tier=tier_for(finished_event)
+    )
+    s = SettlementRepository().get_by_event(finished_event.id)
+    assert s is not None
+
+    service.approve_payout(s.id, gateway="razorpay", actor_id=organizer.id)
+    service.release_payout(s.id)
+
+    assert len(chosen.payouts_by_key) == 1
+    assert other.payouts_by_key == {}
+
+
+@pytest.mark.django_db
+def test_a_gateway_that_cannot_pay_out_is_refused(
+    booking_service, buyer, finished_event, tier_for, organizer
+):
+    from apps.settlements.exceptions import PayoutGatewayNotAvailableError
+
+    service = make_service()
+    service._payout_gateways = lambda: frozenset({"razorpay"})  # cashfree: no payout support
+    book_and_pay(
+        booking_service, service, buyer=buyer, event=finished_event, tier=tier_for(finished_event)
+    )
+    s = SettlementRepository().get_by_event(finished_event.id)
+    assert s is not None
+
+    with pytest.raises(PayoutGatewayNotAvailableError):
+        service.approve_payout(s.id, gateway="cashfree", actor_id=organizer.id)
+    s.refresh_from_db()
+    assert s.approved_at is None
+
+
+@pytest.mark.django_db
+def test_approving_an_already_paid_settlement_is_refused(
+    settlement_service, booking_service, buyer, finished_event, tier_for, organizer
+):
+    from apps.settlements.exceptions import SettlementAlreadyPaidError
+
+    book_and_pay(
+        booking_service,
+        settlement_service,
+        buyer=buyer,
+        event=finished_event,
+        tier=tier_for(finished_event),
+    )
+    s = _settlement(finished_event)
+    settlement_service.release_payout(s.id)
+
+    with pytest.raises(SettlementAlreadyPaidError):
+        settlement_service.approve_payout(s.id, gateway="fake", actor_id=organizer.id)

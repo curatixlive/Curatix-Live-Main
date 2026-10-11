@@ -60,4 +60,9 @@ urlpatterns = [
         api.RefundRequestDecisionView.as_view(),
         name="refund-request-decide",
     ),
+    path(
+        "admin/payment-gateway",
+        api.AdminGatewayView.as_view(),
+        name="admin-payment-gateway",
+    ),
 ]

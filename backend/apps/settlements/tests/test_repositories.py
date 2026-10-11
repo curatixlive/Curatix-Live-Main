@@ -34,11 +34,15 @@ def test_list_releasable_ids_filters_by_status_and_time(finished_event, upcoming
     repo.ensure_for_event(finished_event.id, releasable_at=now - timedelta(hours=1))
     repo.ensure_for_event(upcoming_event.id, releasable_at=now + timedelta(days=2))
 
-    ids = repo.list_releasable_ids(now=now)
-
     due = repo.get_by_event(finished_event.id)
     assert due is not None
-    assert ids == [due.id]  # only the past-due, still-pending one
+    assert repo.list_releasable_ids(now=now) == []  # due, but nobody has approved it
+
+    from .conftest import approve
+
+    approve(due)
+    # only the past-due, still-pending, APPROVED one
+    assert repo.list_releasable_ids(now=now) == [due.id]
 
 
 @pytest.mark.django_db

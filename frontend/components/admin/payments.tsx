@@ -1,5 +1,6 @@
 'use client';
 
+import { GatewaySwitch } from '@/components/admin/gateway-switch';
 import * as React from 'react';
 import Link from 'next/link';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -104,6 +105,7 @@ export function PaymentsConsole() {
 
   return (
     <div className="flex flex-col gap-stack-lg">
+      <GatewaySwitch />
       <div role="tablist" aria-label="Payment ledgers" className="flex gap-1.5">
         {(
           [
@@ -340,13 +342,15 @@ function LoadMore({
 
 /* ------------------------------------------------------------------ columns */
 
-const PAYMENT_STATUS: Record<string, { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' }> =
-  {
-    paid: { label: 'Paid', tone: 'success' },
-    created: { label: 'Not completed', tone: 'warning' },
-    failed: { label: 'Failed', tone: 'danger' },
-    refunded: { label: 'Refunded', tone: 'neutral' },
-  };
+const PAYMENT_STATUS: Record<
+  string,
+  { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' }
+> = {
+  paid: { label: 'Paid', tone: 'success' },
+  created: { label: 'Not completed', tone: 'warning' },
+  failed: { label: 'Failed', tone: 'danger' },
+  refunded: { label: 'Refunded', tone: 'neutral' },
+};
 
 const PAYMENT_COLUMNS: ColumnDef<AdminPayment>[] = [
   {

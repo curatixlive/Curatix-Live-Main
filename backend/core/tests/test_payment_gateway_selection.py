@@ -18,6 +18,7 @@ from django.test import override_settings
 from config.di import (
     enabled_payment_gateways,
     payment_port,
+    reset_gateway_cache,
     resolve_payment_gateway,
     route_payment_port,
 )
@@ -28,11 +29,11 @@ RAZORPAY_CREDS = {"RAZORPAY_KEY_ID": "rzp_test_x", "RAZORPAY_KEY_SECRET": "secre
 
 @pytest.fixture(autouse=True)
 def _clear_caches():
-    enabled_payment_gateways.cache_clear()
+    reset_gateway_cache()
     payment_port.cache_clear()
     route_payment_port.cache_clear()
     yield
-    enabled_payment_gateways.cache_clear()
+    reset_gateway_cache()
     payment_port.cache_clear()
     route_payment_port.cache_clear()
 

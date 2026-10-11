@@ -304,6 +304,20 @@ class AdminRefundSerializer(serializers.Serializer):
 
 class AdminSettlementSerializer(serializers.ModelSerializer):
     event_title = serializers.CharField(source="event.title", read_only=True)
+    #: Due (event over, refund window closed), unpaid, and nobody has approved
+    #: it yet — the operator's work list. Derived, not stored: it is a fact
+    #: about three columns and the clock.
+    awaiting_approval = serializers.SerializerMethodField()
+
+    def get_awaiting_approval(self, obj: Settlement) -> bool:
+        from django.utils import timezone
+
+        return bool(
+            obj.status != "paid"
+            and obj.approved_at is None
+            and obj.releasable_at is not None
+            and obj.releasable_at <= timezone.now()
+        )
 
     class Meta:
         model = Settlement
@@ -318,6 +332,9 @@ class AdminSettlementSerializer(serializers.ModelSerializer):
             "net",
             "releasable_at",
             "payout_at",
+            "payout_gateway",
+            "approved_at",
+            "awaiting_approval",
             "attempts",
             "error",
             "created_at",

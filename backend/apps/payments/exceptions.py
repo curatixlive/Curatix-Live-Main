@@ -180,3 +180,14 @@ class RefundDecisionNoteRequiredError(InvalidInputError):
 
     def __init__(self) -> None:
         super().__init__("Say why the request is being rejected — the customer is shown this.")
+
+
+class GatewayNotAvailableError(InvalidInputError):
+    """The admin picked a gateway this deployment has no credentials for."""
+
+    code = "gateway_not_available"
+
+    def __init__(self, gateway: str) -> None:
+        super().__init__(
+            f"'{gateway}' is not available: its credentials are not configured on this server."
+        )

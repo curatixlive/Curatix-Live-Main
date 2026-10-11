@@ -34,6 +34,7 @@ import datetime
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
@@ -53,13 +54,15 @@ from core.events import (
     REFUND_REQUEST_REJECTED,
     REFUND_REQUESTED,
 )
-from core.ports.payment_port import PaymentPort, SimulatedPaymentPort
+from core.ports.cache_port import CachePort
+from core.ports.payment_port import PAYOUT_CAPABLE_GATEWAYS, PaymentPort, SimulatedPaymentPort
 from core.ports.task_queue_port import TaskQueuePort
 from core.unit_of_work import UnitOfWork
 
 from .exceptions import (
     BookingNotPayableError,
     BookingNotRefundableError,
+    GatewayNotAvailableError,
     InvalidWebhookSignatureError,
     MalformedWebhookError,
     NotAllowedToDecideRefundError,
@@ -74,6 +77,7 @@ from .exceptions import (
 )
 from .models import Payment, PaymentStatus, RefundRequest, RefundRequestStatus
 from .repositories import (
+    GatewaySettingRepository,
     PaymentRepository,
     ProcessedWebhookRepository,
     RefundRepository,
@@ -956,3 +960,62 @@ class RefundRequestService:
             extra={"refund_request_id": str(request_id), "status": new_status},
         )
         return request
+
+
+class GatewaySwitchService:
+    """The admin's checkout-gateway switch.
+
+    It chooses among the gateways the deployment has credentials for; it can
+    never enable one that is not configured (`GatewayNotAvailableError`). The
+    cache key is deleted on write so the change is live immediately on a shared
+    cache, and within the TTL on a per-process one.
+    """
+
+    def __init__(
+        self,
+        *,
+        settings_repo: GatewaySettingRepository,
+        cache: CachePort,
+        configured: Callable[[], tuple[tuple[str, ...], str]],
+        known: tuple[str, ...],
+        cache_key: str,
+    ) -> None:
+        self._repo = settings_repo
+        self._cache = cache
+        self._configured = configured
+        self._known = known
+        self._cache_key = cache_key
+
+    def describe(self) -> dict:
+        names, default = self._configured()
+        active = self._repo.get_active()
+        effective = active if active in names else default
+        return {
+            "active": effective,
+            "override": active if active in names else "",
+            "default": default,
+            "gateways": [
+                {
+                    "id": name,
+                    "configured": name in names,
+                    "can_pay_out": name in PAYOUT_CAPABLE_GATEWAYS,
+                }
+                for name in self._known
+            ],
+        }
+
+    def set_active(self, gateway: str, *, actor_id: str) -> dict:
+        wanted = str(gateway or "").strip().lower()
+        names, _default = self._configured()
+        if wanted not in names or wanted not in self._known:
+            raise GatewayNotAvailableError(wanted)
+        with UnitOfWork():
+            self._repo.set_active(wanted, user_id=actor_id)
+            record_audit(
+                actor_id=str(actor_id),
+                action="payments.gateway_switched",
+                target_type="gateway",
+                target_id=wanted,
+            )
+        self._cache.delete(self._cache_key)
+        return self.describe()

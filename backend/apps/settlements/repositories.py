@@ -102,6 +102,9 @@ class SettlementRepository(BaseRepository[Settlement]):
                 status=SettlementStatus.PENDING,
                 releasable_at__isnull=False,
                 releasable_at__lte=now,
+                # An operator must have approved it — nothing leaves the
+                # platform on a timer alone.
+                approved_at__isnull=False,
             ).values_list("id", flat=True)[:limit]
         )
 

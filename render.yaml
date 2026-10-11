@@ -74,8 +74,19 @@ envVarGroups:
       # preflight REFUSES to boot if any of these is a local fake in
       # production. That is deliberate: a fake payment adapter boots healthy
       # and makes every checkout succeed for free.
+      # Razorpay stays the BACKEND: it holds organizer linked accounts and is
+      # the only gateway that can pay organizers. Cashfree is the DEFAULT for
+      # customer checkout; the admin console switches between the two at runtime.
       - key: PAYMENTS_BACKEND
         value: razorpay
+      - key: PAYMENTS_ENABLED_GATEWAYS
+        value: cashfree,razorpay
+      - key: PAYMENTS_DEFAULT_GATEWAY
+        value: cashfree
+      - key: PAYMENTS_ROUTE_PROVIDER
+        value: razorpay
+      - key: CASHFREE_ENVIRONMENT
+        value: sandbox      # switch to "production" with the live key pair
       - key: STORAGE_BACKEND
         value: s3
       - key: EMAIL_PROVIDER
@@ -95,6 +106,11 @@ envVarGroups:
       # Only obtainable AFTER the first deploy: you need the public URL to
       # register the webhook in the Razorpay dashboard. See runbook step 7.
       - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: CASHFREE_APP_ID
+        sync: false
+      # Also Cashfree's webhook signing key: it has no separate webhook secret.
+      - key: CASHFREE_SECRET_KEY
         sync: false
       - key: S3_BUCKET_NAME
         sync: false

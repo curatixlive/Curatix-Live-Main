@@ -183,3 +183,29 @@ class RefundRequest(models.Model):
 
     def __str__(self) -> str:
         return f"RefundRequest {self.id} ({self.status})"
+
+
+class GatewaySetting(models.Model):
+    """Which payment gateway checkout uses RIGHT NOW — the admin's switch.
+
+    A constant-valued unique column makes "there is exactly one of these" a
+    database guarantee (the `cms.HomepageContent` pattern). `active_gateway`
+    blank means "no override": the deployment's own `PAYMENTS_DEFAULT_GATEWAY`
+    decides. It is a switch over the gateways the deployment has credentials
+    for, never a way to add one — `config.di.enabled_payment_gateways` ignores
+    a value it cannot serve.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    singleton = models.BooleanField(default=True, unique=True, editable=False)
+    active_gateway = models.CharField(max_length=16, blank=True, default="")
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "payments_gateway_setting"
+
+    def __str__(self) -> str:
+        return f"GatewaySetting({self.active_gateway or 'default'})"

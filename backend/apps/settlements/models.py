@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import uuid
 
+from django.conf import settings
 from django.db import models
 
 
@@ -61,6 +62,20 @@ class Settlement(models.Model):
     releasable_at = models.DateTimeField(null=True, blank=True)
     payout_at = models.DateTimeField(null=True, blank=True)
     provider_ref = models.CharField(max_length=255, blank=True, default="")
+    # ── THE ADMIN'S APPROVAL ─────────────────────────────────────────────
+    # A payout is money leaving the platform, so a person decides it. The
+    # scheduled job only releases a settlement an operator has approved, and the
+    # approval records WHICH gateway pays it: a linked account belongs to one
+    # provider, and the choice is the operator's, made once, on the record.
+    payout_gateway = models.CharField(max_length=16, blank=True, default="")
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
     attempts = models.PositiveIntegerField(default=0)
     error = models.CharField(
         max_length=500, blank=True, default=""

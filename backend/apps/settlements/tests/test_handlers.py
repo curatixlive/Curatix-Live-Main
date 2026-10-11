@@ -67,6 +67,9 @@ def test_payout_released_notifies_the_organizer_end_to_end(
     book_and_pay(booking_service, settlement_service, buyer=buyer, event=finished_event, tier=tier)
     s = SettlementRepository().get_by_event(finished_event.id)
     assert s is not None
+    from .conftest import approve
+
+    approve(s)
 
     with django_capture_on_commit_callbacks(execute=True):
         settlement_service.release_payout(s.id)

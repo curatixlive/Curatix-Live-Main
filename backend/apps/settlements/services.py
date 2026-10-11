@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timedelta
 
 from django.utils import timezone
@@ -37,7 +38,12 @@ from core.ports.payment_port import PaymentPort
 from core.ports.task_queue_port import TaskQueuePort
 from core.unit_of_work import UnitOfWork
 
-from .exceptions import EventNotFinishedError, SettlementNotFoundError
+from .exceptions import (
+    EventNotFinishedError,
+    PayoutGatewayNotAvailableError,
+    SettlementAlreadyPaidError,
+    SettlementNotFoundError,
+)
 from .models import PayoutAttemptStatus, SettlementStatus
 from .repositories import PayoutAttemptRepository, SettlementRepository
 
@@ -60,12 +66,18 @@ class SettlementService:
         refund_window_hours: int,
         max_attempts: int,
         retry_backoff_seconds: int,
+        port_for: Callable[[str], PaymentPort] | None = None,
+        payout_gateways: Callable[[], frozenset[str]] | None = None,
     ) -> None:
         self._settlements = settlements
         self._attempts = attempts
         self._payments = payments
         self._events = events
         self._port = payments_port
+        # The gateway an operator approved a payout through picks the adapter;
+        # `payments_port` is only the fallback when no factory is wired.
+        self._port_for = port_for or (lambda _gateway: payments_port)
+        self._payout_gateways = payout_gateways or (lambda: frozenset({"razorpay", "fake"}))
         self._task_queue = task_queue
         self._refund_window_hours = refund_window_hours
         self._max_attempts = max_attempts
@@ -117,16 +129,42 @@ class SettlementService:
             logger.info("settlements.release_due", extra={"count": len(ids)})
         return len(ids)
 
-    def request_release(self, settlement_id: uuid.UUID | str) -> None:
-        """Guarded manual (admin) trigger: pre-check the event is finished (so
-        EventNotFinished surfaces synchronously as a 4xx), then enqueue the
-        release — the external payout still runs OFF the request path."""
-        settlement = self._settlements.get_by_id(settlement_id)
-        if settlement is None:
-            raise SettlementNotFoundError(str(settlement_id))
-        event = self._events.get_for_settlement(settlement.event_id)
-        if event is None or not self._is_releasable(event, timezone.now()):
-            raise EventNotFinishedError(str(settlement.event_id))
+    def approve_payout(
+        self, settlement_id: uuid.UUID | str, *, gateway: str, actor_id: uuid.UUID | str
+    ) -> None:
+        """An operator approves ONE settlement's payout and names the gateway
+        that pays it. Records who and when, then enqueues the release — the
+        external payout still runs OFF the request path.
+
+        Refused for a settlement already paid (it would imply paying twice),
+        for an event whose refund window is still open (`net` is not final),
+        and for a gateway that cannot pay organizers on this server. Approving
+        a dead-lettered settlement again is the supported way to re-drive it,
+        optionally through a different gateway."""
+        chosen = str(gateway or "").strip().lower()
+        if chosen not in self._payout_gateways():
+            raise PayoutGatewayNotAvailableError(chosen)
+
+        with UnitOfWork():
+            s = self._settlements.lock_for_update(settlement_id)
+            if s is None:
+                raise SettlementNotFoundError(str(settlement_id))
+            if s.status == SettlementStatus.PAID:
+                raise SettlementAlreadyPaidError(str(settlement_id))
+            event = self._events.get_for_settlement(s.event_id)
+            if event is None or not self._is_releasable(event, timezone.now()):
+                raise EventNotFinishedError(str(s.event_id))
+            s.payout_gateway = chosen
+            s.approved_by_id = actor_id
+            s.approved_at = timezone.now()
+            self._settlements.save(s)
+            record_audit(
+                actor_id=str(actor_id),
+                action="settlement.approved",
+                target_type="settlement",
+                target_id=str(s.id),
+                metadata={"gateway": chosen},
+            )
         self._task_queue.enqueue(RELEASE_TASK, {"settlement_id": str(settlement_id)})
 
     def release_payout(self, settlement_id: uuid.UUID | str) -> None:
@@ -152,6 +190,14 @@ class SettlementService:
                 return
             if not self._is_releasable(event, timezone.now()):
                 raise EventNotFinishedError(str(s.event_id))
+            if s.approved_at is None or not s.payout_gateway:
+                # Nothing leaves the platform without an operator's say-so, and
+                # the gateway they chose is the one that pays. A stray enqueue
+                # (a stale task, a hand-run command) stops here.
+                logger.warning(
+                    "settlements.release_unapproved_skipped", extra={"settlement_id": str(s.id)}
+                )
+                return
 
             # AUTHORITATIVE recompute from the payment records (source of truth),
             # under the lock — the running totals never decide the payout.
@@ -182,7 +228,7 @@ class SettlementService:
                 return
 
             try:
-                provider_ref = self._port.release_payout(
+                provider_ref = self._port_for(s.payout_gateway).release_payout(
                     account_id=account_id,
                     amount_minor=net,
                     idempotency_key=f"settlement:{s.id}",

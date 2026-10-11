@@ -252,3 +252,14 @@ def refund(service, *, event, payment: Payment) -> None:
         reason="test",
     )
     service.apply_refund(event=event, amount=payment.amount_minor)
+
+
+def approve(settlement, gateway: str = "fake") -> None:
+    """Mark a settlement operator-approved, as `approve_payout` would — direct,
+    so tests of the RELEASE rules do not each re-test approval."""
+    from apps.settlements.models import Settlement
+
+    Settlement.objects.filter(pk=settlement.id).update(
+        payout_gateway=gateway, approved_at=timezone.now()
+    )
+    settlement.refresh_from_db()

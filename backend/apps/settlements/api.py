@@ -19,7 +19,7 @@ from config.di import build_settlement_service
 
 from .exceptions import NotSettlementOwnerError, SettlementNotFoundError
 from .pagination import SettlementCursorPagination
-from .schemas import SettlementSerializer
+from .schemas import ApprovePayoutRequestSerializer, SettlementSerializer
 from .selectors import get_settlement, list_settlements
 
 
@@ -57,14 +57,25 @@ class OrganizerSettlementDetailView(APIView):
 
 
 class AdminSettlementReleaseView(APIView):
-    # Guarded manual trigger — staff/admin only. The primary release path is the
-    # scheduled job; this exists for ops (e.g. re-driving a dead-lettered payout
-    # after fixing a linked account).
+    """POST /admin/settlements/{id}/release — APPROVE a payout.
+
+    Staff only. The body names the gateway that pays it (`{"gateway":
+    "razorpay"}`); the scheduled job never releases a settlement nobody has
+    approved. The route keeps its old name so bookmarks and scripts survive."""
+
     permission_classes = [IsAdminUser]
 
-    @extend_schema(request=None, responses={202: None})
+    @extend_schema(
+        request=ApprovePayoutRequestSerializer,
+        responses={202: None},
+        operation_id="admin_settlement_approve",
+    )
     def post(self, request: Request, settlement_id: str) -> Response:
-        # Pre-checks the event is finished (EventNotFinished surfaces as 409),
-        # then enqueues — the external payout still runs off the request path.
-        build_settlement_service().request_release(settlement_id)
-        return _no_store(Response({"status": "release_initiated"}))
+        body = ApprovePayoutRequestSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        build_settlement_service().approve_payout(
+            settlement_id,
+            gateway=body.validated_data["gateway"],
+            actor_id=cast(User, request.user).id,
+        )
+        return _no_store(Response({"status": "payout_approved"}, status=202))

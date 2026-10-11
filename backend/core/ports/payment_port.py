@@ -330,3 +330,12 @@ class SimulatedPaymentPort(ABC):
         id on every call would let a double-click write two ledger rows and two
         `Payment` records for one order.
         """
+
+
+#: Gateways whose adapter can really PAY an organizer (create linked accounts,
+#: release a held transfer). Cashfree takes payments and refunds but its Easy
+#: Split / payouts product is not onboarded, so its adapter raises on every
+#: payout method — offering it as a payout choice would be a button that can
+#: only fail, weeks after the event. Add a gateway here when its adapter
+#: implements `release_payout` for real.
+PAYOUT_CAPABLE_GATEWAYS = frozenset({"razorpay", "fake"})

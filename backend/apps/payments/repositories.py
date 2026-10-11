@@ -11,6 +11,7 @@ from django.db.models import Sum
 from core.base_repository import BaseRepository
 
 from .models import (
+    GatewaySetting,
     Payment,
     PaymentStatus,
     ProcessedWebhook,
@@ -336,3 +337,18 @@ class RefundRequestRepository(BaseRepository[RefundRequest]):
 
     def count_pending(self) -> int:
         return RefundRequest.objects.filter(status=RefundRequestStatus.PENDING).count()
+
+
+class GatewaySettingRepository:
+    """The one-row admin switch. Not a `BaseRepository`: there is no list, no
+    pagination and no id a caller ever holds."""
+
+    def get_active(self) -> str:
+        row = GatewaySetting.objects.only("active_gateway").first()
+        return row.active_gateway if row else ""
+
+    def set_active(self, gateway: str, *, user_id: uuid.UUID | str | None) -> None:
+        GatewaySetting.objects.update_or_create(
+            singleton=True,
+            defaults={"active_gateway": gateway, "updated_by_id": user_id},
+        )

@@ -515,6 +515,8 @@ class ConsoleRepository:
                 "net",
                 "releasable_at",
                 "payout_at",
+                "payout_gateway",
+                "approved_at",
                 "attempts",
                 "error",
                 "created_at",

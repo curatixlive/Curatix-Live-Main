@@ -174,7 +174,7 @@ def _gateway_is_usable(name: str) -> bool:
 
 
 @lru_cache(maxsize=1)
-def enabled_payment_gateways() -> tuple[tuple[str, ...], str]:
+def _configured_gateways() -> tuple[tuple[str, ...], str]:
     """`(offerable gateway names, the default)` — the ONE place that decides
     what a checkout may present.
 
@@ -228,6 +228,72 @@ def enabled_payment_gateways() -> tuple[tuple[str, ...], str]:
     preferred = str(settings.PAYMENTS_DEFAULT_GATEWAY or "").strip().lower()
     default = preferred if preferred in names else names[0]
     return tuple(names), default
+
+
+#: The admin's live gateway switch (`payments.GatewaySetting`) is read through
+#: the cache so checkout does not pay a query per request for it. 30s is the
+#: staleness ceiling on a process that missed the invalidation (locmem is per
+#: process); `set_active_gateway` deletes the key, so the common case is instant.
+ACTIVE_GATEWAY_CACHE_KEY = "payments:gateway:active"
+ACTIVE_GATEWAY_TTL_SECONDS = 30
+
+
+def _active_gateway_override() -> str:
+    """The admin's chosen gateway, or "" for "no override".
+
+    Never raises: a database or cache hiccup here must not take checkout down
+    — it falls back to the deployment's configured default, which is exactly
+    what the platform did before the switch existed.
+    """
+    try:
+        cache = cache_port()
+        cached = cache.get(ACTIVE_GATEWAY_CACHE_KEY)
+        if cached is not None:
+            return str(cached)
+        from apps.payments.repositories import GatewaySettingRepository
+
+        value = GatewaySettingRepository().get_active()
+        cache.set(ACTIVE_GATEWAY_CACHE_KEY, value, timeout_seconds=ACTIVE_GATEWAY_TTL_SECONDS)
+        return value
+    except Exception:  # noqa: BLE001 — see docstring
+        logger.warning("payments.gateway_override_unreadable", exc_info=True)
+        return ""
+
+
+def enabled_payment_gateways() -> tuple[tuple[str, ...], str]:
+    """What a checkout may present, with the admin's switch applied.
+
+    The configured set (`_configured_gateways`) says which gateways this
+    deployment HAS credentials for. The switch only chooses among them: when an
+    admin has picked one that is usable, checkout offers exactly that one — no
+    selector, and no way for a stale browser to land on the other. A pick that
+    is no longer usable (credentials removed since) is ignored, never obeyed.
+    """
+    names, default = _configured_gateways()
+    if default == "fake":
+        return names, default
+    chosen = _active_gateway_override()
+    if chosen and chosen in names:
+        return (chosen,), chosen
+    return names, default
+
+
+def reset_gateway_cache() -> None:
+    """Drop the memoised configured set (tests, and settings overrides)."""
+    _configured_gateways.cache_clear()
+
+
+def payout_gateways() -> frozenset[str]:
+    """Gateways an operator may approve a payout through: the adapter can really
+    pay an organizer AND this server has its credentials."""
+    from core.ports.payment_port import PAYOUT_CAPABLE_GATEWAYS
+
+    usable = {
+        name for name in PAYOUT_CAPABLE_GATEWAYS if name != "fake" and _gateway_is_usable(name)
+    }
+    if str(settings.PAYMENTS_BACKEND) == "fake":
+        usable.add("fake")
+    return frozenset(usable)
 
 
 def resolve_payment_gateway(requested: str) -> str:
@@ -918,6 +984,20 @@ def build_booking_service() -> BookingService:
     )
 
 
+def build_gateway_switch_service():
+    """The admin's checkout-gateway switch (`payments.GatewaySwitchService`)."""
+    from apps.payments.repositories import GatewaySettingRepository
+    from apps.payments.services import GatewaySwitchService
+
+    return GatewaySwitchService(
+        settings_repo=GatewaySettingRepository(),
+        cache=cache_port(),
+        configured=_configured_gateways,
+        known=tuple(name for name in _GATEWAY_CREDENTIALS if name != "fake"),
+        cache_key=ACTIVE_GATEWAY_CACHE_KEY,
+    )
+
+
 def build_payment_service() -> PaymentService:
     from apps.booking.repositories import BookingRepository
     from apps.payments.repositories import (
@@ -1069,6 +1149,9 @@ def build_settlement_service() -> SettlementService:
         # The ROUTE provider: `release_payout` settles an ON-HOLD transfer to a
         # linked account, and only the provider that issued that account can.
         payments_port=route_payment_port(),
+        # The gateway the operator approved a payout through picks the adapter.
+        port_for=payment_port,
+        payout_gateways=payout_gateways,
         task_queue=task_queue_port(),
         refund_window_hours=settings.SETTLEMENT_REFUND_WINDOW_HOURS,
         max_attempts=settings.SETTLEMENT_MAX_ATTEMPTS,

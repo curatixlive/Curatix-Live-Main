@@ -6,6 +6,16 @@ import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ExternalLink, ShieldCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Modal,
+  ModalContent,
+  ModalDescription,
+  ModalFooter,
+  ModalHeader,
+  ModalTitle,
+} from '@/components/ui/modal';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio';
+import { GATEWAY_LABEL } from './gateway-switch';
 import { useToast } from '@/components/ui/toast';
 import {
   type AdminOrganization,
@@ -17,7 +27,8 @@ import {
   fetchAdminSettlements,
   fetchAdminUsers,
   fetchPendingVerifications,
-  releaseSettlement,
+  approvePayout,
+  fetchPaymentGateway,
 } from '@/lib/api/admin';
 import { errorMessage } from '@/lib/api/errors';
 import { formatEventDate, formatMoney } from '@/lib/discovery/format';
@@ -356,13 +367,24 @@ export function SettlementsList() {
     queryFn: () => fetchAdminSettlements({ status }),
   });
 
+  // Which gateways can actually PAY an organizer — configured on the server AND
+  // supported by the adapter. Cashfree takes payments but cannot pay out yet, so
+  // it is never offered here: a choice that can only fail, weeks after the event.
+  const gateways = useQuery({ queryKey: ['admin-payment-gateway'], queryFn: fetchPaymentGateway });
+  const payoutGateways = (gateways.data?.gateways ?? []).filter(
+    (g) => g.configured && g.can_pay_out,
+  );
+  const [approving, setApproving] = React.useState<AdminSettlement | null>(null);
+  const [payoutGateway, setPayoutGateway] = React.useState('');
+
   const release = useMutation({
-    mutationFn: (id: string) => releaseSettlement(id),
+    mutationFn: ({ id, gateway }: { id: string; gateway: string }) => approvePayout(id, gateway),
     onSuccess: () => {
       // 202 Accepted: the payout runs off the request path, so this says
-      // "queued", not "paid". Claiming success for money that hasn't moved is
-      // the one thing this screen must never do.
-      toast({ title: 'Payout release queued', variant: 'success' });
+      // "approved and queued", not "paid". Claiming success for money that
+      // hasn't moved is the one thing this screen must never do.
+      toast({ title: 'Payout approved and queued', variant: 'success' });
+      setApproving(null);
       void client.invalidateQueries({ queryKey: ['admin-settlements'] });
       void client.invalidateQueries({ queryKey: ['admin-overview'] });
     },
@@ -439,12 +461,14 @@ export function SettlementsList() {
         row.status === 'paid' ? null : (
           <Button
             size="sm"
-            variant="outline"
+            variant={row.awaiting_approval ? 'primary' : 'outline'}
             className={TOUCH_DENSE}
-            loading={release.isPending && release.variables === row.id}
-            onClick={() => release.mutate(row.id)}
+            onClick={() => {
+              setPayoutGateway(payoutGateways[0]?.id ?? '');
+              setApproving(row);
+            }}
           >
-            Release
+            {row.status === 'failed' ? 'Re-approve' : 'Approve payout'}
           </Button>
         ),
     },
@@ -453,7 +477,7 @@ export function SettlementsList() {
   return (
     <ListPage
       title="Settlements"
-      description="Organizer payouts. Release re-drives a dead-lettered payout; it never pays twice."
+      description="Organizer payouts. Nothing is paid until you approve it and pick the gateway; approving never pays twice."
     >
       <DataTable
         rows={data?.data ?? []}
@@ -475,6 +499,51 @@ export function SettlementsList() {
           ) : undefined
         }
       />
+      <Modal open={approving !== null} onOpenChange={(open) => !open && setApproving(null)}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>Approve payout</ModalTitle>
+            <ModalDescription>
+              {approving
+                ? `${formatMoney(approving.net)} to the organizer of "${approving.event_title}". Choose the gateway that pays it.`
+                : null}
+            </ModalDescription>
+          </ModalHeader>
+          {payoutGateways.length === 0 ? (
+            <p className="text-sm text-destructive-subtle-foreground">
+              No gateway on this server can pay organizers right now, so a payout cannot be
+              approved.
+            </p>
+          ) : (
+            <RadioGroup value={payoutGateway} onValueChange={setPayoutGateway}>
+              {payoutGateways.map((g) => (
+                <label
+                  key={g.id}
+                  htmlFor={`payout-${g.id}`}
+                  className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm font-medium"
+                >
+                  <RadioGroupItem id={`payout-${g.id}`} value={g.id} />
+                  {GATEWAY_LABEL[g.id] ?? g.id}
+                </label>
+              ))}
+            </RadioGroup>
+          )}
+          <ModalFooter>
+            <Button variant="outline" onClick={() => setApproving(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!payoutGateway || !approving}
+              loading={release.isPending}
+              onClick={() =>
+                approving && release.mutate({ id: approving.id, gateway: payoutGateway })
+              }
+            >
+              Approve and pay
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </ListPage>
   );
 }

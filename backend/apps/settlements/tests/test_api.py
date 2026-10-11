@@ -103,7 +103,7 @@ def test_detail_missing_settlement_is_404(api_client, token_for, organizer, upco
 def test_admin_release_requires_staff(api_client, token_for, organizer, finished_event):
     s = _make_settlement(finished_event)
     _auth(api_client, token_for, organizer)  # a normal organizer, not staff
-    assert api_client.post(_release_url(s.id)).status_code == 403
+    assert api_client.post(_release_url(s.id), {"gateway": "fake"}).status_code == 403
 
 
 @pytest.mark.django_db
@@ -113,7 +113,7 @@ def test_admin_release_before_event_is_conflict(api_client, token_for, upcoming_
     User.objects.filter(pk=admin.id).update(is_staff=True)
 
     _auth(api_client, token_for, admin)
-    resp = api_client.post(_release_url(s.id))
+    resp = api_client.post(_release_url(s.id), {"gateway": "fake"}, format="json")
     assert resp.status_code == 409
     assert resp.data["error"]["code"] == "event_not_finished"
 
@@ -154,3 +154,41 @@ def test_pending_settlement_reports_when_it_releases(
     row = next(r for r in resp.data["data"] if r["id"] == str(settlement.id))
     assert row["status"] == "pending"
     assert row["releasable_at"] is not None
+
+
+def _admin(token_for, api_client):
+    admin = User.objects.create_user(email="approver@example.com", password="s3cur3pass")
+    User.objects.filter(pk=admin.id).update(is_staff=True)
+    _auth(api_client, token_for, admin)
+    return admin
+
+
+@pytest.mark.django_db
+def test_admin_approval_requires_a_gateway(api_client, token_for, finished_event):
+    s = _make_settlement(finished_event)
+    _admin(token_for, api_client)
+    assert api_client.post(_release_url(s.id), {}, format="json").status_code == 400
+
+
+@pytest.mark.django_db
+def test_admin_approval_refuses_a_gateway_that_cannot_pay_out(
+    api_client, token_for, finished_event
+):
+    s = _make_settlement(finished_event)
+    _admin(token_for, api_client)
+    resp = api_client.post(_release_url(s.id), {"gateway": "cashfree"}, format="json")
+    assert resp.status_code == 422
+    assert resp.data["error"]["code"] == "payout_gateway_not_available"
+    s.refresh_from_db()
+    assert s.approved_at is None
+
+
+@pytest.mark.django_db
+def test_admin_approval_records_the_decision(api_client, token_for, finished_event):
+    s = _make_settlement(finished_event)
+    admin = _admin(token_for, api_client)
+    resp = api_client.post(_release_url(s.id), {"gateway": "fake"}, format="json")
+    assert resp.status_code == 202
+    s.refresh_from_db()
+    assert (s.payout_gateway, s.approved_by_id) == ("fake", admin.id)
+    assert s.approved_at is not None

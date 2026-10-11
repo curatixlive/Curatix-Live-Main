@@ -18,7 +18,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
-from config.di import build_payment_service, build_refund_request_service
+from config.di import (
+    build_gateway_switch_service,
+    build_payment_service,
+    build_refund_request_service,
+)
 from core.throttling import WebhookThrottle, WriteThrottle
 
 from .exceptions import NotAllowedToViewPaymentError, PaymentNotFoundError
@@ -26,10 +30,12 @@ from .models import RefundRequestStatus
 from .pagination import PendingRefundRequestPagination, RefundRequestPagination
 from .repositories import RefundRequestRepository
 from .schemas import (
+    GatewaySwitchSerializer,
     PaymentSerializer,
     RefundDecisionSerializer,
     RefundRequestCreateSerializer,
     RefundRequestSerializer,
+    SetGatewayRequestSerializer,
     SimulatePaymentRequestSerializer,
     VerifyPaymentRequestSerializer,
     VerifyPaymentResponseSerializer,
@@ -405,3 +411,34 @@ class AdminRefundRequestListView(_RefundRequestListMixin, APIView):
     def get(self, request: Request) -> Response:
         queryset = RefundRequestRepository().list_all(status=request.query_params.get("status"))
         return self._paginate(request, queryset)
+
+
+class AdminGatewayView(APIView):
+    """GET/PUT /admin/payment-gateway — which gateway checkout uses.
+
+    Staff-only and `no-store`. PUT chooses among the gateways this server has
+    credentials for; anything else is a 422 `gateway_not_available`.
+    """
+
+    permission_classes = [IsAdminUser]
+
+    @extend_schema(responses={200: GatewaySwitchSerializer}, operation_id="admin_payment_gateway")
+    def get(self, request: Request) -> Response:
+        response = Response(build_gateway_switch_service().describe())
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    @extend_schema(
+        request=SetGatewayRequestSerializer,
+        responses={200: GatewaySwitchSerializer},
+        operation_id="admin_payment_gateway_set",
+    )
+    def put(self, request: Request) -> Response:
+        body = SetGatewayRequestSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        result = build_gateway_switch_service().set_active(
+            body.validated_data["gateway"], actor_id=str(cast(User, request.user).id)
+        )
+        response = Response(result)
+        response["Cache-Control"] = "private, no-store"
+        return response

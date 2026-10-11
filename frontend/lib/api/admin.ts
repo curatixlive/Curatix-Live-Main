@@ -127,9 +127,33 @@ export type AdminSettlement = {
   net: number;
   releasable_at: string | null;
   payout_at: string | null;
+  /** Which gateway an operator approved the payout through ("" until approved). */
+  payout_gateway: string;
+  approved_at: string | null;
+  /** Due, unpaid and unapproved — the operator's work list. */
+  awaiting_approval: boolean;
   attempts: number;
   error: string;
   created_at: string;
+};
+
+export type PaymentGatewayId = 'razorpay' | 'cashfree';
+
+export type PaymentGatewayChoice = {
+  id: PaymentGatewayId;
+  /** This server has the credentials, so it can be chosen. */
+  configured: boolean;
+  /** The adapter can really pay an organizer. Cashfree cannot yet. */
+  can_pay_out: boolean;
+};
+
+export type PaymentGatewaySwitch = {
+  /** What checkout uses right now. */
+  active: PaymentGatewayId;
+  /** The admin's pick, or "" when the deployment's own default is in force. */
+  override: string;
+  default: PaymentGatewayId;
+  gateways: PaymentGatewayChoice[];
 };
 
 export type PendingVerification = {
@@ -174,8 +198,7 @@ export const fetchAdminOrganizations = (
 
 export const fetchAdminUsers = (
   params: { q?: string; role?: string; cursor?: string } & DateWindow = {},
-) =>
-  api.get<Paginated<AdminUser>>(`/admin/users${query(params)}`);
+) => api.get<Paginated<AdminUser>>(`/admin/users${query(params)}`);
 
 export const fetchAdminSettlements = (params: { status?: string; cursor?: string } = {}) =>
   api.get<Paginated<AdminSettlement>>(`/admin/settlements${query(params)}`);
@@ -190,9 +213,18 @@ export const decideVerification = (organizationId: string, approve: boolean, not
     notes,
   });
 
-/** Re-drive a dead-lettered payout. The pre-existing admin endpoint. */
-export const releaseSettlement = (settlementId: string) =>
-  api.post<void>(`/admin/settlements/${encodeURIComponent(settlementId)}/release`, {});
+/**
+ * APPROVE a payout through a named gateway. The route keeps its old name; the
+ * gateway is required because nothing leaves the platform through a provider
+ * nobody chose, and approving a dead-lettered payout again re-drives it.
+ */
+export const approvePayout = (settlementId: string, gateway: string) =>
+  api.post<void>(`/admin/settlements/${encodeURIComponent(settlementId)}/release`, { gateway });
+
+export const fetchPaymentGateway = () => api.get<PaymentGatewaySwitch>('/admin/payment-gateway');
+
+export const setPaymentGateway = (gateway: PaymentGatewayId) =>
+  api.put<PaymentGatewaySwitch>('/admin/payment-gateway', { gateway });
 
 function query(params: Record<string, string | undefined>): string {
   const search = new URLSearchParams();
@@ -276,8 +308,7 @@ export const fetchModerationQueue = (
     starts_before?: string;
     cursor?: string;
   } = {},
-) =>
-  api.get<Paginated<ModerationEntry>>(`/admin/events/pending${query(params)}`);
+) => api.get<Paginated<ModerationEntry>>(`/admin/events/pending${query(params)}`);
 
 /** Approve, or reject with a reason the organizer can act on (required). */
 export const moderateEvent = (eventId: string, approve: boolean, note = '') =>
@@ -379,8 +410,7 @@ export type AdminPayment = {
 
 export const fetchAdminPayments = (
   params: { status?: string; q?: string; cursor?: string } & DateWindow = {},
-) =>
-  api.get<Paginated<AdminPayment>>(`/admin/payments${query(params)}`);
+) => api.get<Paginated<AdminPayment>>(`/admin/payments${query(params)}`);
 
 /**
  * A refund RECORD — money already returned.
@@ -553,8 +583,7 @@ export type AdminBookingDetail = AdminBooking & {
 /** One `q` across email, booking id (prefix), payment reference and event title. */
 export const fetchAdminBookings = (
   params: { q?: string; status?: string; event_id?: string; cursor?: string } & DateWindow = {},
-) =>
-  api.get<Paginated<AdminBooking>>(`/admin/bookings${query(params)}`);
+) => api.get<Paginated<AdminBooking>>(`/admin/bookings${query(params)}`);
 
 export const fetchAdminBooking = (bookingId: string) =>
   api.get<AdminBookingDetail>(`/admin/bookings/${encodeURIComponent(bookingId)}`);
@@ -619,12 +648,7 @@ export type AdminEnquiry = {
 /** The four an operator can move between. `cancelled` is absent because it is
  *  the CUSTOMER's word for their own request — an operator marking somebody's
  *  enquiry withdrawn on their behalf is a different act from closing it. */
-export type EnquiryStatus =
-  | 'new'
-  | 'in_progress'
-  | 'closed_won'
-  | 'closed_lost'
-  | 'cancelled';
+export type EnquiryStatus = 'new' | 'in_progress' | 'closed_won' | 'closed_lost' | 'cancelled';
 
 export const fetchAdminEnquiries = (
   params: { status?: string; q?: string; cursor?: string } = {},
@@ -685,7 +709,7 @@ export type AdminCrewMember = {
  */
 export const fetchAdminOrganizationCrew = (organizationId: string) =>
   api
-    .get<{ data: AdminCrewMember[] }>(
-      `/admin/organizations/${encodeURIComponent(organizationId)}/crew`,
-    )
+    .get<{
+      data: AdminCrewMember[];
+    }>(`/admin/organizations/${encodeURIComponent(organizationId)}/crew`)
     .then((page) => page.data);

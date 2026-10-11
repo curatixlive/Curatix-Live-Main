@@ -32,3 +32,12 @@ class SettlementSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = fields
+
+
+class ApprovePayoutRequestSerializer(serializers.Serializer):
+    """The operator names the gateway on every approval — there is no default,
+    so a payout can never go out through a provider nobody chose."""
+
+    # Validated by the service against what this server can really pay through
+    # (`config.di.payout_gateways`), so the set is never restated here.
+    gateway = serializers.CharField(max_length=16)
