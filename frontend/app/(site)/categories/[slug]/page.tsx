@@ -5,7 +5,7 @@ import { Container } from '@/components/shell/container';
 import { EventGrid } from '@/components/discovery/event-grid';
 import { RowEmpty, RowError } from '@/components/discovery/row-states';
 import { CategoryHero } from '@/components/discovery/category-hero';
-import { PUBLIC_LIST_REVALIDATE_SECONDS, fetchEventsSafe } from '@/lib/api/events';
+import { fetchEventsSafe } from '@/lib/api/events';
 import { CATEGORIES, categoryBySlug } from '@/lib/discovery/categories';
 import { browseHref } from '@/lib/discovery/filters';
 import { eventToJsonLd } from '@/lib/discovery/seo';
@@ -18,7 +18,9 @@ import { SITE_URL, pageMetadata } from '@/lib/seo/metadata';
  * events on them, and an ItemList + BreadcrumbList for the crawler. The
  * interactive browse surface is one link away.
  */
-export const revalidate = PUBLIC_LIST_REVALIDATE_SECONDS;
+// A LITERAL on purpose: Next 15 statically analyses segment config and rejects an
+// imported constant. `lib/api/revalidate.test.ts` pins this to PUBLIC_LIST_REVALIDATE_SECONDS.
+export const revalidate = 30;
 
 export function generateStaticParams() {
   return CATEGORIES.map((category) => ({ slug: category.slug }));

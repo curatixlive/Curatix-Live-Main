@@ -1,3 +1,7 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /**
  * Hosts `next/image` may optimise from.
  *
@@ -85,6 +89,9 @@ const nextConfig = {
    * `next start` and `next dev` are unaffected; this only ADDS an output.
    */
   output: 'standalone',
+  // The repo root also has a package.json (Neon's config), so Next would infer the
+  // wrong workspace root and trace files from the wrong place. Pin it here.
+  outputFileTracingRoot: path.join(__dirname),
   // Performance: tree-shake icon imports so we never ship the whole Lucide set.
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],

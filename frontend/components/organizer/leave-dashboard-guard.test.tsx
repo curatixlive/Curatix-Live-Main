@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-html-link-for-pages -- plain anchors are the subject of this test: it asserts how raw links behave, not how the app navigates */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

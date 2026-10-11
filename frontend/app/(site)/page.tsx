@@ -1,7 +1,6 @@
 import * as React from 'react';
 import type { Metadata } from 'next';
 import { HomeBody } from '@/components/discovery/home-body';
-import { PUBLIC_LIST_REVALIDATE_SECONDS } from '@/lib/api/events';
 import { JsonLd, webSiteJsonLd } from '@/lib/seo/json-ld';
 import { SITE_NAME, SITE_URL, pageMetadata } from '@/lib/seo/metadata';
 
@@ -24,7 +23,9 @@ import { SITE_NAME, SITE_URL, pageMetadata } from '@/lib/seo/metadata';
  * own `s-maxage=30` on `GET /events`, so the page, the Next data cache and the
  * edge age on one clock rather than three.
  */
-export const revalidate = PUBLIC_LIST_REVALIDATE_SECONDS;
+// A LITERAL on purpose: Next 15 statically analyses segment config and rejects an
+// imported constant. `lib/api/revalidate.test.ts` pins this to PUBLIC_LIST_REVALIDATE_SECONDS.
+export const revalidate = 30;
 
 export const metadata: Metadata = {
   ...pageMetadata(

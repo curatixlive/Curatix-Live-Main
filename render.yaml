@@ -61,6 +61,11 @@ envVarGroups:
       # Behind a transaction pooler both of these must be off: the pooler
       # already reuses connections, and server-side cursors need affinity it
       # does not provide.
+      # Render's load balancer is ONE proxy that prepends to X-Forwarded-For.
+      # At 0 every visitor shares the proxy's IP, so the anonymous rate limit
+      # (120/min) becomes one bucket for the whole site.
+      - key: NUM_PROXIES
+        value: "1"
       - key: CONN_MAX_AGE
         value: "0"
       - key: DISABLE_SERVER_SIDE_CURSORS
@@ -91,12 +96,16 @@ envVarGroups:
         value: s3
       - key: EMAIL_PROVIDER
         value: smtp
+      # `disabled`, NOT `console`: console is a fake that logs "sent" while no
+      # OTP is delivered, and production refuses to boot on it. `disabled` is the
+      # supported way to launch before DLT registration clears (email still
+      # sends tickets). Switch to `http` with the SMS_* keys afterwards.
       - key: SMS_PROVIDER
-        value: console      # DLT registration takes weeks; console until then
+        value: disabled
       - key: QUEUE_BACKEND
         value: local        # the `worker` service IS the queue
       - key: EVENT_BUS_BACKEND
-        value: local
+        value: inprocess
 
       # ── Vendor credentials ──────────────────────────────────────────────
       - key: RAZORPAY_KEY_ID
