@@ -830,11 +830,11 @@
  * ILLUSTRATION MOTION -- the only animation the drawn scenes ever get.
  *
  * WHY THESE LIVE HERE AND NOT IN A COMPONENT
- * `sign-in-art.tsx` puts its keyframes in a scoped <style> because exactly one
+ * `sign-in-art.tsx` puts its keyframes in a scoped \3c style> because exactly one
  * component uses them; the house rule it writes down is that SHARED effects
  * (`.skeleton`, `.glass`) belong in a stylesheet. These are shared by eight
  * illustrations across two files, and React 18 does not hoist or dedupe a
- * <style> tag -- eight copies of the same sheet would be in the DOM of the
+ * \3c style> tag -- eight copies of the same sheet would be in the DOM of the
  * homepage. They sit beside the `--duration-*` / `--ease-*` tokens because
  * that is where this file already keeps motion, and the `illo-` prefix keeps
  * the global keyframe namespace honest about who owns them.
@@ -1643,4 +1643,121 @@ a:focus-visible .illo-r-hop {
   .settings-wave {
     animation: none;
   }
+}
+
+/* ── THEME TOGGLE SCENE ──────────────────────────────────────────────────────
+   The sun/moon in `components/shell/theme-toggle.tsx`. It is an illustration,
+   not a surface, so its colours are fixed here rather than derived from the
+   page tokens (the sky must stay blue-then-indigo whatever the palette does).
+   Everything keys off the `.dark` class on <html>, so it is correct on first
+   paint with no JavaScript, and animates only transform/opacity/background.
+   One 600ms timing for every moving part keeps them in step; reduced motion
+   gets the end state instantly. */
+.theme-scene {
+  position: relative;
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgb(124 196 255) 0%, rgb(212 236 255) 100%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.1);
+}
+
+.theme-scene *,
+.theme-scene {
+  transition:
+    transform 600ms ease-in-out,
+    opacity 600ms ease-in-out,
+    background-color 600ms ease-in-out;
+}
+
+.theme-scene > span {
+  position: absolute;
+  display: block;
+  border-radius: 9999px;
+}
+
+.theme-scene__sun,
+.theme-scene__moon {
+  left: 50%;
+  top: 22%;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-left: -0.4375rem;
+}
+
+.theme-scene__sun {
+  background: rgb(255 183 32);
+  box-shadow: 0 0 0.5rem 0.125rem rgb(255 183 32 / 0.6);
+}
+
+.theme-scene__moon {
+  background: rgb(244 241 222);
+  box-shadow: inset -0.1875rem -0.0625rem 0 0 rgb(201 197 173);
+  transform: translateY(160%);
+  opacity: 0;
+}
+
+.theme-scene__star {
+  width: 0.1875rem;
+  height: 0.1875rem;
+  background: rgb(255 255 255);
+  opacity: 0;
+}
+
+.theme-scene__star:nth-of-type(1) {
+  left: 22%;
+  top: 24%;
+}
+
+.theme-scene__star:nth-of-type(2) {
+  left: 68%;
+  top: 18%;
+  width: 0.125rem;
+  height: 0.125rem;
+}
+
+.theme-scene__star:nth-of-type(3) {
+  left: 78%;
+  top: 46%;
+}
+
+.theme-scene__hill {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26%;
+  border-radius: 60% 60% 0 0;
+  background: rgb(59 143 79);
+}
+
+.dark .theme-scene {
+  background: linear-gradient(180deg, rgb(11 16 38) 0%, rgb(37 42 92) 100%);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.15);
+}
+
+.dark .theme-scene__sun {
+  transform: translateY(160%);
+  opacity: 0;
+}
+
+.dark .theme-scene__moon {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.dark .theme-scene__star {
+  opacity: 0.85;
+}
+
+.dark .theme-scene__hill {
+  background: rgb(16 22 46);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-scene,
+  .theme-scene * {
+  transition: none;
+}
 }

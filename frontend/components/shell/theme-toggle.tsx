@@ -1,6 +1,5 @@
 'use client';
 
-import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/lib/theme/theme-provider';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils/cn';
@@ -13,10 +12,21 @@ import { cn } from '@/lib/utils/cn';
  * toggle that renders the wrong glyph for a frame is the one control where
  * that is immediately obvious.
  *
- * They swap by ROTATING PAST EACH OTHER rather than hard-switching `hidden`,
- * which is the same trick and costs nothing extra: the sun winds out as the
- * moon winds in. It cannot fire on arrival either — a transition needs a
- * previous computed value to move from, and on first paint there isn't one.
+ * ── THE SCENE ─────────────────────────────────────────────────────────────
+ *
+ * A small sky in a circle. Going to dark, the SUN DIPS BELOW THE HORIZON while
+ * the sky deepens to night, the MOON RISES in its place and a few STARS fade
+ * in; going to light, the same in reverse. It is pure CSS — `transform`,
+ * `opacity` and one background colour, keyed off the `dark` class on <html> —
+ * so it is hydration-safe (the server cannot know the theme, and a CSS
+ * selector needs no JS to be right on first paint), costs no animation library,
+ * and cannot fire on arrival: a transition needs a previous computed value to
+ * move from, and on first paint there isn't one.
+ *
+ * 600ms, ease-in-out, and every part is `motion-reduce:transition-none`, so a
+ * viewer who asked for less motion gets the end state at once. Rapid repeated
+ * presses just retarget the running transitions; nothing queues, and nothing
+ * here delays a navigation or a booking action.
  *
  * ── TWO THINGS HERE ARE LOAD-BEARING ──────────────────────────────────────
  *
@@ -41,9 +51,15 @@ export function ThemeToggle({ className }: { className?: string }) {
       className={cn('rounded-full', className)}
       aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}
     >
-      <span className="relative inline-flex size-5 items-center justify-center" aria-hidden>
-        <Sun className="absolute size-5 rotate-0 scale-100 transition-transform duration-base ease-spring motion-reduce:transition-none dark:-rotate-90 dark:scale-0" />
-        <Moon className="absolute size-5 rotate-90 scale-0 transition-transform duration-base ease-spring motion-reduce:transition-none dark:rotate-0 dark:scale-100" />
+      {/* The scene and its colours live in `styles/tokens.css` (`.theme-scene`):
+          fixed illustration colours, not page tokens. */}
+      <span className="theme-scene" aria-hidden>
+        <span className="theme-scene__star" />
+        <span className="theme-scene__star" />
+        <span className="theme-scene__star" />
+        <span className="theme-scene__sun" />
+        <span className="theme-scene__moon" />
+        <span className="theme-scene__hill" />
       </span>
     </Button>
   );

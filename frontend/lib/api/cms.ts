@@ -82,7 +82,46 @@ export type HomepagePopularSearch = {
   query: string;
 };
 
+/**
+ * A promotional campaign for the homepage hero — an ADVERTISEMENT, not an event.
+ *
+ * ── THIS IS A CONTRACT THE BACKEND DOES NOT SERVE YET ────────────────────
+ *
+ * `GET /homepage` has no `campaigns` field and the CMS has no campaign model
+ * (see `docs/ADS_HERO_BACKEND_GAP.md`). The type exists so the hero component
+ * and its scheduling/safety rules are built and tested against the shape the
+ * backend should return; until it does, `homepage.campaigns` is `undefined`,
+ * the promo hero renders nothing, and the page shows the event showcase exactly
+ * as before. Nothing here is ever filled with invented campaigns.
+ *
+ * It is deliberately NOT an `Event`: a campaign may point at an event (via
+ * `cta_href`) but has no price, inventory or date of its own.
+ */
+export type PromoCampaign = {
+  id: string;
+  kind: 'image' | 'video';
+  /** Image URL, or the video file URL for `kind: 'video'`. */
+  media_url: string;
+  /** Optional narrower crop served to phones. */
+  mobile_media_url?: string;
+  /** A still shown before a video loads, and to reduced-motion/data-saver viewers. */
+  poster_url?: string;
+  /** Describes the artwork for a screen reader. Required, like event alt text. */
+  alt_text: string;
+  title: string;
+  description?: string;
+  cta_label?: string;
+  /** A path on this site, or an https URL. Validated before use. */
+  cta_href?: string;
+  /** Lower first. */
+  position?: number;
+  starts_at?: string | null;
+  ends_at?: string | null;
+};
+
 export type Homepage = {
+  /** Admin-managed ads. Not served by the backend yet — see `PromoCampaign`. */
+  campaigns?: PromoCampaign[];
   hero: {
     headline: string;
     description: string;

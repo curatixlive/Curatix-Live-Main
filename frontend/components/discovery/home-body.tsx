@@ -2,7 +2,10 @@ import * as React from 'react';
 import { Suspense } from 'react';
 import { AllEvents, AllEventsSkeleton } from '@/components/discovery/all-events';
 import { CategoryTiles } from '@/components/discovery/category-tiles';
+import { CuratedRail } from '@/components/discovery/curated-rail';
 import { LocationPrompt } from '@/components/discovery/location-prompt';
+import { PartnerSection } from '@/components/discovery/partner-section';
+import { PromoHero } from '@/components/discovery/promo-hero';
 import { Showcase } from '@/components/discovery/showcase';
 import { Section, SectionHeader } from '@/components/discovery/section';
 import { SubscribeCard } from '@/components/discovery/subscribe-card';
@@ -86,6 +89,10 @@ export async function HomeBody() {
           two sections used to read two sources and could disagree about what
           was on next; both now read `fetchUpcomingEvents` — one memoised
           request — and the hero is a prefix of the grid below it. */}
+      {/* 0. The ADVERTISING hero — admin-managed campaigns, not events. Renders
+          nothing until the backend serves `campaigns` (docs/ADS_HERO_BACKEND_GAP.md). */}
+      <PromoHero campaigns={cms?.campaigns} />
+
       {/* 1. Hero Carousel Showcase */}
       <Showcase />
 
@@ -94,6 +101,16 @@ export async function HomeBody() {
         <SectionHeader title="Browse by mood" />
         <CategoryTiles categories={cms?.categories} />
       </Section>
+
+      {/* 2b. Operator-curated collections (`cms_featured_entry`). Each renders
+          NOTHING when empty — no placeholder, no auto-filled substitute — so a
+          collection appears only when somebody curated it. */}
+      <CuratedRail
+        collections={cms?.collections}
+        collection="editors_pick"
+        title="Editor's picks"
+        subtitle="Chosen by our team"
+      />
 
       {/* 3. Trending Events Horizontal Rail */}
       <Suspense fallback={<RailSectionSkeleton />}>
@@ -105,12 +122,27 @@ export async function HomeBody() {
         <SellingFastSection />
       </Suspense>
 
+      <CuratedRail
+        collections={cms?.collections}
+        collection="recommended"
+        title="Recommended for you"
+        subtitle="Hand-picked by our team"
+      />
+      <CuratedRail
+        collections={cms?.collections}
+        collection="new"
+        title="New on Curatix"
+        subtitle="Recently added to the platform"
+      />
+
       <LocationPrompt />
 
       {/* 5. All Events Discovery Grid */}
       <Suspense fallback={<AllEventsSkeleton />}>
         <AllEvents />
       </Suspense>
+
+      <PartnerSection />
 
       <HireABandSection />
 
