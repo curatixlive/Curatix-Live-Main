@@ -688,7 +688,7 @@ class TestCashfreeEnvironmentMatchesItsKeys:
     def test_a_test_key_against_the_live_host_warns_and_still_boots(self):
         warnings = check_production_settings(
             _Settings(
-                CASHFREE_APP_ID="TEST430329ae80e0f32e41a393d78b923034",
+                CASHFREE_APP_ID="TEST00000000000000000000000000000000",
                 CASHFREE_SECRET_KEY="cfsk_ma_test_x",
                 CASHFREE_ENVIRONMENT="production",
             ),
@@ -699,7 +699,7 @@ class TestCashfreeEnvironmentMatchesItsKeys:
     def test_sandbox_always_says_no_real_money_moves(self):
         """Regardless of what the key looks like. A soft launch is legitimate
         and never silent — the same rule `SMS_PROVIDER=disabled` follows."""
-        for app_id in ("TEST430329ae80e0f32e41a393d78b923034", "1043289abc2e1f"):
+        for app_id in ("TEST00000000000000000000000000000000", "1043289abc2e1f"):
             warnings = check_production_settings(
                 _Settings(
                     CASHFREE_APP_ID=app_id,
