@@ -1,0 +1,57 @@
+name: free-scheduler
+
+# The clock for a FREE test deployment.
+#
+# Render's free plan has no worker or cron service, so the platform's scheduled
+# jobs (release expired ticket holds, reconcile payments, release payouts,
+# notify the waiting list...) would never run. This calls the backend's own
+# task endpoint (`POST /internal/tasks/run`, guarded by a shared secret) every
+# 5 minutes. As a side effect the pings keep the free web service warm.
+#
+# It does NOTHING until you add two repository secrets:
+#   RENDER_API_URL        e.g. https://curatix-api.onrender.com   (no trailing slash)
+#   INTERNAL_TASK_SECRET  the same value as the backend's INTERNAL_TASK_SECRET
+#
+# Delete this workflow when you move to paid hosting with a real scheduler.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Run scheduled tasks
+        env:
+          API_URL: ${{ secrets.RENDER_API_URL }}
+          TASK_SECRET: ${{ secrets.INTERNAL_TASK_SECRET }}
+        run: |
+          set -u
+          if [ -z "${API_URL}" ] || [ -z "${TASK_SECRET}" ]; then
+            echo "::notice::RENDER_API_URL / INTERNAL_TASK_SECRET not set - nothing to do."
+            exit 0
+          fi
+          failed=0
+          for task in \
+            booking.release_expired \
+            payments.reconcile_pending \
+            settlements.release_due \
+            events.waitlist_notify \
+            notifications.sweep_stuck \
+            core.purge_ephemeral_tokens; do
+            # First call may hit a cold free instance (30-60s), hence the retries.
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 120 \
+              --retry 3 --retry-delay 20 --retry-all-errors \
+              -X POST "${API_URL}/internal/tasks/run" \
+              -H "Content-Type: application/json" \
+              -H "X-Internal-Task-Secret: ${TASK_SECRET}" \
+              -d "{\"task_name\": \"${task}\", \"payload\": {}}") || code=000
+            echo "${task} -> ${code}"
+            [ "${code}" = "200" ] || failed=1
+          done
+          exit ${failed}
