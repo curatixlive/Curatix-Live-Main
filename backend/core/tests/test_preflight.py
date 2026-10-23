@@ -677,7 +677,7 @@ class TestCashfreeEnvironmentMatchesItsKeys:
         """The exact configuration that failed the deploy."""
         warnings = check_production_settings(
             _Settings(
-                CASHFREE_APP_ID="1043289abc2e1f0e9a4b8c7d6e5f4a21",
+                CASHFREE_APP_ID="1111111abc2e1f0e9a4b8c7d6e5f4a21",
                 CASHFREE_SECRET_KEY="cfsk_ma_x",
                 CASHFREE_ENVIRONMENT="sandbox",
             ),
@@ -699,7 +699,7 @@ class TestCashfreeEnvironmentMatchesItsKeys:
     def test_sandbox_always_says_no_real_money_moves(self):
         """Regardless of what the key looks like. A soft launch is legitimate
         and never silent — the same rule `SMS_PROVIDER=disabled` follows."""
-        for app_id in ("TEST00000000000000000000000000000000", "1043289abc2e1f"):
+        for app_id in ("TEST00000000000000000000000000000000", "1111111abc2e1f"):
             warnings = check_production_settings(
                 _Settings(
                     CASHFREE_APP_ID=app_id,
@@ -714,7 +714,7 @@ class TestCashfreeEnvironmentMatchesItsKeys:
         assert (
             check_production_settings(
                 _Settings(
-                    CASHFREE_APP_ID="1043289abc2e1f0e9a4b8c7d6e5f4a21",
+                    CASHFREE_APP_ID="1111111abc2e1f0e9a4b8c7d6e5f4a21",
                     CASHFREE_SECRET_KEY="cfsk_ma_prod_x",
                     CASHFREE_ENVIRONMENT="production",
                 ),
@@ -732,7 +732,7 @@ class TestCashfreeEnvironmentMatchesItsKeys:
         """The property that matters, stated directly: this module may WARN
         about Cashfree and must never REFUSE over it. A payment gateway that
         might be misconfigured is not a reason to take the site down."""
-        for app_id in ("TEST_abc", "1043289abc"):
+        for app_id in ("TEST_abc", "1111111abc"):
             for env in ("sandbox", "production", "", "staging"):
                 check_production_settings(
                     _Settings(
