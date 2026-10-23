@@ -96,6 +96,9 @@
   "overrides": {
     "postcss": "8.5.18",
     "sharp": "0.35.4",
-    "fast-uri": "3.1.6"
+    "fast-uri": "3.1.6",
+    "@storybook/nextjs": {
+      "next": "$next"
+    }
   }
 }
