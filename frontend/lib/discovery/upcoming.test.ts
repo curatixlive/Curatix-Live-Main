@@ -4,12 +4,22 @@ import { describe, expect, it } from 'vitest';
 import { FEATURED_COUNT, HOME_UPCOMING_SIZE, featuredFrom } from './upcoming';
 
 /**
- * "FEATURED EVENTS" IS THE FIRST FIVE OF "ALL EVENTS".
+ * "FEATURED EVENTS" — where it gets its events.
  *
- * The two landing-page sections used to read two sources — an operator's CMS
- * collection and `GET /events` — and could disagree on one screen about what
- * was on next. Every assertion here fails silently if it regresses: two lists
- * that differ still render perfectly.
+ * It used to be strictly the first five of the shared list, and this file pinned
+ * that so the hero and the grid could not disagree about what was on next.
+ *
+ * The homepage redesign changed the contract on purpose: Featured is now its own
+ * section, directly under the hero, and shows what an operator FEATURED in the
+ * CMS first (the Studio has always had that control — the page had stopped
+ * reading it, so an operator's pin went nowhere). Only when nothing is featured
+ * does it fall back to the soonest events, which is the old rule. The Explore
+ * list below it is a filterable surface of its own, so the two no longer claim
+ * to be the same list.
+ *
+ * What must still hold, and is pinned below: the fallback goes through the ONE
+ * shared query (never its own fetch), and the order is never re-sorted. Every
+ * assertion here fails silently if it regresses.
  */
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
@@ -42,12 +52,11 @@ describe('both sections read the same query', () => {
     const source = read('components/discovery/showcase.tsx');
     expect(source).toContain('fetchUpcomingEvents()');
     expect(source).toContain('featuredFrom(');
-    // The two ways it used to diverge: its own fetch, and the CMS collection.
+    // Its own fetch is the way it used to drift from the grid.
     expect(source).not.toContain('fetchEventsSafe(');
-    // Matched on the CODE form it used to take, not the word: the file's own
-    // docstring explains the change and mentions the field by name.
-    expect(source).not.toContain('collections?.featured');
-    expect(source).not.toContain("Homepage['collections']");
+    // The operator's featured collection leads; the shared list is the fallback.
+    expect(source).toContain('collections?.featured');
+    expect(source.indexOf('collections?.featured')).toBeLessThan(source.indexOf('featuredFrom('));
   });
 
   it('All Events reads the same call', () => {

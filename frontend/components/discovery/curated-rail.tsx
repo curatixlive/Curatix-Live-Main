@@ -32,7 +32,7 @@ import type { EventCard as EventCardModel } from '@/lib/api/types';
  */
 
 /** The CMS card shape is a superset of what `EventCard` needs; narrow it. */
-function toEventCard(card: HomepageCard): EventCardModel {
+export function toEventCard(card: HomepageCard): EventCardModel {
   return {
     id: card.id,
     // `EventCard` gained a REQUIRED `category` when the browse taxonomy became

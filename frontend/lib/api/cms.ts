@@ -85,14 +85,11 @@ export type HomepagePopularSearch = {
 /**
  * A promotional campaign for the homepage hero — an ADVERTISEMENT, not an event.
  *
- * ── THIS IS A CONTRACT THE BACKEND DOES NOT SERVE YET ────────────────────
- *
- * `GET /homepage` has no `campaigns` field and the CMS has no campaign model
- * (see `docs/ADS_HERO_BACKEND_GAP.md`). The type exists so the hero component
- * and its scheduling/safety rules are built and tested against the shape the
- * backend should return; until it does, `homepage.campaigns` is `undefined`,
- * the promo hero renders nothing, and the page shows the event showcase exactly
- * as before. Nothing here is ever filled with invented campaigns.
+ * Served by `GET /homepage` as `campaigns` — ONLY published, approved rows
+ * inside their start/end window (the backend never serialises a draft, an
+ * archived row or one scheduled for later). The frontend re-checks the window
+ * anyway (`lib/discovery/promo.ts`): the response may sit in an edge cache.
+ * With none published, the homepage shows the Curatix brand hero instead.
  *
  * It is deliberately NOT an `Event`: a campaign may point at an event (via
  * `cta_href`) but has no price, inventory or date of its own.
@@ -119,9 +116,32 @@ export type PromoCampaign = {
   ends_at?: string | null;
 };
 
+/** A previous-event video an operator chose to show on the homepage. */
+export type HomepageHighlight = {
+  id: string;
+  position: number;
+  event: {
+    id: string;
+    slug?: string;
+    title: string;
+    venue: string;
+    city: string;
+    starts_at: string;
+    poster_url: string;
+  };
+  video: {
+    /** The embed URL the backend BUILT from the organiser's pasted link. */
+    embed_url: string;
+    is_vertical: boolean;
+    caption: string;
+  };
+};
+
 export type Homepage = {
-  /** Admin-managed ads. Not served by the backend yet — see `PromoCampaign`. */
+  /** Admin-managed advertisements — published and in window only. */
   campaigns?: PromoCampaign[];
+  /** Curated previous-event videos. */
+  highlights?: HomepageHighlight[];
   hero: {
     headline: string;
     description: string;
@@ -394,3 +414,110 @@ export const updatePopularSearch = (
 
 export const deletePopularSearch = (searchId: string) =>
   api.delete<void>(`/admin/popular-searches/${encodeURIComponent(searchId)}`);
+
+/* -------------------------------------------------------------------------- */
+/* Hero advertisements and past-event highlights (admin)                       */
+/* -------------------------------------------------------------------------- */
+
+export type CampaignStatus = 'draft' | 'published' | 'archived';
+
+export type AdminCampaign = {
+  id: string;
+  kind: 'image' | 'video';
+  title: string;
+  description: string;
+  alt_text: string;
+  media_url: string;
+  mobile_media_url: string;
+  poster_url: string;
+  cta_label: string;
+  cta_href: string;
+  position: number;
+  status: CampaignStatus;
+  starts_at: string | null;
+  ends_at: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignInput = Partial<
+  Pick<
+    AdminCampaign,
+    | 'kind'
+    | 'title'
+    | 'description'
+    | 'alt_text'
+    | 'media_url'
+    | 'mobile_media_url'
+    | 'poster_url'
+    | 'cta_label'
+    | 'cta_href'
+    | 'position'
+    | 'starts_at'
+    | 'ends_at'
+  >
+>;
+
+export const fetchAdminCampaigns = () => api.get<{ data: AdminCampaign[] }>('/admin/campaigns');
+
+export const createCampaign = (input: CampaignInput & { title: string }) =>
+  api.post<AdminCampaign>('/admin/campaigns', input);
+
+export const updateCampaign = (id: string, input: CampaignInput) =>
+  api.patch<AdminCampaign>(`/admin/campaigns/${encodeURIComponent(id)}`, input);
+
+/** Publishing IS the approval: it records who and when, and re-checks the row. */
+export const publishCampaign = (id: string) =>
+  api.post<AdminCampaign>(`/admin/campaigns/${encodeURIComponent(id)}/publish`);
+
+export const unpublishCampaign = (id: string) =>
+  api.delete<AdminCampaign>(`/admin/campaigns/${encodeURIComponent(id)}/publish`);
+
+/** Archives; the row is kept for the audit trail and never served. */
+export const archiveCampaign = (id: string) =>
+  api.delete<void>(`/admin/campaigns/${encodeURIComponent(id)}`);
+
+export const reorderCampaigns = (order: { id: string; position: number }[]) =>
+  api.post<{ ok: boolean }>('/admin/campaigns/reorder', { order });
+
+/** Image only. Validated for size, type, magic bytes and shape before storage. */
+export function uploadCampaignImage(file: File): Promise<{ url: string }> {
+  const form = new FormData();
+  form.append('file', file);
+  return api.post<{ url: string }>('/admin/campaigns/media', form);
+}
+
+export type AdminHighlight = {
+  id: string;
+  position: number;
+  event_id: string;
+  event_title: string;
+  event_starts_at: string;
+  media_id: string;
+  embed_url: string;
+  caption: string;
+};
+
+export type HighlightCandidate = {
+  media_id: string;
+  event_id: string;
+  event_title: string;
+  event_starts_at: string;
+  embed_url: string;
+  caption: string;
+};
+
+export const fetchAdminHighlights = () => api.get<{ data: AdminHighlight[] }>('/admin/highlights');
+
+export const fetchHighlightCandidates = () =>
+  api.get<{ data: HighlightCandidate[] }>('/admin/highlights/candidates');
+
+export const addHighlight = (mediaId: string, position = 0) =>
+  api.post<{ id: string }>('/admin/highlights', { media_id: mediaId, position });
+
+export const removeHighlight = (id: string) =>
+  api.delete<void>(`/admin/highlights/${encodeURIComponent(id)}`);
+
+export const reorderHighlights = (order: { id: string; position: number }[]) =>
+  api.post<{ ok: boolean }>('/admin/highlights/reorder', { order });

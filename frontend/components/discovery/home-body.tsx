@@ -1,22 +1,21 @@
 import * as React from 'react';
 import { Suspense } from 'react';
-import { AllEvents, AllEventsSkeleton } from '@/components/discovery/all-events';
-import { CategoryTiles } from '@/components/discovery/category-tiles';
+import { BrandHero } from '@/components/discovery/brand-hero';
 import { CuratedRail } from '@/components/discovery/curated-rail';
+import { ExploreEvents } from '@/components/discovery/explore-events';
+import { AllEventsSkeleton } from '@/components/discovery/all-events';
+import { HighlightsShowcase } from '@/components/discovery/highlights-showcase';
 import { LocationPrompt } from '@/components/discovery/location-prompt';
-import { PartnerSection } from '@/components/discovery/partner-section';
+import { PartnerCarousel } from '@/components/discovery/partner-carousel';
 import { PromoHero } from '@/components/discovery/promo-hero';
 import { Showcase } from '@/components/discovery/showcase';
-import { Section, SectionHeader } from '@/components/discovery/section';
+import { Section } from '@/components/discovery/section';
 import { SubscribeCard } from '@/components/discovery/subscribe-card';
-import {
-  TrendingSection,
-  SellingFastSection,
-  RailSectionSkeleton,
-} from '@/components/discovery/home-sections';
+import { SellingFastSection } from '@/components/discovery/home-sections';
 import { WhyCuratix } from '@/components/discovery/why-curatix';
 import { HireABandSection } from '@/components/hire/hire-a-band-section';
 import { fetchHomepageSafe } from '@/lib/api/cms';
+import { activeCampaigns } from '@/lib/discovery/promo';
 
 /**
  * THE LANDING PAGE'S BODY — mounted in two places, written once.
@@ -66,62 +65,52 @@ export async function HomeBody() {
   // Server-side, ISR'd and NEVER throws — the hero is the LCP element, and a
   // failing upstream must not take the front page down.
   const cms = await fetchHomepageSafe();
+  // Published, approved, in-window ads only (the backend already filtered; this
+  // is the second check, because the response may have sat in an edge cache).
+  const ads = activeCampaigns(cms?.campaigns);
 
   return (
     <>
       {/* ── THE DOCUMENT'S ONE h1, AND IT IS NOT DRAWN ───────────────────
-          The reference design has no page heading: the biggest text on the
-          first screen is the name of an EVENT, and adding a "Live events in
-          India" banner above the hero to satisfy an outline would be chrome
-          nobody asked for on the screen that decides whether somebody stays.
-
-          But the hero's title cannot be the h1 either — it changes every time
-          somebody presses a chevron, and a document whose heading mutates on a
-          carousel click has no stable outline for a screen reader or a
-          crawler.
-
-          So the h1 is real, correct and visually hidden: one per page, first
-          in the document, naming the page rather than one of its items. Every
-          section below is an h2 under it. */}
+          The biggest text on the first screen is an advertisement's or the
+          brand hero's headline, and either changes (a carousel press, an
+          operator edit). A document whose heading mutates has no stable
+          outline for a screen reader or a crawler, so the h1 is real, first in
+          the document, visually hidden, and names the PAGE. Every section
+          below is an h2 under it. */}
       <h1 className="sr-only">Live events, concerts and experiences in India</h1>
 
-      {/* THE FIRST FIVE OF "ALL EVENTS", not a separately curated row. The
-          two sections used to read two sources and could disagree about what
-          was on next; both now read `fetchUpcomingEvents` — one memoised
-          request — and the hero is a prefix of the grid below it. */}
-      {/* 0. The ADVERTISING hero — admin-managed campaigns, not events. Renders
-          nothing until the backend serves `campaigns` (docs/ADS_HERO_BACKEND_GAP.md). */}
-      <PromoHero campaigns={cms?.campaigns} />
+      {/* A. THE HERO. Advertisements an operator published, or — when there are
+          none — the Curatix brand hero, so the first screen is never an empty
+          carousel. Ads and events are different things: an ad may link to an
+          event but is never drawn as one. */}
+      {ads.length ? <PromoHero campaigns={ads} /> : <BrandHero hero={cms?.hero} />}
 
-      {/* 1. Hero Carousel Showcase */}
-      <Showcase />
+      {/* B. FEATURED EVENTS — the operator's featured collection, else the
+          soonest upcoming. */}
+      <Showcase cms={cms} />
 
-      {/* 2. Browse by Mood Horizontal Carousel (District App Layout) */}
-      <Section className="py-4 sm:py-6">
-        <SectionHeader title="Browse by mood" />
-        <CategoryTiles categories={cms?.categories} />
-      </Section>
+      {/* C. EXPLORE — search, city, category and date filters over the real
+          events API, with cursor pagination. */}
+      <Suspense fallback={<AllEventsSkeleton />}>
+        <ExploreEvents cms={cms} />
+      </Suspense>
 
-      {/* 2b. Operator-curated collections (`cms_featured_entry`). Each renders
-          NOTHING when empty — no placeholder, no auto-filled substitute — so a
-          collection appears only when somebody curated it. */}
+      {/* D. PARTNER CAROUSEL — organiser (most often), venue partner, sponsor. */}
+      <PartnerCarousel />
+
+      {/* E. RELIVE THE HIGHLIGHTS — video from events that have happened. */}
+      <HighlightsShowcase highlights={cms?.highlights} />
+
+      {/* ── EVERYTHING BELOW IS THE REST OF THE PAGE, in its old order ────────
+          Operator-curated collections hide themselves when empty, and "selling
+          fast" only appears when something genuinely is. */}
       <CuratedRail
         collections={cms?.collections}
         collection="editors_pick"
         title="Editor's picks"
         subtitle="Chosen by our team"
       />
-
-      {/* 3. Trending Events Horizontal Rail */}
-      <Suspense fallback={<RailSectionSkeleton />}>
-        <TrendingSection />
-      </Suspense>
-
-      {/* 4. Selling Fast Scarcity Shelf */}
-      <Suspense fallback={null}>
-        <SellingFastSection />
-      </Suspense>
-
       <CuratedRail
         collections={cms?.collections}
         collection="recommended"
@@ -135,14 +124,11 @@ export async function HomeBody() {
         subtitle="Recently added to the platform"
       />
 
-      <LocationPrompt />
-
-      {/* 5. All Events Discovery Grid */}
-      <Suspense fallback={<AllEventsSkeleton />}>
-        <AllEvents />
+      <Suspense fallback={null}>
+        <SellingFastSection />
       </Suspense>
 
-      <PartnerSection />
+      <LocationPrompt />
 
       <HireABandSection />
 

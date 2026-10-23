@@ -1,77 +1,77 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Container } from '@/components/shell/container';
+import type { Homepage } from '@/lib/api/cms';
 import { featuredFrom, fetchUpcomingEvents } from '@/lib/discovery/upcoming';
 import { eventToJsonLd } from '@/lib/discovery/seo';
 import { JsonLd, eventItemListJsonLd } from '@/lib/seo/json-ld';
-import { HeroCarousel } from './hero-carousel';
+import { toEventCard } from './curated-rail';
+import { PosterCard } from './poster-card';
+import { Section, SectionHeader } from './section';
+import { ScrollRail } from './scroll-rail';
 
 /**
- * The first screen: which events lead the front page, and where they came from.
+ * FEATURED EVENTS — the rail directly under the hero.
  *
- * This component is the DATA half — curated versus derived, the structured
- * data, and the empty state. `HeroCarousel` is the presentation half. They are
- * split because only the carousel needs to be a client component (it holds a
- * slide index), and pushing the fetch into it would make the front page's
- * first paint wait for JavaScript.
+ * Two sources, in this order, and the heading is the same for both (a section
+ * whose title changes for a reason only the author can see is a section nobody
+ * can learn):
  *
- * ── WHAT REPLACED WHAT ────────────────────────────────────────────────────
+ *   1. What an operator FEATURED in the CMS (`collections.featured`, managed
+ *      under Admin → Studio → Featured events). The studio has always offered
+ *      this slot; the page had stopped reading it, which is the worst kind of
+ *      CMS — one whose writes go nowhere. It reads it again.
+ *   2. Otherwise the soonest upcoming events (`featuredFrom`), the same rows
+ *      the Explore section lists, so the two can never disagree about what is
+ *      on next.
  *
- * This was a marquee: five posters side by side under a heading and a "Browse
- * all events" pill. A shelf, in other words — five events competing at a fifth
- * of the attention each, and no room for any of them to say when it is, where
- * it is or what it costs.
+ * Server component: it only decides WHICH events and renders cards. The one
+ * interactive part (the arrow buttons) is `ScrollRail`.
  *
- * It is now one full-width banner per event, with the poster's own colour
- * behind it, and the grid of everything moved to its own section below. The
- * hero recommends; the grid lists. Neither is trying to do both.
- *
- * ── IT IS THE FIRST FIVE OF "ALL EVENTS", AND NOTHING ELSE ───────────────
- *
- * This used to read an operator-curated CMS collection and fall back to the
- * index only when nothing was pinned — so with one event pinned, the hero
- * showed that event while the grid below led with a different one, and the
- * page contradicted itself about what was on next. It now reads the SAME rows
- * as `AllEvents` through `fetchUpcomingEvents` (one memoised request for
- * both) and takes the first five: soonest first, most recently published
- * first among events that start together.
- *
- * The CMS `collections.featured` field is no longer read here. It still
- * exists on the backend; nothing on the landing page consumes it.
- *
- * With no events at all — a fresh platform — it shows neither, and offers the
- * other side of the marketplace instead of a rail of grey boxes.
+ * With no events at all — a fresh platform — it offers the other side of the
+ * marketplace instead of a rail of grey boxes.
  */
 
-export async function Showcase() {
+export async function Showcase({ cms }: { cms?: Homepage | null }) {
   // Never throws: the front page must survive an upstream that does not. The
-  // identical call in `AllEvents` is memoised by Next into one request.
+  // identical call in `ExploreEvents`' server seed is memoised by Next.
   const { events: upcoming } = await fetchUpcomingEvents();
-  const events = featuredFrom(upcoming);
-  // ── ONE NAME, WHATEVER FILLED IT ──────────────────────────────────────
-  //
-  // The heading used to change with the SOURCE: "Featured events" when an
-  // operator had curated a collection, "Events on sale now" when it fell back
-  // to the index. That is a distinction only the person who wrote the query
-  // can see — to a visitor the rail looks identical either way, and a section
-  // whose title changes for reasons invisible on screen is a section nobody
-  // can learn. It is the featured rail; it says so.
+  const curated = (cms?.collections?.featured ?? []).map(toEventCard);
+  const events = curated.length ? curated : featuredFrom(upcoming);
   const label = 'Featured events';
 
   if (!events.length) return <EmptyShowcase />;
 
   return (
-    <>
-      {/* ── THE CRAWLER-FACING MIRROR OF THE FIRST SCREEN ─────────────────
-          The front page is the most-linked URL on the site and emitted no
-          ItemList at all: `WebSite` said the site had a search box and nothing
-          said what was on sale. These are the same events a visitor sees, in
-          the same order, with the same names and prices — so the structured
-          data cannot claim anything the page does not show. It is NAMED the
-          way the rail is, for the same reason the rail is. */}
+    <Section id="featured" className="py-8 sm:py-10">
+      {/* The crawler-facing mirror of the rail: the same events, in the same
+          order, with the same names and prices, so the structured data cannot
+          claim anything the page does not show. */}
       <JsonLd data={eventItemListJsonLd(label, events.map(eventToJsonLd))} />
-      <HeroCarousel events={events} label={label} />
-    </>
+      <SectionHeader
+        title={label}
+        subtitle="Picked by our team"
+        href="/events"
+        linkLabel="See all events"
+      />
+      <ScrollRail label={label}>
+        {events.map((event, index) => (
+          <li
+            key={event.id}
+            className="w-[62%] shrink-0 snap-start sm:w-[34%] lg:w-[23%] xl:w-[19%]"
+          >
+            <PosterCard
+              event={event}
+              allEvents={events}
+              index={index}
+              // The first screenful is above the fold at every width.
+              priority={index < 3}
+              sizes="(min-width: 1280px) 19vw, (min-width: 1024px) 23vw, (min-width: 640px) 34vw, 62vw"
+            />
+          </li>
+        ))}
+      </ScrollRail>
+    </Section>
   );
 }
 

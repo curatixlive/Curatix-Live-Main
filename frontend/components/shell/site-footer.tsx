@@ -85,6 +85,17 @@ const COLUMNS: FooterColumn[] = [
       { label: 'Hire a band', href: '/hire' },
     ],
   },
+  // The supply side, one press from every page. Every destination exists:
+  // /organizer is the organiser landing page, the other two are the venue and
+  // sponsor enquiry pages the homepage partner carousel also points at.
+  {
+    heading: 'Partner',
+    links: [
+      { label: 'Host an event', href: '/organizer' },
+      { label: 'Venue partners', href: '/venue-partners' },
+      { label: 'Sponsors', href: '/sponsors' },
+    ],
+  },
 ];
 
 /**
@@ -211,88 +222,87 @@ export function SiteFooter({ className }: { className?: string }) {
             `lg` NOTHING changes: the centred stack is right on a phone and is
             the layout that was actually reviewed. */}
         <div className="flex flex-col items-center gap-block lg:flex-row lg:items-start lg:justify-between lg:gap-block-lg">
-        <div className="flex flex-col items-center gap-stack-lg lg:items-start">
-          <Link
-            href="/"
-            className="inline-flex w-fit items-center rounded-full text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sunken"
-          >
-            <BrandLockup />
-          </Link>
+          <div className="flex flex-col items-center gap-stack-lg lg:items-start">
+            <Link
+              href="/"
+              className="inline-flex w-fit items-center rounded-full text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sunken"
+            >
+              <BrandLockup />
+            </Link>
 
-          {/* One line about the product, and it is the SAME sentence the site's
+            {/* One line about the product, and it is the SAME sentence the site's
               own metadata uses rather than a second one written for this
               corner — two descriptions of one product is how they drift.
               Hidden below `lg`: the phone footer is a compact stack and a
               paragraph in it is weight nobody asked for. It is what stops the
               left half of a 1900px row being an empty field beside a 24px
               logo. */}
-          <p className="hidden max-w-xs text-body-sm text-muted-foreground lg:block">
-            {SITE_DESCRIPTION}
-          </p>
+            <p className="hidden max-w-xs text-body-sm text-muted-foreground lg:block">
+              {SITE_DESCRIPTION}
+            </p>
 
-          {/* Absent entirely when no handle is configured — see the note on
+            {/* Absent entirely when no handle is configured — see the note on
               SOCIAL. An icon linking to a platform's login wall is the one
               thing in this footer a visitor could catch us at. */}
-          {SOCIAL.length > 0 && (
-            <ul className="flex items-center gap-1" aria-label="Social media">
-              {SOCIAL.map((social) => (
-                <li key={social.label}>
-                  {/* `target`/`rel` because these are the only OFF-SITE links
+            {SOCIAL.length > 0 && (
+              <ul className="flex items-center gap-1" aria-label="Social media">
+                {SOCIAL.map((social) => (
+                  <li key={social.label}>
+                    {/* `target`/`rel` because these are the only OFF-SITE links
                       in the shell: without `noopener` the opened tab keeps a
                       handle on this one via `window.opener`. */}
-                  <Link
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`${social.label} (opens in a new tab)`}
-                    className="inline-flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors duration-fast ease-out hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <social.icon className="size-5" aria-hidden />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* ONE nav landmark, not one per group. Two `<nav aria-label>`s in a
-            footer is two entries in a screen reader's landmark list for what is
-            one navigation; the groups are headings inside it instead, which is
-            what the heading list is for.
-
-            Two columns at every width. There is no `sm:grid-cols-4` any more
-            because there are no longer four groups — "Useful links" and the
-            app-store badges are gone (there is no app), and Organizers and
-            Company folded away with them. */}
-        <nav
-          aria-label="Footer"
-          className={cn(
-            'mx-auto grid w-full max-w-md grid-cols-2 gap-x-6 gap-y-block',
-            // From `lg` it stops being a centred box and becomes the right-hand
-            // half of the row: sized to its content, generous gutter, no
-            // auto-margins fighting the flex parent.
-            'lg:mx-0 lg:w-auto lg:max-w-none lg:gap-x-block-lg',
-          )}
-        >
-          {COLUMNS.map((col) => (
-            <div key={col.heading}>
-              <h2 className="text-label uppercase tracking-wide text-foreground-subtle">
-                {col.heading}
-              </h2>
-              {/* No row gap below `sm` — the rows are already 44px tall, and a
-                  gap on top of that is pitch nobody asked for. */}
-              <ul className="mt-1 flex flex-col sm:mt-stack sm:gap-2">
-                {col.links.map((link) => (
-                  <li key={`${col.heading}-${link.label}`}>
-                    <Link href={link.href} className={linkClass}>
-                      {link.label}
+                    <Link
+                      href={social.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${social.label} (opens in a new tab)`}
+                      className="inline-flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors duration-fast ease-out hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <social.icon className="size-5" aria-hidden />
                     </Link>
                   </li>
                 ))}
               </ul>
-            </div>
-          ))}
-        </nav>
+            )}
+          </div>
+
+          {/* ONE nav landmark, not one per group. Two `<nav aria-label>`s in a
+            footer is two entries in a screen reader's landmark list for what is
+            one navigation; the groups are headings inside it instead, which is
+            what the heading list is for.
+
+            Two columns on a phone, three from `sm` now that Partner joined Help
+            and Quick links. There is no `sm:grid-cols-4`: "Useful links" and the
+            app-store badges are gone (there is no app). */}
+          <nav
+            aria-label="Footer"
+            className={cn(
+              'mx-auto grid w-full max-w-md grid-cols-2 gap-x-6 gap-y-block sm:max-w-xl sm:grid-cols-3',
+              // From `lg` it stops being a centred box and becomes the right-hand
+              // half of the row: sized to its content, generous gutter, no
+              // auto-margins fighting the flex parent.
+              'lg:mx-0 lg:w-auto lg:max-w-none lg:gap-x-block-lg',
+            )}
+          >
+            {COLUMNS.map((col) => (
+              <div key={col.heading}>
+                <h2 className="text-label uppercase tracking-wide text-foreground-subtle">
+                  {col.heading}
+                </h2>
+                {/* No row gap below `sm` — the rows are already 44px tall, and a
+                  gap on top of that is pitch nobody asked for. */}
+                <ul className="mt-1 flex flex-col sm:mt-stack sm:gap-2">
+                  {col.links.map((link) => (
+                    <li key={`${col.heading}-${link.label}`}>
+                      <Link href={link.href} className={linkClass}>
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
         </div>
 
         {/* ── The closing band: social, payments, copyright, legal ────────── */}
@@ -337,10 +347,7 @@ export function SiteFooter({ className }: { className?: string }) {
             </p>
             {/* A named list, not a second `<nav>` landmark. `-ml-1 px-1` on the
                 links keeps the 44px targets from reading as indented. */}
-            <ul
-              aria-label="Legal"
-              className="flex flex-wrap items-center justify-center gap-x-3"
-            >
+            <ul aria-label="Legal" className="flex flex-wrap items-center justify-center gap-x-3">
               {LEGAL_LINKS.map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className={cn(inlineLinkClass, 'px-1')}>

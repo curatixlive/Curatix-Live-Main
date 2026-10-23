@@ -54,6 +54,8 @@ const FOOTER_ROUTES = [
   '/events',
   // Organizers — the supply side's front door, and the two pages beside it
   '/organizer',
+  '/venue-partners',
+  '/sponsors',
   '/dashboard',
   '/pricing',
   // Support
@@ -126,6 +128,8 @@ describe('the sitemap and robots.txt agree with each other', () => {
       '/help',
       '/pricing',
       '/organizer',
+      '/venue-partners',
+      '/sponsors',
       '/terms',
       '/privacy',
       '/refunds',

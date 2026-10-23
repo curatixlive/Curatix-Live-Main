@@ -72,6 +72,7 @@ export function PromoHero({ campaigns }: { campaigns: PromoCampaign[] | undefine
   const [tabHidden, setTabHidden] = React.useState(false);
   const reduced = usePrefersReducedMotion();
   const rootRef = React.useRef<HTMLElement>(null);
+  const touchX = React.useRef<number | null>(null);
   const count = slides.length;
   const current = slides[Math.min(index, Math.max(count - 1, 0))];
 
@@ -125,7 +126,19 @@ export function PromoHero({ campaigns }: { campaigns: PromoCampaign[] | undefine
       onMouseLeave={() => setEngaged(false)}
       onFocusCapture={() => setEngaged(true)}
       onBlurCapture={() => setEngaged(false)}
-      onTouchStart={() => setUserPaused(true)}
+      onTouchStart={(event) => {
+        // A touch hands control to the viewer for good, and starts a swipe.
+        setUserPaused(true);
+        touchX.current = event.touches[0]?.clientX ?? null;
+      }}
+      onTouchEnd={(event) => {
+        const start = touchX.current;
+        touchX.current = null;
+        const end = event.changedTouches[0]?.clientX;
+        if (start === null || end === undefined || count < 2) return;
+        const delta = end - start;
+        if (Math.abs(delta) >= 40) go(index + (delta < 0 ? 1 : -1));
+      }}
     >
       <Container>
         <div className="relative overflow-hidden rounded-3xl border border-border bg-muted shadow-sm">

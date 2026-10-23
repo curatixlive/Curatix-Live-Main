@@ -65,6 +65,8 @@ const STATIC_ROUTES: ReadonlyArray<{
   // they are the only marketing pages on the site.
   { path: '/organizer', priority: 0.8, changeFrequency: 'monthly' },
   { path: '/pricing', priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/venue-partners', priority: 0.5, changeFrequency: 'monthly' },
+  { path: '/sponsors', priority: 0.5, changeFrequency: 'monthly' },
   { path: '/hire', priority: 0.8, changeFrequency: 'daily' },
 
   // Support. `/help` genuinely answers search queries ("how do I get a refund"),

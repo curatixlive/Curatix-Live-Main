@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import {
   ExternalLink,
+  Film,
   LayoutGrid,
   LayoutTemplate,
   MapPin,
@@ -38,6 +39,8 @@ import { cn } from '@/lib/utils/cn';
 import { HomepageCms } from './homepage-cms';
 import { FeaturedManager } from './featured-manager';
 import { AnnouncementsAdmin } from './announcements-admin';
+import { CampaignsAdmin } from './campaigns-admin';
+import { HighlightsAdmin } from './highlights-admin';
 
 /**
  * The CMS Studio.
@@ -97,6 +100,8 @@ import { AnnouncementsAdmin } from './announcements-admin';
  * do. A section with no reader is removed, not disabled.
  */
 type SectionId =
+  | 'ads'
+  | 'highlights'
   | 'ribbon'
   | 'featured'
   | 'categories'
@@ -117,6 +122,12 @@ type TreeNode = {
 
 const TREE: TreeNode[] = [
   {
+    id: 'ads',
+    label: 'Hero advertisements',
+    icon: Megaphone,
+    blurb: 'The banner at the very top: images and video',
+  },
+  {
     id: 'featured',
     label: 'Featured events',
     icon: Star,
@@ -124,12 +135,23 @@ const TREE: TreeNode[] = [
   },
   { id: 'ribbon', label: 'Ribbon', icon: Megaphone, blurb: 'The strip above the page' },
   { id: 'categories', label: 'Categories', icon: Tag, blurb: 'The browse tiles' },
-  { id: 'cities', label: 'Featured cities', icon: MapPin, blurb: 'Cities promoted on the home page' },
+  {
+    id: 'cities',
+    label: 'Featured cities',
+    icon: MapPin,
+    blurb: 'Cities promoted on the home page',
+  },
   {
     id: 'popular',
     label: 'Popular searches',
     icon: TrendingUp,
     blurb: 'Suggested searches in the search panel',
+  },
+  {
+    id: 'highlights',
+    label: 'Past-event videos',
+    icon: Film,
+    blurb: 'The "Relive the highlights" reel',
   },
   { id: 'footer', label: 'Footer note', icon: LayoutTemplate, blurb: 'One line at the bottom' },
   {
@@ -141,9 +163,9 @@ const TREE: TreeNode[] = [
 ];
 
 export function CmsStudio() {
-  // Featured is the default because it is now the front page's first screen —
+  // Hero advertisements are the default: they are the front page's first screen —
   // the thing an operator most often came here to change.
-  const [selected, setSelected] = React.useState<SectionId>('featured');
+  const [selected, setSelected] = React.useState<SectionId>('ads');
   const [device, setDevice] = React.useState<'desktop' | 'mobile'>('desktop');
   const [previewKey, setPreviewKey] = React.useState(0);
 
@@ -236,7 +258,7 @@ function Tree({
                   // `min-h-control` because below `lg` this list is a
                   // horizontally scrolling strip of taps, not a sidebar.
                   'flex min-h-control w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast',
-                  'motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
                   // The warm butter pill is the console's "you are here". It is
                   // deliberately not the brand violet: a selected row must not
                   // read as a button waiting to be pressed.
@@ -286,6 +308,8 @@ function Tree({
  * keeps a single Save for a single write.
  */
 function Editor({ section, onSaved }: { section: SectionId; onSaved: () => void }) {
+  if (section === 'ads') return <CampaignsAdmin />;
+  if (section === 'highlights') return <HighlightsAdmin />;
   if (section === 'featured') return <FeaturedManager />;
   if (section === 'announcements') return <AnnouncementsAdmin />;
   if (section === 'cities') {
@@ -293,9 +317,14 @@ function Editor({ section, onSaved }: { section: SectionId; onSaved: () => void 
       <CuratedListEditor
         queryKey={['admin', 'featured-cities']}
         fetchAll={fetchAdminFeaturedCities}
-        create={createFeaturedCity as (input: Record<string, unknown>) => Promise<AdminFeaturedCity>}
+        create={
+          createFeaturedCity as (input: Record<string, unknown>) => Promise<AdminFeaturedCity>
+        }
         update={
-          updateFeaturedCity as (id: string, input: Record<string, unknown>) => Promise<AdminFeaturedCity>
+          updateFeaturedCity as (
+            id: string,
+            input: Record<string, unknown>,
+          ) => Promise<AdminFeaturedCity>
         }
         remove={deleteFeaturedCity}
         primaryField="name"
@@ -329,7 +358,10 @@ function Editor({ section, onSaved }: { section: SectionId; onSaved: () => void 
           createPopularSearch as (input: Record<string, unknown>) => Promise<AdminPopularSearch>
         }
         update={
-          updatePopularSearch as (id: string, input: Record<string, unknown>) => Promise<AdminPopularSearch>
+          updatePopularSearch as (
+            id: string,
+            input: Record<string, unknown>,
+          ) => Promise<AdminPopularSearch>
         }
         remove={deletePopularSearch}
         primaryField="label"
@@ -381,7 +413,7 @@ function DeviceToggle({
           title={option.label}
           className={cn(
             'inline-flex size-control-sm items-center justify-center rounded-full transition-colors duration-fast',
-            'motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
             device === option.value
               ? 'bg-nav-active text-nav-active-foreground'
               : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -439,9 +471,7 @@ function Preview({
           device === 'mobile' ? 'mx-auto w-[24rem] max-w-full' : 'w-full',
         )}
       >
-        {loading ? (
-          <Skeleton className="absolute inset-0 z-10" />
-        ) : null}
+        {loading ? <Skeleton className="absolute inset-0 z-10" /> : null}
         <iframe
           key={refreshKey}
           src={anchor ? `/#${anchor}` : '/'}

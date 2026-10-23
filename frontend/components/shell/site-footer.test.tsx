@@ -12,8 +12,9 @@ import { SiteFooter } from './site-footer';
  * prove the change was a COMPACTION and not a cull — a layout change that
  * quietly drops "Refund policy" looks identical in review to one that does not.
  *
- * The footer is now two columns, Help and Quick links, specified link by link
- * by the product owner. That IS a cull, and the guarantee this file makes has
+ * The footer is now three columns — Help, Quick links and Partner — specified link
+ * by link by the product owner (Partner was added with the homepage partner
+ * carousel, and points at pages that exist). That IS a cull, and the guarantee this file makes has
  * to change with it: the list below is no longer "everywhere the footer used to
  * reach", it is "everywhere the footer is responsible for reaching NOW".
  *
@@ -42,6 +43,10 @@ const EXPECTED_LINKS = [
   '/events',
   '/events?when=weekend',
   '/hire',
+  // Partner
+  '/organizer',
+  '/venue-partners',
+  '/sponsors',
   // Legal — in the closing band, NOT dropped
   '/terms',
   '/privacy',
@@ -83,7 +88,7 @@ describe('SiteFooter', () => {
       within(footer)
         .getAllByRole('heading', { level: 2 })
         .map((h) => h.textContent),
-    ).toEqual(['Help', 'Quick links']);
+    ).toEqual(['Help', 'Quick links', 'Partner']);
   });
 
   /**
