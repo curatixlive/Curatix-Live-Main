@@ -799,6 +799,22 @@ def build_homepage_service() -> HomepageService:
     )
 
 
+def build_campaign_service():
+    """Homepage hero advertisements. Staff-only; the view enforces that."""
+    from apps.cms.repositories import CampaignRepository
+    from apps.cms.services import CampaignService
+
+    return CampaignService(campaigns=CampaignRepository(), storage=storage_port())
+
+
+def build_highlight_service():
+    """Which previous-event videos the homepage shows. Staff-only."""
+    from apps.cms.repositories import HighlightRepository
+    from apps.cms.services import HighlightService
+
+    return HighlightService(highlights=HighlightRepository())
+
+
 def build_event_content_service() -> EventContentService:
     """Media, FAQs and running order. Ownership is checked in the service."""
     from apps.events.repositories import (

@@ -48,4 +48,41 @@ urlpatterns = [
         api.CategoryDetailView.as_view(),
         name="admin-category-detail",
     ),
+    path("admin/campaigns", api.CampaignListView.as_view(), name="admin-campaigns"),
+    path(
+        "admin/campaigns/media",
+        api.CampaignMediaUploadView.as_view(),
+        name="admin-campaign-media",
+    ),
+    path(
+        "admin/campaigns/reorder",
+        api.CampaignReorderView.as_view(),
+        name="admin-campaign-reorder",
+    ),
+    path(
+        "admin/campaigns/<uuid:campaign_id>",
+        api.CampaignDetailView.as_view(),
+        name="admin-campaign-detail",
+    ),
+    path(
+        "admin/campaigns/<uuid:campaign_id>/publish",
+        api.CampaignPublishView.as_view(),
+        name="admin-campaign-publish",
+    ),
+    path("admin/highlights", api.HighlightListView.as_view(), name="admin-highlights"),
+    path(
+        "admin/highlights/candidates",
+        api.HighlightCandidateListView.as_view(),
+        name="admin-highlight-candidates",
+    ),
+    path(
+        "admin/highlights/reorder",
+        api.HighlightReorderView.as_view(),
+        name="admin-highlight-reorder",
+    ),
+    path(
+        "admin/highlights/<uuid:highlight_id>",
+        api.HighlightDetailView.as_view(),
+        name="admin-highlight-detail",
+    ),
 ]

@@ -8,16 +8,19 @@ import uuid
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
-from apps.events.models import Event, EventStatus
+from apps.events.models import Event, EventMedia, EventStatus, MediaKind
 
 from .defaults import initial_hero
 from .models import (
+    CampaignStatus,
     Category,
     Collection,
     FeaturedCity,
     FeaturedEntry,
     HomepageContent,
+    PastEventHighlight,
     PopularSearch,
+    PromoCampaign,
 )
 
 
@@ -218,3 +221,96 @@ class PopularSearchRepository:
     def delete(self, search_id: uuid.UUID | str) -> int:
         deleted, _ = PopularSearch.objects.filter(pk=search_id).delete()
         return deleted
+
+
+class CampaignRepository:
+    def list_all(self) -> QuerySet[PromoCampaign]:
+        """The admin view: every campaign except archived ones, in display order."""
+        return PromoCampaign.objects.exclude(status=CampaignStatus.ARCHIVED).order_by(
+            "position", "created_at"
+        )
+
+    def get(self, campaign_id: uuid.UUID | str) -> PromoCampaign | None:
+        return PromoCampaign.objects.filter(pk=campaign_id).first()
+
+    def create(self, **fields) -> PromoCampaign:
+        return PromoCampaign.objects.create(**fields)
+
+    def update(self, campaign_id: uuid.UUID | str, **fields) -> bool:
+        return PromoCampaign.objects.filter(pk=campaign_id).update(**fields) == 1
+
+    def set_position(self, *, campaign_id: uuid.UUID | str, position: int) -> bool:
+        return PromoCampaign.objects.filter(pk=campaign_id).update(position=position) == 1
+
+    def list_publishable(self, *, now: dt.datetime) -> QuerySet[PromoCampaign]:
+        """Published campaigns that have not ENDED. Not yet filtered on the start
+        — the selector filters the window per read, because the payload is cached
+        for ten minutes and a start time falls inside that window."""
+        return (
+            PromoCampaign.objects.filter(status=CampaignStatus.PUBLISHED)
+            .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
+            .order_by("position", "created_at")
+        )
+
+
+def _ended_q(now: dt.datetime) -> Q:
+    """An event that has TAKEN PLACE: its end has passed, or — with no end — it
+    started more than six hours ago. Cancelled events never took place."""
+    return Q(event__ends_at__lt=now) | Q(
+        event__ends_at__isnull=True, event__starts_at__lt=now - dt.timedelta(hours=6)
+    )
+
+
+class HighlightRepository:
+    def _base(self, now: dt.datetime) -> QuerySet[EventMedia]:
+        return EventMedia.objects.filter(
+            kind=MediaKind.VIDEO,
+            is_visible=True,
+            deleted_at__isnull=True,
+            event__deleted_at__isnull=True,
+            event__status__in=[EventStatus.LIVE, EventStatus.FINISHED],
+        ).filter(_ended_q(now))
+
+    def candidates(self, *, now: dt.datetime, limit: int = 100) -> list[EventMedia]:
+        """Past events' videos an operator could still pick (not already curated)."""
+        return list(
+            self._base(now)
+            .filter(homepage_highlight__isnull=True)
+            .select_related("event")
+            .order_by("-event__starts_at")[:limit]
+        )
+
+    def get_media_for_curation(
+        self, media_id: uuid.UUID | str, *, now: dt.datetime
+    ) -> EventMedia | None:
+        return self._base(now).select_related("event").filter(pk=media_id).first()
+
+    def list_all(self) -> QuerySet[PastEventHighlight]:
+        return PastEventHighlight.objects.select_related("event", "media").order_by(
+            "position", "created_at"
+        )
+
+    def create(self, **fields) -> PastEventHighlight:
+        return PastEventHighlight.objects.create(**fields)
+
+    def delete(self, highlight_id: uuid.UUID | str) -> int:
+        deleted, _ = PastEventHighlight.objects.filter(pk=highlight_id).delete()
+        return deleted
+
+    def set_position(self, *, highlight_id: uuid.UUID | str, position: int) -> bool:
+        return PastEventHighlight.objects.filter(pk=highlight_id).update(position=position) == 1
+
+    def list_public(self, *, now: dt.datetime, limit: int = 8) -> list[PastEventHighlight]:
+        """Curated rows whose video is still visible and whose event has ended."""
+        return list(
+            PastEventHighlight.objects.filter(
+                media__kind=MediaKind.VIDEO,
+                media__is_visible=True,
+                media__deleted_at__isnull=True,
+                event__deleted_at__isnull=True,
+                event__status__in=[EventStatus.LIVE, EventStatus.FINISHED],
+            )
+            .filter(_ended_q(now))
+            .select_related("event", "media")
+            .order_by("position", "created_at")[:limit]
+        )

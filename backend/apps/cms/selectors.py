@@ -20,6 +20,7 @@ key, one counter orphans them all at once.
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import Any
 
 from django.utils import timezone
@@ -28,9 +29,11 @@ from core.ports.cache_port import CachePort
 
 from .models import Collection
 from .repositories import (
+    CampaignRepository,
     CategoryRepository,
     FeaturedCityRepository,
     FeaturedRepository,
+    HighlightRepository,
     HomepageRepository,
     PopularSearchRepository,
 )
@@ -75,6 +78,8 @@ def get_homepage(
     categories: CategoryRepository | None = None,
     cities: FeaturedCityRepository | None = None,
     popular: PopularSearchRepository | None = None,
+    campaigns: CampaignRepository | None = None,
+    highlights: HighlightRepository | None = None,
     cache: CachePort | None = None,
 ) -> dict[str, Any]:
     """Everything the front page renders, in one payload.
@@ -88,13 +93,15 @@ def get_homepage(
     categories = categories or CategoryRepository()
     cities = cities or FeaturedCityRepository()
     popular = popular or PopularSearchRepository()
+    campaigns = campaigns or CampaignRepository()
+    highlights = highlights or HighlightRepository()
     cache = cache or _cache()
 
     scope = (city or "").lower()
     key = f"cms:homepage:v{_generation(cache)}:{scope}"
     cached = cache.get(key)
     if cached is not None:
-        return cached
+        return _apply_windows(cached, timezone.now())
 
     now = timezone.now()
     content = homepage.get_or_create_singleton()
@@ -170,8 +177,78 @@ def get_homepage(
             for row in popular.list_public()
         ],
         "collections": collections,
+        # Advertisements and past-event videos. Only PUBLISHED, un-ended
+        # campaigns are ever serialised — a draft, an archived row or a
+        # finished run is not in this payload at all. The start of the window
+        # is applied per READ by `_apply_windows`, because this payload is
+        # cached for ten minutes and a start time falls inside that.
+        "campaigns": [_campaign_row(row) for row in campaigns.list_publishable(now=now)],
+        "highlights": [_highlight_row(row) for row in highlights.list_public(now=now)],
         "version": content.version,
         "generated_at": now.isoformat(),
     }
     cache.set(key, payload, timeout_seconds=HOMEPAGE_TTL_SECONDS)
-    return payload
+    return _apply_windows(payload, now)
+
+
+def _campaign_row(row) -> dict[str, Any]:
+    return {
+        "id": str(row.id),
+        "kind": row.kind,
+        "title": row.title,
+        "description": row.description,
+        "alt_text": row.alt_text,
+        "media_url": row.media_url,
+        "mobile_media_url": row.mobile_media_url,
+        "poster_url": row.poster_url,
+        "cta_label": row.cta_label,
+        "cta_href": row.cta_href,
+        "position": row.position,
+        "starts_at": row.starts_at.isoformat() if row.starts_at else None,
+        "ends_at": row.ends_at.isoformat() if row.ends_at else None,
+    }
+
+
+def _highlight_row(row) -> dict[str, Any]:
+    event, media = row.event, row.media
+    return {
+        "id": str(row.id),
+        "position": row.position,
+        "event": {
+            "id": str(event.id),
+            "slug": event.slug,
+            "title": event.title,
+            "venue": event.venue,
+            "city": event.city,
+            "starts_at": event.starts_at.isoformat(),
+            "poster_url": event.poster_url,
+        },
+        # The embed URL `core.video_embeds` BUILT when the organiser added the
+        # link — never the pasted one.
+        "video": {
+            "embed_url": media.url,
+            "is_vertical": media.is_vertical,
+            "caption": media.caption,
+        },
+    }
+
+
+def _apply_windows(payload: dict[str, Any], now) -> dict[str, Any]:
+    """Drop campaigns outside their window, per READ.
+
+    The cached payload holds every published, not-yet-ended campaign. One that
+    starts in three minutes is in the cache but must not be shown until then,
+    and one that ends mid-TTL must disappear on time, so the window is checked
+    here against the clock on every request. Returns a shallow copy: the cached
+    object is shared and must not be mutated.
+    """
+    live = []
+    for row in payload.get("campaigns", []):
+        starts = row.get("starts_at")
+        ends = row.get("ends_at")
+        if starts and now < dt.datetime.fromisoformat(starts):
+            continue
+        if ends and now >= dt.datetime.fromisoformat(ends):
+            continue
+        live.append(row)
+    return {**payload, "campaigns": live}

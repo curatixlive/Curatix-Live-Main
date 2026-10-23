@@ -261,3 +261,126 @@ class PopularSearch(models.Model):
 
     def __str__(self) -> str:
         return self.label
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hero advertisements and past-event highlights
+# ─────────────────────────────────────────────────────────────────────────────
+
+CAMPAIGN_TITLE_MAX = 80
+CAMPAIGN_DESCRIPTION_MAX = 180
+CAMPAIGN_CTA_MAX = 40
+
+
+class CampaignKind(models.TextChoices):
+    IMAGE = "image", "Image"
+    VIDEO = "video", "Video"
+
+
+class CampaignStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    PUBLISHED = "published", "Published"
+    ARCHIVED = "archived", "Archived"
+
+
+class PromoCampaign(models.Model):
+    """A homepage hero ADVERTISEMENT — operator-authored, and not an event.
+
+    An advertisement may POINT at an event (through `cta_href`) but has no
+    price, inventory or date of its own, which is why it is its own table and
+    not a row in `FeaturedEntry`: a featured slot is "this event, on this
+    shelf", a campaign is "this picture, saying this, going there".
+
+    ── PUBLISHED MEANS APPROVED ─────────────────────────────────────────────
+
+    There is one author class (platform staff), so "approved" is the act of
+    publishing: `approved_by` and `approved_at` record who made the call and
+    when, and nothing but a PUBLISHED row inside its window ever leaves the
+    public read path. Drafts, archived rows and campaigns scheduled for later
+    (or already over) are never serialised into the public payload.
+
+    ── MEDIA IS A URL, ON PURPOSE ───────────────────────────────────────────
+
+    An image is uploaded through `POST /admin/campaigns/media` (validated by
+    `core.uploads`, stored through `StoragePort`) and the resulting URL kept
+    here. A VIDEO is a direct file URL (`.mp4`/`.webm`, https) — a hero video
+    has to autoplay muted and loop, which an iframe embed cannot — with a
+    required poster image shown before it loads and to anyone who has asked
+    for reduced motion or data-saving. Uploading video through this API is
+    deliberately not built (multi-hundred-MB bodies on the web process).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    kind = models.CharField(max_length=10, choices=CampaignKind.choices, default=CampaignKind.IMAGE)
+    title = models.CharField(max_length=CAMPAIGN_TITLE_MAX)
+    description = models.CharField(max_length=CAMPAIGN_DESCRIPTION_MAX, blank=True, default="")
+    alt_text = models.CharField(max_length=200, blank=True, default="")
+    media_url = models.CharField(max_length=500, blank=True, default="")
+    mobile_media_url = models.CharField(max_length=500, blank=True, default="")
+    poster_url = models.CharField(max_length=500, blank=True, default="")
+    cta_label = models.CharField(max_length=CAMPAIGN_CTA_MAX, blank=True, default="")
+    cta_href = models.CharField(max_length=500, blank=True, default="")
+    position = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=12, choices=CampaignStatus.choices, default=CampaignStatus.DRAFT
+    )
+    starts_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "cms_promo_campaign"
+        indexes = [
+            # The public read's exact query: published rows, in order.
+            models.Index(
+                fields=["position"],
+                name="cms_campaign_published_idx",
+                condition=models.Q(status="published"),
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.title} ({self.status})"
+
+
+class PastEventHighlight(models.Model):
+    """A previous-event VIDEO an operator chose to show on the homepage.
+
+    It REFERENCES an `EventMedia` video row rather than copying its URL, so
+    the embed stays the one the organiser's own screen manages (and the one
+    `core.video_embeds` built and vetted) — there is no second place a video
+    link is typed, and so no second place an unvetted one could enter.
+
+    Curation is the authorisation: an organiser can attach a video to their
+    own event, but only a platform operator can put it on the front page, and
+    the public read additionally requires that the event has ALREADY HAPPENED,
+    so a highlight reel never turns into an advert for something upcoming.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(
+        "events.Event", on_delete=models.CASCADE, related_name="homepage_highlights"
+    )
+    media = models.OneToOneField(
+        "events.EventMedia", on_delete=models.CASCADE, related_name="homepage_highlight"
+    )
+    position = models.PositiveIntegerField(default=0)
+    curated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "cms_past_event_highlight"
+        indexes = [models.Index(fields=["position"], name="cms_highlight_position_idx")]
+
+    def __str__(self) -> str:
+        return f"highlight:{self.event_id}"

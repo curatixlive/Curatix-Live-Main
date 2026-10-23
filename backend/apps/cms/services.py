@@ -11,17 +11,23 @@ from __future__ import annotations
 
 import uuid
 
+from django.core.files.uploadedfile import UploadedFile
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from core.audit import record_audit
 from core.errors import ConflictError, InvalidInputError, NotFoundError
+from core.ports.storage_port import StoragePort
 from core.unit_of_work import UnitOfWork
 
-from .models import HomepageContent
+from . import campaign_rules
+from .models import CampaignStatus, HomepageContent, PastEventHighlight, PromoCampaign
 from .repositories import (
+    CampaignRepository,
     CategoryRepository,
     FeaturedCityRepository,
     FeaturedRepository,
+    HighlightRepository,
     HomepageRepository,
     PopularSearchRepository,
 )
@@ -307,5 +313,235 @@ class HomepageService:
                 action="popular_search.deleted",
                 target_type="popular_search",
                 target_id=str(search_id),
+            )
+            transaction.on_commit(invalidate_homepage_cache)
+
+
+#: Fields an operator may set on a campaign. Anything else in a request is
+#: ignored rather than written — `status`, `approved_by` and the audit columns
+#: change only through the methods that own them.
+_CAMPAIGN_EDITABLE = (
+    "kind",
+    "title",
+    "description",
+    "alt_text",
+    "media_url",
+    "mobile_media_url",
+    "poster_url",
+    "cta_label",
+    "cta_href",
+    "position",
+    "starts_at",
+    "ends_at",
+)
+
+
+def _campaign_view(row: PromoCampaign) -> dict:
+    """The row as a plain dict, so the rules run on the MERGED state."""
+    return {name: getattr(row, name) for name in _CAMPAIGN_EDITABLE} | {"status": row.status}
+
+
+class CampaignService:
+    """Homepage hero advertisements. Platform-staff only (the view enforces it).
+
+    Publishing IS the approval: it records who and when, re-validates the whole
+    row, and only then makes it visible. Editing a PUBLISHED campaign runs the
+    publish rules again on the merged result, so a live ad can never be edited
+    into an incomplete or unsafe state — the same merged-row rule `coupons`
+    applies to its terms.
+    """
+
+    def __init__(self, *, campaigns: CampaignRepository, storage: StoragePort) -> None:
+        self._campaigns = campaigns
+        self._storage = storage
+
+    def _get(self, campaign_id: uuid.UUID | str) -> PromoCampaign:
+        row = self._campaigns.get(campaign_id)
+        if row is None or row.status == CampaignStatus.ARCHIVED:
+            raise NotFoundError("No such advertisement.")
+        return row
+
+    def upload_image(self, *, actor_id: uuid.UUID | str, upload: UploadedFile) -> str:
+        """Store one advertisement image and return its URL. Validation runs
+        BEFORE the bytes reach storage (size, declared type, magic bytes, shape),
+        and the storage key is generated — the filename is never trusted."""
+        from core.uploads import CAMPAIGN_IMAGE_SPEC, storage_path, validate_image
+
+        content_type = validate_image(upload, spec=CAMPAIGN_IMAGE_SPEC)
+        path = storage_path(prefix="campaigns", owner_id=str(actor_id), filename=upload.name or "")
+        upload.seek(0)
+        url = self._storage.upload(path=path, content=upload.read(), content_type=content_type)
+        record_audit(
+            actor_id=str(actor_id),
+            action="campaign.media_uploaded",
+            target_type="campaign",
+            target_id=path,
+        )
+        return url
+
+    def create(self, *, actor_id: uuid.UUID | str, fields: dict) -> PromoCampaign:
+        data = {name: fields[name] for name in _CAMPAIGN_EDITABLE if name in fields}
+        campaign_rules.validate_fields(data)
+        if not (data.get("title") or "").strip():
+            raise InvalidInputError("Give the advertisement a headline.")
+        with UnitOfWork():
+            row = self._campaigns.create(
+                **data, status=CampaignStatus.DRAFT, created_by_id=actor_id
+            )
+            record_audit(
+                actor_id=str(actor_id),
+                action="campaign.created",
+                target_type="campaign",
+                target_id=str(row.id),
+            )
+        return row
+
+    def update(
+        self, *, actor_id: uuid.UUID | str, campaign_id: uuid.UUID | str, fields: dict
+    ) -> PromoCampaign:
+        with UnitOfWork():
+            row = self._get(campaign_id)
+            merged = _campaign_view(row) | {
+                name: fields[name] for name in _CAMPAIGN_EDITABLE if name in fields
+            }
+            if row.status == CampaignStatus.PUBLISHED:
+                campaign_rules.validate_for_publish(merged, now=timezone.now())
+            else:
+                campaign_rules.validate_fields(merged)
+            self._campaigns.update(row.id, **{name: merged[name] for name in _CAMPAIGN_EDITABLE})
+            record_audit(
+                actor_id=str(actor_id),
+                action="campaign.updated",
+                target_type="campaign",
+                target_id=str(row.id),
+            )
+            transaction.on_commit(invalidate_homepage_cache)
+        return self._get(campaign_id)
+
+    def publish(self, *, actor_id: uuid.UUID | str, campaign_id: uuid.UUID | str) -> PromoCampaign:
+        now = timezone.now()
+        with UnitOfWork():
+            row = self._get(campaign_id)
+            campaign_rules.validate_for_publish(_campaign_view(row), now=now)
+            self._campaigns.update(
+                row.id,
+                status=CampaignStatus.PUBLISHED,
+                approved_by_id=actor_id,
+                approved_at=now,
+            )
+            record_audit(
+                actor_id=str(actor_id),
+                action="campaign.published",
+                target_type="campaign",
+                target_id=str(row.id),
+            )
+            transaction.on_commit(invalidate_homepage_cache)
+        return self._get(campaign_id)
+
+    def unpublish(
+        self, *, actor_id: uuid.UUID | str, campaign_id: uuid.UUID | str
+    ) -> PromoCampaign:
+        with UnitOfWork():
+            row = self._get(campaign_id)
+            self._campaigns.update(
+                row.id, status=CampaignStatus.DRAFT, approved_by_id=None, approved_at=None
+            )
+            record_audit(
+                actor_id=str(actor_id),
+                action="campaign.unpublished",
+                target_type="campaign",
+                target_id=str(row.id),
+            )
+            transaction.on_commit(invalidate_homepage_cache)
+        return self._get(campaign_id)
+
+    def archive(self, *, actor_id: uuid.UUID | str, campaign_id: uuid.UUID | str) -> None:
+        """Soft delete: the row stays for the audit trail but is never served."""
+        with UnitOfWork():
+            row = self._get(campaign_id)
+            self._campaigns.update(row.id, status=CampaignStatus.ARCHIVED)
+            record_audit(
+                actor_id=str(actor_id),
+                action="campaign.archived",
+                target_type="campaign",
+                target_id=str(row.id),
+            )
+            transaction.on_commit(invalidate_homepage_cache)
+
+    def reorder(self, *, actor_id: uuid.UUID | str, order: list[dict]) -> None:
+        with UnitOfWork():
+            for item in order:
+                self._campaigns.set_position(campaign_id=item["id"], position=int(item["position"]))
+            record_audit(
+                actor_id=str(actor_id),
+                action="campaign.reordered",
+                target_type="campaign",
+                target_id="all",
+                metadata={"count": len(order)},
+            )
+            transaction.on_commit(invalidate_homepage_cache)
+
+
+class HighlightService:
+    """Which previous-event videos appear on the homepage. Platform-staff only."""
+
+    def __init__(self, *, highlights: HighlightRepository) -> None:
+        self._highlights = highlights
+
+    def add(
+        self, *, actor_id: uuid.UUID | str, media_id: uuid.UUID | str, position: int = 0
+    ) -> PastEventHighlight:
+        now = timezone.now()
+        media = self._highlights.get_media_for_curation(media_id, now=now)
+        if media is None:
+            # One message for every way this can be wrong (not a video, hidden,
+            # deleted, the event has not happened yet, or it was cancelled): the
+            # operator's fix is the same in each — pick a different video.
+            raise InvalidInputError(
+                "Only a visible video from an event that has already taken place can be featured."
+            )
+        try:
+            with UnitOfWork():
+                row = self._highlights.create(
+                    event_id=media.event_id,
+                    media_id=media.id,
+                    position=position,
+                    curated_by_id=actor_id,
+                )
+                record_audit(
+                    actor_id=str(actor_id),
+                    action="highlight.added",
+                    target_type="event_media",
+                    target_id=str(media.id),
+                )
+                transaction.on_commit(invalidate_homepage_cache)
+        except IntegrityError as exc:
+            raise ConflictError("That video is already on the homepage.") from exc
+        return row
+
+    def remove(self, *, actor_id: uuid.UUID | str, highlight_id: uuid.UUID | str) -> None:
+        with UnitOfWork():
+            if not self._highlights.delete(highlight_id):
+                raise NotFoundError("No such highlight.")
+            record_audit(
+                actor_id=str(actor_id),
+                action="highlight.removed",
+                target_type="highlight",
+                target_id=str(highlight_id),
+            )
+            transaction.on_commit(invalidate_homepage_cache)
+
+    def reorder(self, *, actor_id: uuid.UUID | str, order: list[dict]) -> None:
+        with UnitOfWork():
+            for item in order:
+                self._highlights.set_position(
+                    highlight_id=item["id"], position=int(item["position"])
+                )
+            record_audit(
+                actor_id=str(actor_id),
+                action="highlight.reordered",
+                target_type="highlight",
+                target_id="all",
+                metadata={"count": len(order)},
             )
             transaction.on_commit(invalidate_homepage_cache)

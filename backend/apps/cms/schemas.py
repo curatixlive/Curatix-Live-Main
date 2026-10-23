@@ -10,10 +10,14 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from .models import (
+    CAMPAIGN_CTA_MAX,
+    CAMPAIGN_DESCRIPTION_MAX,
+    CAMPAIGN_TITLE_MAX,
     CTA_MAX,
     DESCRIPTION_MAX,
     HEADLINE_MAX,
     RIBBON_MAX,
+    CampaignKind,
     Collection,
     FeaturedCity,
     PopularSearch,
@@ -64,12 +68,56 @@ class HomepageCardSerializer(serializers.Serializer):
     organization_name = serializers.CharField()
 
 
+class PublicCampaignSerializer(serializers.Serializer):
+    """What the public homepage gets for an advertisement — nothing about who
+    approved it, and no status (only published rows are serialised at all)."""
+
+    id = serializers.CharField()
+    kind = serializers.CharField()
+    title = serializers.CharField()
+    description = serializers.CharField(allow_blank=True)
+    alt_text = serializers.CharField(allow_blank=True)
+    media_url = serializers.CharField()
+    mobile_media_url = serializers.CharField(allow_blank=True)
+    poster_url = serializers.CharField(allow_blank=True)
+    cta_label = serializers.CharField(allow_blank=True)
+    cta_href = serializers.CharField(allow_blank=True)
+    position = serializers.IntegerField()
+    starts_at = serializers.CharField(allow_null=True)
+    ends_at = serializers.CharField(allow_null=True)
+
+
+class PublicHighlightEventSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    slug = serializers.CharField(allow_blank=True)
+    title = serializers.CharField()
+    venue = serializers.CharField()
+    city = serializers.CharField()
+    starts_at = serializers.CharField()
+    poster_url = serializers.CharField(allow_blank=True)
+
+
+class PublicHighlightVideoSerializer(serializers.Serializer):
+    embed_url = serializers.CharField()
+    is_vertical = serializers.BooleanField()
+    caption = serializers.CharField(allow_blank=True)
+
+
+class PublicHighlightSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    position = serializers.IntegerField()
+    event = PublicHighlightEventSerializer()
+    video = PublicHighlightVideoSerializer()
+
+
 class HomepageSerializer(serializers.Serializer):
     hero = HeroSerializer()
     ribbon = RibbonSerializer()
     footer_note = serializers.CharField(allow_blank=True)
     categories = HomepageCategorySerializer(many=True)
     collections = serializers.DictField(child=HomepageCardSerializer(many=True))
+    campaigns = PublicCampaignSerializer(many=True)
+    highlights = PublicHighlightSerializer(many=True)
     version = serializers.IntegerField()
     generated_at = serializers.CharField()
 
@@ -237,3 +285,91 @@ class PatchPopularSearchSerializer(serializers.Serializer):
     query = serializers.CharField(max_length=120, required=False)
     position = serializers.IntegerField(min_value=0, required=False)
     is_visible = serializers.BooleanField(required=False)
+
+
+# ── Advertisements ──────────────────────────────────────────────────────────
+
+
+class CampaignSerializer(serializers.Serializer):
+    """The admin view of one advertisement, any status."""
+
+    id = serializers.UUIDField()
+    kind = serializers.CharField()
+    title = serializers.CharField()
+    description = serializers.CharField(allow_blank=True)
+    alt_text = serializers.CharField(allow_blank=True)
+    media_url = serializers.CharField(allow_blank=True)
+    mobile_media_url = serializers.CharField(allow_blank=True)
+    poster_url = serializers.CharField(allow_blank=True)
+    cta_label = serializers.CharField(allow_blank=True)
+    cta_href = serializers.CharField(allow_blank=True)
+    position = serializers.IntegerField()
+    status = serializers.CharField()
+    starts_at = serializers.DateTimeField(allow_null=True)
+    ends_at = serializers.DateTimeField(allow_null=True)
+    approved_at = serializers.DateTimeField(allow_null=True)
+    created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()
+
+
+class _CampaignFields(serializers.Serializer):
+    # CharField, not URLField: a campaign's media may be a path on this site
+    # (local storage in development), which a URLField would refuse. The
+    # service's rules enforce "https or a site path" for every one of them.
+    kind = serializers.ChoiceField(choices=CampaignKind.values, required=False)
+    title = serializers.CharField(max_length=CAMPAIGN_TITLE_MAX, required=False)
+    description = serializers.CharField(
+        max_length=CAMPAIGN_DESCRIPTION_MAX, required=False, allow_blank=True
+    )
+    alt_text = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    media_url = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    mobile_media_url = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    poster_url = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    cta_label = serializers.CharField(max_length=CAMPAIGN_CTA_MAX, required=False, allow_blank=True)
+    cta_href = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    position = serializers.IntegerField(min_value=0, required=False)
+    starts_at = serializers.DateTimeField(required=False, allow_null=True)
+    ends_at = serializers.DateTimeField(required=False, allow_null=True)
+
+
+class CreateCampaignSerializer(_CampaignFields):
+    title = serializers.CharField(max_length=CAMPAIGN_TITLE_MAX)
+
+
+class PatchCampaignSerializer(_CampaignFields):
+    def validate(self, attrs: dict) -> dict:
+        if not attrs:
+            raise serializers.ValidationError("Provide at least one field to update.")
+        return attrs
+
+
+class CampaignMediaUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()
+
+
+# ── Past-event highlights ───────────────────────────────────────────────────
+
+
+class HighlightSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    position = serializers.IntegerField()
+    event_id = serializers.UUIDField()
+    event_title = serializers.CharField()
+    event_starts_at = serializers.DateTimeField()
+    media_id = serializers.UUIDField()
+    embed_url = serializers.CharField()
+    caption = serializers.CharField(allow_blank=True)
+
+
+class HighlightCandidateSerializer(serializers.Serializer):
+    media_id = serializers.UUIDField()
+    event_id = serializers.UUIDField()
+    event_title = serializers.CharField()
+    event_starts_at = serializers.DateTimeField()
+    embed_url = serializers.CharField()
+    caption = serializers.CharField(allow_blank=True)
+
+
+class AddHighlightSerializer(serializers.Serializer):
+    media_id = serializers.UUIDField()
+    position = serializers.IntegerField(min_value=0, default=0)

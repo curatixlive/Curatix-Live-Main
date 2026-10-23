@@ -204,6 +204,25 @@ EVENT_IMAGE_SPEC = ImageSpec(
 )
 
 
+#: A homepage hero ADVERTISEMENT — drawn full width above the fold.
+#:
+#: The frame is 16:10 on a phone and up to 24:9 on a wide desktop, so the band
+#: runs from 1.5 (a phone-shaped export) to 3.0 (an ultrawide banner); the
+#: frame crops to fill, and anything inside the band survives that crop. The
+#: floor is 1200 wide because this is the largest picture on the busiest page —
+#: anything softer is visible at once.
+CAMPAIGN_IMAGE_SPEC = ImageSpec(
+    label="advertisement artwork",
+    min_width=1200,
+    min_height=400,
+    min_ratio=1.5,
+    max_ratio=3.0,
+    recommended_width=2400,
+    recommended_height=1000,
+    frame="it is drawn full width at the top of the homepage, in a wide frame",
+)
+
+
 #: The event's PORTRAIT poster — the primary mobile visual.
 #:
 #: `EVENT_IMAGE_SPEC` would refuse every one of these, and that is exactly why

@@ -14,8 +14,10 @@ from __future__ import annotations
 from typing import cast
 from uuid import UUID
 
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -28,17 +30,26 @@ from . import selectors
 from .models import Collection
 from .permissions import IsPlatformAdmin
 from .repositories import (
+    CampaignRepository,
     CategoryRepository,
     FeaturedCityRepository,
     FeaturedRepository,
+    HighlightRepository,
     PopularSearchRepository,
 )
 from .schemas import (
+    AddHighlightSerializer,
     AdminFeaturedSerializer,
+    CampaignMediaUploadSerializer,
+    CampaignSerializer,
     CategorySerializer,
+    CreateCampaignSerializer,
     FeaturedCitySerializer,
     FeatureEventSerializer,
+    HighlightCandidateSerializer,
+    HighlightSerializer,
     HomepageSerializer,
+    PatchCampaignSerializer,
     PatchCategorySerializer,
     PatchFeaturedCitySerializer,
     PatchPopularSearchSerializer,
@@ -313,3 +324,181 @@ class PopularSearchDetailView(AdminView):
     def delete(self, request: Request, search_id: UUID) -> Response:
         _service().delete_popular_search(actor_id=cast(User, request.user).id, search_id=search_id)
         return _no_store(Response(status=status.HTTP_204_NO_CONTENT))
+
+
+# ── Hero advertisements ─────────────────────────────────────────────────────
+
+
+def _campaign_service():
+    from config.di import build_campaign_service
+
+    return build_campaign_service()
+
+
+def _highlight_service():
+    from config.di import build_highlight_service
+
+    return build_highlight_service()
+
+
+class CampaignListView(AdminView):
+    """Every advertisement except archived ones — drafts, published, scheduled
+    and finished — in display order. This is the ONLY place a draft is ever
+    returned; the public `/homepage` payload never contains one."""
+
+    @extend_schema(responses={200: CampaignSerializer(many=True)})
+    def get(self, request: Request) -> Response:
+        rows = CampaignRepository().list_all()
+        return _no_store(Response({"data": CampaignSerializer(rows, many=True).data}))
+
+    @extend_schema(request=CreateCampaignSerializer, responses={201: CampaignSerializer})
+    def post(self, request: Request) -> Response:
+        payload = CreateCampaignSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        row = _campaign_service().create(
+            actor_id=cast(User, request.user).id, fields=dict(payload.validated_data)
+        )
+        return _no_store(Response(CampaignSerializer(row).data, status=status.HTTP_201_CREATED))
+
+
+class CampaignDetailView(AdminView):
+    @extend_schema(request=PatchCampaignSerializer, responses={200: CampaignSerializer})
+    def patch(self, request: Request, campaign_id: UUID) -> Response:
+        payload = PatchCampaignSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        row = _campaign_service().update(
+            actor_id=cast(User, request.user).id,
+            campaign_id=campaign_id,
+            fields=dict(payload.validated_data),
+        )
+        return _no_store(Response(CampaignSerializer(row).data))
+
+    @extend_schema(responses={204: None})
+    def delete(self, request: Request, campaign_id: UUID) -> Response:
+        """Archives: the row stays for the audit trail and is never served."""
+        _campaign_service().archive(actor_id=cast(User, request.user).id, campaign_id=campaign_id)
+        return _no_store(Response(status=status.HTTP_204_NO_CONTENT))
+
+
+class CampaignPublishView(AdminView):
+    """POST publishes (and so approves); DELETE takes it back to a draft."""
+
+    @extend_schema(request=None, responses={200: CampaignSerializer})
+    def post(self, request: Request, campaign_id: UUID) -> Response:
+        row = _campaign_service().publish(
+            actor_id=cast(User, request.user).id, campaign_id=campaign_id
+        )
+        return _no_store(Response(CampaignSerializer(row).data))
+
+    @extend_schema(responses={200: CampaignSerializer})
+    def delete(self, request: Request, campaign_id: UUID) -> Response:
+        row = _campaign_service().unpublish(
+            actor_id=cast(User, request.user).id, campaign_id=campaign_id
+        )
+        return _no_store(Response(CampaignSerializer(row).data))
+
+
+class CampaignReorderView(AdminView):
+    @extend_schema(request=ReorderSerializer, responses={200: None})
+    def post(self, request: Request) -> Response:
+        payload = ReorderSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        _campaign_service().reorder(
+            actor_id=cast(User, request.user).id,
+            order=[
+                {"id": item["id"], "position": item["position"]}
+                for item in payload.validated_data["order"]
+            ],
+        )
+        return _no_store(Response({"ok": True}))
+
+
+class CampaignMediaUploadView(AdminView):
+    """POST multipart `file` -> `{"url": ...}`. Image only; validated for size,
+    type, magic bytes and shape before it reaches storage."""
+
+    parser_classes = [MultiPartParser]
+
+    @extend_schema(request=CampaignMediaUploadSerializer, responses={201: None})
+    def post(self, request: Request) -> Response:
+        payload = CampaignMediaUploadSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        url = _campaign_service().upload_image(
+            actor_id=cast(User, request.user).id, upload=payload.validated_data["file"]
+        )
+        return _no_store(Response({"url": url}, status=status.HTTP_201_CREATED))
+
+
+# ── Past-event highlights ───────────────────────────────────────────────────
+
+
+class HighlightListView(AdminView):
+    @extend_schema(responses={200: HighlightSerializer(many=True)})
+    def get(self, request: Request) -> Response:
+        rows = [
+            {
+                "id": row.id,
+                "position": row.position,
+                "event_id": row.event_id,
+                "event_title": row.event.title,
+                "event_starts_at": row.event.starts_at,
+                "media_id": row.media_id,
+                "embed_url": row.media.url,
+                "caption": row.media.caption,
+            }
+            for row in HighlightRepository().list_all()
+        ]
+        return _no_store(Response({"data": HighlightSerializer(rows, many=True).data}))
+
+    @extend_schema(request=AddHighlightSerializer, responses={201: None})
+    def post(self, request: Request) -> Response:
+        payload = AddHighlightSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        row = _highlight_service().add(
+            actor_id=cast(User, request.user).id,
+            media_id=payload.validated_data["media_id"],
+            position=payload.validated_data["position"],
+        )
+        return _no_store(Response({"id": str(row.id)}, status=status.HTTP_201_CREATED))
+
+
+class HighlightCandidateListView(AdminView):
+    """Videos from events that have already happened and are not yet on the
+    homepage — what an operator picks from."""
+
+    @extend_schema(responses={200: HighlightCandidateSerializer(many=True)})
+    def get(self, request: Request) -> Response:
+        rows = [
+            {
+                "media_id": media.id,
+                "event_id": media.event_id,
+                "event_title": media.event.title,
+                "event_starts_at": media.event.starts_at,
+                "embed_url": media.url,
+                "caption": media.caption,
+            }
+            for media in HighlightRepository().candidates(now=timezone.now())
+        ]
+        return _no_store(Response({"data": HighlightCandidateSerializer(rows, many=True).data}))
+
+
+class HighlightDetailView(AdminView):
+    @extend_schema(responses={204: None})
+    def delete(self, request: Request, highlight_id: UUID) -> Response:
+        _highlight_service().remove(actor_id=cast(User, request.user).id, highlight_id=highlight_id)
+        return _no_store(Response(status=status.HTTP_204_NO_CONTENT))
+
+
+class HighlightReorderView(AdminView):
+    @extend_schema(request=ReorderSerializer, responses={200: None})
+    def post(self, request: Request) -> Response:
+        payload = ReorderSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        _highlight_service().reorder(
+            actor_id=cast(User, request.user).id,
+            order=[
+                {"id": item["id"], "position": item["position"]}
+                for item in payload.validated_data["order"]
+            ],
+        )
+        return _no_store(Response({"ok": True}))
