@@ -137,7 +137,18 @@ export type HomepageHighlight = {
   };
 };
 
+/** One homepage section's configuration, as the public page receives it. */
+export type HomepageSectionConfig = {
+  key: string;
+  visible: boolean;
+  position: number;
+  settings: Record<string, boolean | number>;
+};
+
 export type Homepage = {
+  /** Every registered section — visibility, order and behaviour. Absent from an
+   *  older backend, in which case the page uses its defaults. */
+  sections?: HomepageSectionConfig[];
   /** Admin-managed advertisements — published and in window only. */
   campaigns?: PromoCampaign[];
   /** Curated previous-event videos. */
@@ -162,11 +173,15 @@ export type Homepage = {
   generated_at: string;
 };
 
+/** Tag on the homepage fetch, so an admin's save can purge it at once
+ *  (`app/api/revalidate-homepage`) instead of waiting out the revalidate window. */
+export const HOMEPAGE_CACHE_TAG = 'homepage';
+
 export function fetchHomepage(city?: string): Promise<Homepage> {
   const query = city ? `?city=${encodeURIComponent(city)}` : '';
   return api.get<Homepage>(`/homepage${query}`, {
     auth: false,
-    next: { revalidate: HOMEPAGE_REVALIDATE_SECONDS },
+    next: { revalidate: HOMEPAGE_REVALIDATE_SECONDS, tags: [HOMEPAGE_CACHE_TAG] },
   });
 }
 
@@ -521,3 +536,40 @@ export const removeHighlight = (id: string) =>
 
 export const reorderHighlights = (order: { id: string; position: number }[]) =>
   api.post<{ ok: boolean }>('/admin/highlights/reorder', { order });
+
+/* -------------------------------------------------------------------------- */
+/* Homepage sections (admin)                                                   */
+/* -------------------------------------------------------------------------- */
+
+export type SectionSettingSchema = {
+  key: string;
+  kind: 'bool' | 'int';
+  label: string;
+  help: string;
+  min: number | null;
+  max: number | null;
+  default: boolean | number;
+};
+
+export type AdminSection = {
+  key: string;
+  label: string;
+  description: string;
+  visible: boolean;
+  position: number;
+  settings: Record<string, boolean | number>;
+  settings_schema: SectionSettingSchema[];
+};
+
+export const fetchAdminSections = () =>
+  api.get<{ data: AdminSection[] }>('/admin/homepage/sections');
+
+/** One section's switch and/or settings. A targeted write — two operators on
+ *  different sections cannot overwrite each other. */
+export const updateSection = (
+  key: string,
+  input: { visible?: boolean; settings?: Record<string, boolean | number> },
+) => api.patch<AdminSection>(`/admin/homepage/sections/${encodeURIComponent(key)}`, input);
+
+export const reorderSections = (order: string[]) =>
+  api.put<{ data: AdminSection[] }>('/admin/homepage/sections/order', { order });

@@ -236,7 +236,13 @@ export function ExploreEventsClient({
             }
           />
         ) : events.length ? (
-          <EventGrid events={events} priorityCount={0} />
+          <EventGrid
+            events={events}
+            priorityCount={0}
+            // Fill the band: 2 / 3 / 4 equal columns. Browse keeps its fixed-width
+            // cards (a working surface); the front page is a shop window.
+            className="sm:grid-cols-2 sm:justify-stretch md:grid-cols-3 lg:grid-cols-4"
+          />
         ) : (
           <StateCard
             title={filtered ? 'No events match those filters' : 'No events on sale just yet'}

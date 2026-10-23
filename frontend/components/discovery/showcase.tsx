@@ -8,7 +8,8 @@ import { JsonLd, eventItemListJsonLd } from '@/lib/seo/json-ld';
 import { toEventCard } from './curated-rail';
 import { PosterCard } from './poster-card';
 import { Section, SectionHeader } from './section';
-import { ScrollRail } from './scroll-rail';
+import { LoopingRail } from './looping-rail';
+import { Reveal } from './reveal';
 
 /**
  * FEATURED EVENTS — the rail directly under the hero.
@@ -32,7 +33,15 @@ import { ScrollRail } from './scroll-rail';
  * marketplace instead of a rail of grey boxes.
  */
 
-export async function Showcase({ cms }: { cms?: Homepage | null }) {
+export async function Showcase({
+  cms,
+  autoscroll = true,
+  intervalSeconds = 4,
+}: {
+  cms?: Homepage | null;
+  autoscroll?: boolean;
+  intervalSeconds?: number;
+}) {
   // Never throws: the front page must survive an upstream that does not. The
   // identical call in `ExploreEvents`' server seed is memoised by Next.
   const { events: upcoming } = await fetchUpcomingEvents();
@@ -54,23 +63,36 @@ export async function Showcase({ cms }: { cms?: Homepage | null }) {
         href="/events"
         linkLabel="See all events"
       />
-      <ScrollRail label={label}>
-        {events.map((event, index) => (
-          <li
-            key={event.id}
-            className="w-[62%] shrink-0 snap-start sm:w-[34%] lg:w-[23%] xl:w-[19%]"
-          >
-            <PosterCard
-              event={event}
-              allEvents={events}
-              index={index}
-              // The first screenful is above the fold at every width.
-              priority={index < 3}
-              sizes="(min-width: 1280px) 19vw, (min-width: 1024px) 23vw, (min-width: 640px) 34vw, 62vw"
-            />
-          </li>
-        ))}
-      </ScrollRail>
+      {/* Four cards per row from `lg`, filling the whole width — no fixed
+          five-column grid with an empty fifth slot. Fewer columns below that
+          (three on a tablet, a peek of the next card on a phone) rather than four
+          cramped ones. Card widths are set here because only this section knows
+          its card; the rail knows nothing about posters. */}
+      <LoopingRail
+        label={label}
+        autoscroll={autoscroll}
+        intervalSeconds={intervalSeconds}
+        itemClassName="w-[62%] sm:w-[calc((100%-2rem)/3)] lg:w-[calc((100%-4.5rem)/4)]"
+        items={events.map((event, index) => ({
+          id: event.id,
+          node: (
+            <Reveal delayMs={Math.min(index, 7) * 60}>
+              {/* A restrained lift on hover and keyboard focus — transform only,
+                  and off under reduced motion. */}
+              <div className="transition-transform duration-base ease-out focus-within:-translate-y-1 hover:-translate-y-1 motion-reduce:transition-none motion-reduce:focus-within:translate-y-0 motion-reduce:hover:translate-y-0">
+                <PosterCard
+                  event={event}
+                  allEvents={events}
+                  index={index}
+                  // The first screenful is above the fold at every width.
+                  priority={index < 4}
+                  sizes="(min-width: 1024px) 24vw, (min-width: 640px) 31vw, 62vw"
+                />
+              </div>
+            </Reveal>
+          ),
+        }))}
+      />
     </Section>
   );
 }

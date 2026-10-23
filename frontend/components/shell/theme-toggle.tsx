@@ -47,7 +47,11 @@ export function ThemeToggle({ className }: { className?: string }) {
     <Button
       variant="ghost"
       size="icon"
-      onClick={toggle}
+      onClick={(event) => {
+        // Grow the reveal from the centre of the control that was pressed.
+        const box = event.currentTarget.getBoundingClientRect();
+        toggle({ x: box.left + box.width / 2, y: box.top + box.height / 2 });
+      }}
       className={cn('rounded-full', className)}
       aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}
     >

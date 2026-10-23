@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { flushSync } from 'react-dom';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
@@ -9,7 +10,8 @@ type ThemeContextValue = {
   theme: Theme;
   resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
-  toggle: () => void;
+  /** `origin` is where the reveal grows from (viewport px); omitted = screen centre. */
+  toggle: (origin?: { x: number; y: number }) => void;
 };
 
 const ThemeContext = React.createContext<ThemeContextValue | null>(null);
@@ -70,9 +72,51 @@ export function ThemeProvider({
     setThemeState(next);
   }, []);
 
-  const toggle = React.useCallback(() => {
-    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
-  }, [resolvedTheme, setTheme]);
+  const toggle = React.useCallback(
+    (origin?: { x: number; y: number }) => {
+      const next: ResolvedTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
+      const root = document.documentElement;
+      const commit = () => {
+        // flushSync so React's state and the DOM class change inside the same
+        // snapshot the browser captures — otherwise the "new" frame is the old theme.
+        flushSync(() => setTheme(next));
+        apply(next);
+      };
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const start = (
+        document as Document & {
+          startViewTransition?: (cb: () => void) => { finished: Promise<void> };
+        }
+      ).startViewTransition;
+      if (reduced) return commit();
+
+      if (typeof start === 'function') {
+        const x = origin?.x ?? window.innerWidth / 2;
+        const y = origin?.y ?? window.innerHeight / 2;
+        // Radius to the farthest corner, so the circle always covers the page.
+        const radius = Math.hypot(
+          Math.max(x, window.innerWidth - x),
+          Math.max(y, window.innerHeight - y),
+        );
+        root.style.setProperty('--theme-x', `${x}px`);
+        root.style.setProperty('--theme-y', `${y}px`);
+        root.style.setProperty('--theme-r', `${radius}px`);
+        root.dataset.themeTransition = 'reveal';
+        const run = start.call(document, commit);
+        const done = () => {
+          delete root.dataset.themeTransition;
+        };
+        run.finished.then(done, done);
+        return;
+      }
+
+      // No View Transitions (older Firefox/Safari): a short colour cross-fade.
+      root.dataset.themeTransition = 'fade';
+      commit();
+      window.setTimeout(() => delete root.dataset.themeTransition, 400);
+    },
+    [resolvedTheme, setTheme],
+  );
 
   const value = React.useMemo<ThemeContextValue>(
     () => ({ theme, resolvedTheme, setTheme, toggle }),

@@ -14,8 +14,15 @@ import { SubscribeCard } from '@/components/discovery/subscribe-card';
 import { SellingFastSection } from '@/components/discovery/home-sections';
 import { WhyCuratix } from '@/components/discovery/why-curatix';
 import { HireABandSection } from '@/components/hire/hire-a-band-section';
-import { fetchHomepageSafe } from '@/lib/api/cms';
+import { fetchHomepageSafe, type Homepage, type PromoCampaign } from '@/lib/api/cms';
 import { activeCampaigns } from '@/lib/discovery/promo';
+import {
+  type SectionConfig,
+  type SectionKey,
+  boolSetting,
+  numberSetting,
+  visibleSections,
+} from '@/lib/discovery/sections';
 
 /**
  * THE LANDING PAGE'S BODY — mounted in two places, written once.
@@ -61,9 +68,106 @@ import { activeCampaigns } from '@/lib/discovery/promo';
  * price and a CTA) and ONE listing surface (`AllEvents`, a grid carrying the
  * browse page's own filter vocabulary).
  */
+/**
+ * How each section renders. A `Record<SectionKey, …>`, so adding a key to
+ * `lib/discovery/sections.ts` without writing its renderer here does not compile —
+ * and `sections.test.ts` ties that list to the backend registry, so a section
+ * cannot exist without a switch, nor a switch without a section.
+ *
+ * Settings an operator tuned in the admin (a carousel's interval, autoplay on or
+ * off) arrive here as `config.settings` and are passed to the component as props;
+ * the components themselves know nothing about the CMS.
+ */
+type Context = { cms: Homepage | null; ads: PromoCampaign[]; config: SectionConfig };
+
+const RENDER: Record<SectionKey, (ctx: Context) => React.ReactNode> = {
+  // A. THE HERO. Advertisements an operator published, or — when there are none —
+  // the Curatix brand hero, so the first screen is never an empty carousel. Ads
+  // and events are different things: an ad may link to an event but is never
+  // drawn as one. Turning "Promotions" off removes this whole slot.
+  promotions: ({ cms, ads, config }) =>
+    ads.length ? (
+      <PromoHero
+        campaigns={ads}
+        intervalSeconds={numberSetting(config, 'interval_seconds', { min: 3, max: 30 })}
+      />
+    ) : (
+      <BrandHero hero={cms?.hero} />
+    ),
+
+  // B. FEATURED EVENTS — the operator's featured collection, else the soonest.
+  featured: ({ cms, config }) => (
+    <Showcase
+      cms={cms}
+      autoscroll={boolSetting(config, 'autoscroll')}
+      intervalSeconds={numberSetting(config, 'interval_seconds', { min: 2, max: 15 })}
+    />
+  ),
+
+  // C. EXPLORE — search, city, category and date filters over the real events API,
+  // with cursor pagination.
+  explore: ({ cms }) => (
+    <Suspense fallback={<AllEventsSkeleton />}>
+      <ExploreEvents cms={cms} />
+    </Suspense>
+  ),
+
+  // D. PARTNER CAROUSEL — organiser (most often), venue partner, sponsor.
+  partners: () => <PartnerCarousel />,
+
+  // E. RELIVE THE HIGHLIGHTS — video from events that have happened.
+  highlights: ({ cms, config }) => (
+    <HighlightsShowcase highlights={cms?.highlights} autoplay={boolSetting(config, 'autoplay')} />
+  ),
+
+  // Operator-curated collections hide themselves when empty (no placeholder, no
+  // auto-filled substitute), so a switched-on section with nothing curated is
+  // still absent rather than an empty box.
+  editors_picks: ({ cms }) => (
+    <CuratedRail
+      collections={cms?.collections}
+      collection="editors_pick"
+      title="Editor's picks"
+      subtitle="Chosen by our team"
+    />
+  ),
+  recommended: ({ cms }) => (
+    <CuratedRail
+      collections={cms?.collections}
+      collection="recommended"
+      title="Recommended for you"
+      subtitle="Hand-picked by our team"
+    />
+  ),
+  new_arrivals: ({ cms }) => (
+    <CuratedRail
+      collections={cms?.collections}
+      collection="new"
+      title="New on Curatix"
+      subtitle="Recently added to the platform"
+    />
+  ),
+
+  // Only appears when something genuinely is running low.
+  selling_fast: () => (
+    <Suspense fallback={null}>
+      <SellingFastSection />
+    </Suspense>
+  ),
+
+  hire_a_band: () => <HireABandSection />,
+  why_curatix: () => <WhyCuratix />,
+  subscribe: () => (
+    <Section>
+      <SubscribeCard />
+    </Section>
+  ),
+};
+
 export async function HomeBody() {
   // Server-side, ISR'd and NEVER throws — the hero is the LCP element, and a
-  // failing upstream must not take the front page down.
+  // failing upstream must not take the front page down. If the configuration is
+  // unavailable, `visibleSections` falls back to every section on, in default order.
   const cms = await fetchHomepageSafe();
   // Published, approved, in-window ads only (the backend already filtered; this
   // is the second check, because the response may have sat in an edge cache).
@@ -76,67 +180,19 @@ export async function HomeBody() {
           brand hero's headline, and either changes (a carousel press, an
           operator edit). A document whose heading mutates has no stable
           outline for a screen reader or a crawler, so the h1 is real, first in
-          the document, visually hidden, and names the PAGE. Every section
-          below is an h2 under it. */}
+          the document, visually hidden, and names the PAGE — and it stays even
+          when every section is switched off. Every section is an h2 under it. */}
       <h1 className="sr-only">Live events, concerts and experiences in India</h1>
 
-      {/* A. THE HERO. Advertisements an operator published, or — when there are
-          none — the Curatix brand hero, so the first screen is never an empty
-          carousel. Ads and events are different things: an ad may link to an
-          event but is never drawn as one. */}
-      {ads.length ? <PromoHero campaigns={ads} /> : <BrandHero hero={cms?.hero} />}
+      {/* Visible sections only, in the operator's order. A hidden one is not
+          rendered at all: no component, so no timer, no video, no request and no
+          empty container or stray gap where it used to be. */}
+      {visibleSections(cms?.sections).map((config) => (
+        <React.Fragment key={config.key}>{RENDER[config.key]({ cms, ads, config })}</React.Fragment>
+      ))}
 
-      {/* B. FEATURED EVENTS — the operator's featured collection, else the
-          soonest upcoming. */}
-      <Showcase cms={cms} />
-
-      {/* C. EXPLORE — search, city, category and date filters over the real
-          events API, with cursor pagination. */}
-      <Suspense fallback={<AllEventsSkeleton />}>
-        <ExploreEvents cms={cms} />
-      </Suspense>
-
-      {/* D. PARTNER CAROUSEL — organiser (most often), venue partner, sponsor. */}
-      <PartnerCarousel />
-
-      {/* E. RELIVE THE HIGHLIGHTS — video from events that have happened. */}
-      <HighlightsShowcase highlights={cms?.highlights} />
-
-      {/* ── EVERYTHING BELOW IS THE REST OF THE PAGE, in its old order ────────
-          Operator-curated collections hide themselves when empty, and "selling
-          fast" only appears when something genuinely is. */}
-      <CuratedRail
-        collections={cms?.collections}
-        collection="editors_pick"
-        title="Editor's picks"
-        subtitle="Chosen by our team"
-      />
-      <CuratedRail
-        collections={cms?.collections}
-        collection="recommended"
-        title="Recommended for you"
-        subtitle="Hand-picked by our team"
-      />
-      <CuratedRail
-        collections={cms?.collections}
-        collection="new"
-        title="New on Curatix"
-        subtitle="Recently added to the platform"
-      />
-
-      <Suspense fallback={null}>
-        <SellingFastSection />
-      </Suspense>
-
+      {/* A prompt, not a section: it renders nothing until it has something to ask. */}
       <LocationPrompt />
-
-      <HireABandSection />
-
-      <WhyCuratix />
-
-      <Section>
-        <SubscribeCard />
-      </Section>
     </>
   );
 }

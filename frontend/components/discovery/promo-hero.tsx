@@ -46,7 +46,8 @@ import { cn } from '@/lib/utils/cn';
  *   dimensions cause zero layout shift, and `object-cover` crops them.
  */
 
-const AUTOPLAY_MS = 7000;
+/** Used when the admin has not set one; the real value arrives as `intervalSeconds`. */
+const DEFAULT_INTERVAL_SECONDS = 7;
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = React.useState(false);
@@ -80,7 +81,14 @@ function prefersSavingData(): boolean {
   return Boolean(connection?.saveData);
 }
 
-export function PromoHero({ campaigns }: { campaigns: PromoCampaign[] | undefined }) {
+export function PromoHero({
+  campaigns,
+  intervalSeconds = DEFAULT_INTERVAL_SECONDS,
+}: {
+  campaigns: PromoCampaign[] | undefined;
+  /** Seconds each slide stays up; set by an operator in Admin → Homepage. */
+  intervalSeconds?: number;
+}) {
   const slides = React.useMemo(() => activeCampaigns(campaigns), [campaigns]);
   const [index, setIndex] = React.useState(0);
   const [userPaused, setUserPaused] = React.useState(false);
@@ -123,9 +131,12 @@ export function PromoHero({ campaigns }: { campaigns: PromoCampaign[] | undefine
 
   React.useEffect(() => {
     if (!canAutoplay) return;
-    const id = window.setTimeout(() => setIndex((i) => (i + 1) % count), AUTOPLAY_MS);
+    const id = window.setTimeout(
+      () => setIndex((i) => (i + 1) % count),
+      Math.max(1, intervalSeconds) * 1000,
+    );
     return () => window.clearTimeout(id);
-  }, [canAutoplay, index, count]);
+  }, [canAutoplay, index, count, intervalSeconds]);
 
   if (count === 0 || !current) return null;
 

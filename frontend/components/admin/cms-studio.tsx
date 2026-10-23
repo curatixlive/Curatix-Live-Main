@@ -41,6 +41,7 @@ import { FeaturedManager } from './featured-manager';
 import { AnnouncementsAdmin } from './announcements-admin';
 import { CampaignsAdmin } from './campaigns-admin';
 import { HighlightsAdmin } from './highlights-admin';
+import { SectionsAdmin } from './sections-admin';
 
 /**
  * The CMS Studio.
@@ -100,6 +101,7 @@ import { HighlightsAdmin } from './highlights-admin';
  * do. A section with no reader is removed, not disabled.
  */
 type SectionId =
+  | 'sections'
   | 'ads'
   | 'highlights'
   | 'ribbon'
@@ -121,6 +123,12 @@ type TreeNode = {
 };
 
 const TREE: TreeNode[] = [
+  {
+    id: 'sections',
+    label: 'Homepage sections',
+    icon: LayoutTemplate,
+    blurb: 'Show, hide, reorder and tune every block',
+  },
   {
     id: 'ads',
     label: 'Hero advertisements',
@@ -165,7 +173,7 @@ const TREE: TreeNode[] = [
 export function CmsStudio() {
   // Hero advertisements are the default: they are the front page's first screen —
   // the thing an operator most often came here to change.
-  const [selected, setSelected] = React.useState<SectionId>('ads');
+  const [selected, setSelected] = React.useState<SectionId>('sections');
   const [device, setDevice] = React.useState<'desktop' | 'mobile'>('desktop');
   const [previewKey, setPreviewKey] = React.useState(0);
 
@@ -308,6 +316,7 @@ function Tree({
  * keeps a single Save for a single write.
  */
 function Editor({ section, onSaved }: { section: SectionId; onSaved: () => void }) {
+  if (section === 'sections') return <SectionsAdmin />;
   if (section === 'ads') return <CampaignsAdmin />;
   if (section === 'highlights') return <HighlightsAdmin />;
   if (section === 'featured') return <FeaturedManager />;
