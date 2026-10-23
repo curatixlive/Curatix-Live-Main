@@ -110,6 +110,13 @@ class PublicHighlightSerializer(serializers.Serializer):
     video = PublicHighlightVideoSerializer()
 
 
+class PublicSectionSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    visible = serializers.BooleanField()
+    position = serializers.IntegerField()
+    settings = serializers.DictField()
+
+
 class HomepageSerializer(serializers.Serializer):
     hero = HeroSerializer()
     ribbon = RibbonSerializer()
@@ -118,6 +125,7 @@ class HomepageSerializer(serializers.Serializer):
     collections = serializers.DictField(child=HomepageCardSerializer(many=True))
     campaigns = PublicCampaignSerializer(many=True)
     highlights = PublicHighlightSerializer(many=True)
+    sections = PublicSectionSerializer(many=True)
     version = serializers.IntegerField()
     generated_at = serializers.CharField()
 
@@ -373,3 +381,42 @@ class HighlightCandidateSerializer(serializers.Serializer):
 class AddHighlightSerializer(serializers.Serializer):
     media_id = serializers.UUIDField()
     position = serializers.IntegerField(min_value=0, default=0)
+
+
+# ── Section visibility ──────────────────────────────────────────────────────
+
+
+class SectionSettingSchemaSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    kind = serializers.CharField()
+    label = serializers.CharField()  # type: ignore[assignment]
+    help = serializers.CharField(allow_blank=True)
+    min = serializers.IntegerField(allow_null=True)
+    max = serializers.IntegerField(allow_null=True)
+    default = serializers.JSONField()
+
+
+class AdminSectionSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    label = serializers.CharField()  # type: ignore[assignment]
+    description = serializers.CharField()
+    visible = serializers.BooleanField()
+    position = serializers.IntegerField()
+    settings = serializers.DictField()
+    settings_schema = SectionSettingSchemaSerializer(many=True)
+
+
+class PatchSectionSerializer(serializers.Serializer):
+    visible = serializers.BooleanField(required=False)
+    # Validated against the section's declared settings by the service, so the
+    # accepted keys and ranges live in one place (`cms/sections.py`).
+    settings = serializers.DictField(required=False)
+
+    def validate(self, attrs: dict) -> dict:
+        if "visible" not in attrs and not attrs.get("settings"):
+            raise serializers.ValidationError("Provide a visibility or a setting to change.")
+        return attrs
+
+
+class SectionOrderSerializer(serializers.Serializer):
+    order = serializers.ListField(child=serializers.CharField(max_length=40), max_length=50)

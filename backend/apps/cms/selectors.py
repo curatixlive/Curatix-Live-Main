@@ -27,6 +27,7 @@ from django.utils import timezone
 
 from core.ports.cache_port import CachePort
 
+from . import sections as section_registry
 from .models import Collection
 from .repositories import (
     CampaignRepository,
@@ -36,6 +37,7 @@ from .repositories import (
     HighlightRepository,
     HomepageRepository,
     PopularSearchRepository,
+    SectionRepository,
 )
 
 HOMEPAGE_TTL_SECONDS = 600
@@ -80,6 +82,7 @@ def get_homepage(
     popular: PopularSearchRepository | None = None,
     campaigns: CampaignRepository | None = None,
     highlights: HighlightRepository | None = None,
+    section_repo: SectionRepository | None = None,
     cache: CachePort | None = None,
 ) -> dict[str, Any]:
     """Everything the front page renders, in one payload.
@@ -95,12 +98,16 @@ def get_homepage(
     popular = popular or PopularSearchRepository()
     campaigns = campaigns or CampaignRepository()
     highlights = highlights or HighlightRepository()
+    section_repo = section_repo or SectionRepository()
     cache = cache or _cache()
 
     scope = (city or "").lower()
     key = f"cms:homepage:v{_generation(cache)}:{scope}"
     cached = cache.get(key)
-    if cached is not None:
+    # A payload cached by a build that predates `sections` is treated as a miss, so
+    # a deploy never serves the page without its section configuration for the
+    # rest of the ten-minute TTL.
+    if cached is not None and "sections" in cached:
         return _apply_windows(cached, timezone.now())
 
     now = timezone.now()
@@ -184,6 +191,9 @@ def get_homepage(
         # cached for ten minutes and a start time falls inside that.
         "campaigns": [_campaign_row(row) for row in campaigns.list_publishable(now=now)],
         "highlights": [_highlight_row(row) for row in highlights.list_public(now=now)],
+        # EVERY registered section, exactly once, in display order — a missing row
+        # is "visible at its default place", so this never blanks the page.
+        "sections": section_registry.merge(section_repo.all_by_key()),
         "version": content.version,
         "generated_at": now.isoformat(),
     }

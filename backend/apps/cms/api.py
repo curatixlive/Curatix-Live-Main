@@ -40,6 +40,7 @@ from .repositories import (
 from .schemas import (
     AddHighlightSerializer,
     AdminFeaturedSerializer,
+    AdminSectionSerializer,
     CampaignMediaUploadSerializer,
     CampaignSerializer,
     CategorySerializer,
@@ -53,8 +54,10 @@ from .schemas import (
     PatchCategorySerializer,
     PatchFeaturedCitySerializer,
     PatchPopularSearchSerializer,
+    PatchSectionSerializer,
     PopularSearchSerializer,
     ReorderSerializer,
+    SectionOrderSerializer,
     UpdateHomepageSerializer,
     WriteCategorySerializer,
     WriteFeaturedCitySerializer,
@@ -502,3 +505,58 @@ class HighlightReorderView(AdminView):
             ],
         )
         return _no_store(Response({"ok": True}))
+
+
+# ── Homepage sections: visibility, order, behaviour ─────────────────────────
+
+
+def _section_service():
+    from config.di import build_section_service
+
+    return build_section_service()
+
+
+class SectionListView(AdminView):
+    """Every registered section with its switch, order and settings — including
+    sections nobody has ever configured (they appear on, at their default place),
+    so the screen can never lack a control for a section that is on the page."""
+
+    @extend_schema(responses={200: AdminSectionSerializer(many=True)})
+    def get(self, request: Request) -> Response:
+        return _no_store(
+            Response(
+                {"data": AdminSectionSerializer(_section_service().describe(), many=True).data}
+            )
+        )
+
+
+class SectionDetailView(AdminView):
+    """PATCH one section's visibility and/or settings. A targeted write: two
+    operators editing different sections cannot overwrite each other."""
+
+    @extend_schema(request=PatchSectionSerializer, responses={200: AdminSectionSerializer})
+    def patch(self, request: Request, key: str) -> Response:
+        payload = PatchSectionSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        item = _section_service().update(
+            actor_id=cast(User, request.user).id,
+            key=key,
+            visible=payload.validated_data.get("visible"),
+            settings=payload.validated_data.get("settings"),
+        )
+        return _no_store(Response(AdminSectionSerializer(item).data))
+
+
+class SectionOrderView(AdminView):
+    """PUT the full display order. Must name every section exactly once."""
+
+    @extend_schema(
+        request=SectionOrderSerializer, responses={200: AdminSectionSerializer(many=True)}
+    )
+    def put(self, request: Request) -> Response:
+        payload = SectionOrderSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        items = _section_service().reorder(
+            actor_id=cast(User, request.user).id, order=list(payload.validated_data["order"])
+        )
+        return _no_store(Response({"data": AdminSectionSerializer(items, many=True).data}))

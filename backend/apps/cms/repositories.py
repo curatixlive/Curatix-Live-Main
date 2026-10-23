@@ -18,6 +18,7 @@ from .models import (
     FeaturedCity,
     FeaturedEntry,
     HomepageContent,
+    HomepageSection,
     PastEventHighlight,
     PopularSearch,
     PromoCampaign,
@@ -314,3 +315,25 @@ class HighlightRepository:
             .select_related("event", "media")
             .order_by("position", "created_at")[:limit]
         )
+
+
+class SectionRepository:
+    def all_by_key(self) -> dict[str, HomepageSection]:
+        """Every configured row — at most a dozen — in ONE query."""
+        return {row.key: row for row in HomepageSection.objects.all()}
+
+    def get_or_create(self, key: str) -> HomepageSection:
+        row, _ = HomepageSection.objects.get_or_create(key=key)
+        return row
+
+    def lock(self, key: str) -> HomepageSection:
+        """`SELECT ... FOR UPDATE` on one section's row, inside the caller's
+        transaction, so two operators editing the SAME section serialise and two
+        editing DIFFERENT sections never touch each other's rows."""
+        return HomepageSection.objects.select_for_update().get(key=key)
+
+    def set_positions(self, order: list[str], *, user_id) -> None:
+        for position, key in enumerate(order):
+            HomepageSection.objects.update_or_create(
+                key=key, defaults={"position": position, "updated_by_id": user_id}
+            )

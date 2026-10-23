@@ -799,6 +799,14 @@ def build_homepage_service() -> HomepageService:
     )
 
 
+def build_section_service():
+    """Show/hide/reorder/tune the homepage's sections. Staff only."""
+    from apps.cms.repositories import SectionRepository
+    from apps.cms.services import HomepageSectionService
+
+    return HomepageSectionService(repo=SectionRepository())
+
+
 def build_campaign_service():
     """Homepage hero advertisements. Staff-only; the view enforces that."""
     from apps.cms.repositories import CampaignRepository

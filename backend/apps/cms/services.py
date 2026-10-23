@@ -20,7 +20,7 @@ from core.errors import ConflictError, InvalidInputError, NotFoundError
 from core.ports.storage_port import StoragePort
 from core.unit_of_work import UnitOfWork
 
-from . import campaign_rules
+from . import campaign_rules, sections
 from .models import CampaignStatus, HomepageContent, PastEventHighlight, PromoCampaign
 from .repositories import (
     CampaignRepository,
@@ -30,6 +30,7 @@ from .repositories import (
     HighlightRepository,
     HomepageRepository,
     PopularSearchRepository,
+    SectionRepository,
 )
 from .selectors import invalidate_homepage_cache
 
@@ -545,3 +546,91 @@ class HighlightService:
                 metadata={"count": len(order)},
             )
             transaction.on_commit(invalidate_homepage_cache)
+
+
+def _admin_view(item: dict) -> dict:
+    """A merged section plus what the admin screen needs to draw its controls."""
+    spec = sections.BY_KEY[item["key"]]
+    return {
+        **item,
+        "label": spec.label,
+        "description": spec.description,
+        "settings_schema": [
+            {
+                "key": s.key,
+                "kind": s.kind,
+                "label": s.label,
+                "help": s.help,
+                "min": s.minimum,
+                "max": s.maximum,
+                "default": s.default,
+            }
+            for s in spec.settings
+        ],
+    }
+
+
+class HomepageSectionService:
+    """Show, hide, reorder and tune the homepage's sections. Staff only.
+
+    Each change is a SMALL, targeted write — one section's switch or settings, or
+    one whole-order write — never a read-modify-write of the whole configuration.
+    That is the answer to concurrent admins: two people toggling different
+    sections cannot overwrite each other, two toggling the same one serialise on
+    its row lock, and the last reorder wins (an order is inherently one value).
+
+    Nothing here touches the content a section shows. Hiding "Editor's picks"
+    leaves every pinned event in place.
+    """
+
+    def __init__(self, *, repo: SectionRepository) -> None:
+        self._repo = repo
+
+    def describe(self) -> list[dict]:
+        return [_admin_view(item) for item in sections.merge(self._repo.all_by_key())]
+
+    def update(
+        self,
+        *,
+        actor_id: uuid.UUID | str,
+        key: str,
+        visible: bool | None = None,
+        settings: dict | None = None,
+    ) -> dict:
+        spec = sections.spec_for(key)  # raises for an unknown key
+        clean = sections.validate_settings(key, settings) if settings else {}
+        if visible is None and not clean:
+            raise InvalidInputError("Provide a visibility or a setting to change.")
+        with UnitOfWork():
+            self._repo.get_or_create(spec.key)
+            row = self._repo.lock(spec.key)
+            if visible is not None:
+                row.visible = visible
+            if clean:
+                row.options = {**(row.options or {}), **clean}
+            row.updated_by_id = actor_id
+            row.save()
+            record_audit(
+                actor_id=str(actor_id),
+                action="homepage.section_updated",
+                target_type="homepage_section",
+                target_id=spec.key,
+                metadata={"visible": visible, "settings": clean},
+            )
+            transaction.on_commit(invalidate_homepage_cache)
+        return next(item for item in self.describe() if item["key"] == spec.key)
+
+    def reorder(self, *, actor_id: uuid.UUID | str, order: list[str]) -> list[dict]:
+        if sorted(order) != sorted(sections.KEYS):
+            raise InvalidInputError("The order must list every homepage section exactly once.")
+        with UnitOfWork():
+            self._repo.set_positions(order, user_id=actor_id)
+            record_audit(
+                actor_id=str(actor_id),
+                action="homepage.sections_reordered",
+                target_type="homepage",
+                target_id="sections",
+                metadata={"order": order},
+            )
+            transaction.on_commit(invalidate_homepage_cache)
+        return self.describe()

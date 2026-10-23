@@ -85,4 +85,15 @@ urlpatterns = [
         api.HighlightDetailView.as_view(),
         name="admin-highlight-detail",
     ),
+    path("admin/homepage/sections", api.SectionListView.as_view(), name="admin-sections"),
+    path(
+        "admin/homepage/sections/order",
+        api.SectionOrderView.as_view(),
+        name="admin-sections-order",
+    ),
+    path(
+        "admin/homepage/sections/<slug:key>",
+        api.SectionDetailView.as_view(),
+        name="admin-section-detail",
+    ),
 ]

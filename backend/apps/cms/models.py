@@ -384,3 +384,34 @@ class PastEventHighlight(models.Model):
 
     def __str__(self) -> str:
         return f"highlight:{self.event_id}"
+
+
+class HomepageSection(models.Model):
+    """Whether a homepage section is shown, where, and how it behaves.
+
+    One row per section that an operator has CONFIGURED. A section with no row is
+    visible at its default position (see `cms/sections.py`), which is why this
+    table ships empty and existing pages are untouched. The row is configuration
+    only: it never holds, copies or deletes the content a section displays.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    #: A key from `cms.sections.SECTIONS`. Not a foreign key: the registry is code.
+    key = models.SlugField(max_length=40, unique=True)
+    visible = models.BooleanField(default=True)
+    #: Null means "its default place"; a reorder writes every row.
+    position = models.PositiveIntegerField(null=True, blank=True)
+    #: Admin-tunable behaviour (autoplay, interval), validated against the registry.
+    #: Named `options`, not `settings`: a class attribute of that name would shadow
+    #: the `settings` module the foreign key below needs.
+    options = models.JSONField(default=dict, blank=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "cms_homepage_section"
+
+    def __str__(self) -> str:
+        return f"{self.key} ({'on' if self.visible else 'off'})"
