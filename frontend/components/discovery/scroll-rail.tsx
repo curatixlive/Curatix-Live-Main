@@ -67,7 +67,7 @@ export function ScrollRail({
         ref={ref}
         aria-label={label}
         className={cn(
-          'scrollbar-none -mx-4 flex touch-manipulation snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0',
+          'scrollbar-none -mx-4 flex touch-manipulation snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 lg:mx-0 lg:px-0',
           listClassName,
         )}
       >

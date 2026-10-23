@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowRight, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { Container } from '@/components/shell/container';
 import { RemoteImage } from '@/components/ui/remote-image';
 import type { PromoCampaign } from '@/lib/api/cms';
@@ -27,16 +27,19 @@ import { cn } from '@/lib/utils/cn';
  *
  * ── IT RENDERS NOTHING WITHOUT CAMPAIGNS ───────────────────────────────────
  *
- * `GET /homepage` does not serve campaigns yet (`docs/ADS_HERO_BACKEND_GAP.md`),
- * so today this returns null and the page is the event showcase alone. There is
- * no placeholder slide and no invented creative.
+ * `GET /homepage` serves only PUBLISHED, in-window campaigns
+ * (`docs/HOMEPAGE_ADS_AND_HIGHLIGHTS.md`). With none, this returns null and the
+ * homepage draws the Curatix brand hero instead (`brand-hero.tsx`), so the first
+ * screen is never an empty carousel. There is no placeholder slide and no
+ * invented creative.
  *
  * ── MOTION AND MEDIA RULES ─────────────────────────────────────────────────
  *
  * • Auto-advance is for still images only, stops on hover/focus/touch, when the
  *   hero is off-screen or the tab is hidden, and never runs under
  *   `prefers-reduced-motion`. There is always a visible Pause/Play control.
- * • Video is `muted` with native controls — sound is the viewer's choice. It
+ * • Video is `muted`, with its own play/pause and mute buttons (the browser's
+ *   own bar would run across the headline) — sound is the viewer's choice. It
  *   autoplays only when visible, motion is allowed and data-saver is off;
  *   otherwise the poster shows and the viewer presses play.
  * • The frame has a FIXED aspect ratio per breakpoint, so slides of any
@@ -55,6 +58,20 @@ function usePrefersReducedMotion(): boolean {
     return () => query.removeEventListener('change', update);
   }, []);
   return reduced;
+}
+
+/**
+ * `play()` returns a promise in current browsers, which rejects when autoplay is
+ * refused — swallowed, because a refused autoplay is not an error — and returns
+ * nothing at all in jsdom and some older engines. Both must be harmless.
+ */
+function safePlay(video: HTMLVideoElement): void {
+  try {
+    const result = video.play() as Promise<void> | undefined;
+    if (result && typeof result.catch === 'function') result.catch(() => undefined);
+  } catch {
+    /* not implemented in this environment */
+  }
 }
 
 function prefersSavingData(): boolean {
@@ -324,30 +341,69 @@ function PromoVideo({
   const ref = React.useRef<HTMLVideoElement>(null);
   // Autoplay only when it is polite: visible, motion allowed, not on data-saver.
   const mayAutoplay = !reduced && !prefersSavingData();
+  const [playing, setPlaying] = React.useState(false);
+  const [muted, setMuted] = React.useState(true);
 
   React.useEffect(() => {
     const video = ref.current;
     if (!video || !mayAutoplay) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      // No way to know when it is off-screen; start it and let the browser decide.
+      safePlay(video);
+      return;
+    }
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry?.isIntersecting) void video.play().catch(() => undefined);
+      if (entry?.isIntersecting) safePlay(video);
       else video.pause();
     });
     observer.observe(video);
     return () => observer.disconnect();
   }, [mayAutoplay]);
 
+  const toggle = () => {
+    const video = ref.current;
+    if (!video) return;
+    if (video.paused) safePlay(video);
+    else video.pause();
+  };
+
   return (
-    <video
-      ref={ref}
-      className="size-full object-cover"
-      src={src}
-      poster={poster ?? undefined}
-      aria-label={label}
-      muted
-      loop
-      playsInline
-      controls
-      preload={mayAutoplay ? 'metadata' : 'none'}
-    />
+    <>
+      {/* No native `controls`: the browser's bar runs along the bottom edge,
+          straight over the headline and the arrows. These two buttons are the
+          whole control surface, top-right where nothing else lives. */}
+      <video
+        ref={ref}
+        className="size-full object-cover"
+        src={src}
+        poster={poster ?? undefined}
+        aria-label={label}
+        muted={muted}
+        loop
+        playsInline
+        preload={mayAutoplay ? 'metadata' : 'none'}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+      />
+      <div className="absolute right-3 top-3 z-10 flex gap-1.5 sm:right-5 sm:top-5">
+        <ControlButton label={playing ? 'Pause video' : 'Play video'} onClick={toggle}>
+          {playing ? (
+            <Pause className="size-4" aria-hidden />
+          ) : (
+            <Play className="size-4" aria-hidden />
+          )}
+        </ControlButton>
+        <ControlButton
+          label={muted ? 'Unmute video' : 'Mute video'}
+          onClick={() => setMuted((m) => !m)}
+        >
+          {muted ? (
+            <VolumeX className="size-4" aria-hidden />
+          ) : (
+            <Volume2 className="size-4" aria-hidden />
+          )}
+        </ControlButton>
+      </div>
+    </>
   );
 }

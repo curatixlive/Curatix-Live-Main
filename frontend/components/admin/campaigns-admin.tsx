@@ -176,9 +176,9 @@ export function CampaignsAdmin() {
             return (
               <li
                 key={row.id}
-                className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-3 sm:flex-row sm:items-center"
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface p-3"
               >
-                <div className="relative aspect-[16/7] w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:w-44">
+                <div className="relative aspect-[16/7] w-28 shrink-0 overflow-hidden rounded-lg bg-muted sm:w-36">
                   <RemoteImage
                     src={row.kind === 'video' ? row.poster_url : row.media_url}
                     alt=""
@@ -188,7 +188,7 @@ export function CampaignsAdmin() {
                     {row.kind === 'video' ? 'Video' : 'Image'}
                   </span>
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-40">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="truncate text-label">{row.title}</h3>
                     <StatusPill tone={PHASE[phase].tone}>{PHASE[phase].label}</StatusPill>
@@ -200,7 +200,7 @@ export function CampaignsAdmin() {
                     {row.cta_href ? ` · ${row.cta_label} → ${row.cta_href}` : ''}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="ml-auto flex flex-wrap items-center gap-1.5">
                   <Button
                     size="sm"
                     variant="ghost"

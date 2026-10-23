@@ -108,7 +108,6 @@ export function HighlightsShowcase({
                 src={src}
                 title={`${current.event.title} highlights`}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                allowFullScreen
                 referrerPolicy="strict-origin-when-cross-origin"
                 className="size-full border-0"
               />

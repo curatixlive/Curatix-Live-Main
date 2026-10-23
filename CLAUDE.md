@@ -3203,6 +3203,44 @@ default) they never come back, so such a test passes on the first run of a fresh
 database and fails on every run after it. Assert the guarantee (the endpoint
 serves usable copy) and create whatever rows the test needs itself.
 
+## Homepage advertisements, the partner carousel and past-event videos
+
+The homepage is five sections in a fixed order: **hero** (published ads, else the
+Curatix brand hero) → **featured events** → **explore** (search/city/category/date
+over the real API) → **partner carousel** → **relive the highlights**. Full detail,
+the admin workflow and the API list are in `frontend/docs/HOMEPAGE_ADS_AND_HIGHLIGHTS.md`.
+The rules that carry weight:
+
+- **A draft is never public.** `cms.PromoCampaign` is a DRAFT until an operator
+  PUBLISHES it, and publishing is the approval (`approved_by`/`approved_at`). Only
+  published rows inside their window are serialised into `GET /homepage`, and the
+  window is applied **per read** (`selectors._apply_windows`), not frozen into the
+  10-minute cache — an ad that starts or ends inside the TTL must switch on time.
+  Every write invalidates the cache in `transaction.on_commit`, so a test that
+  primes the cache needs `django_capture_on_commit_callbacks(execute=True)`.
+- **An ad is not an event.** It may link to one (`cta_href`) but has no price,
+  inventory or date, and the UI labels it "Promoted". Links are allow-listed
+  (site path or https; never `javascript:`/`data:`/`//host`) on the server in
+  `cms/campaign_rules.py` and again in `lib/discovery/promo.ts`.
+- **Hero video is a link, not an upload**: a direct https `.mp4`/`.webm` plus a
+  REQUIRED poster. It must autoplay muted and loop, which an iframe embed cannot.
+  The component supplies its own play/mute buttons (the browser's bar runs over the
+  headline), never autoplays under reduced motion or data-saver, and `safePlay`
+  tolerates engines where `play()` returns nothing.
+- **Highlights reference an `EventMedia` row; they never copy a URL.** Only a
+  VIDEO of an event that has ALREADY HAPPENED (cancelled excluded) can be curated
+  (`HighlightRepository._ended_q`). The iframe `src` is rebuilt from a strict
+  YouTube/Vimeo pattern at the point of use (`lib/events/embed.ts`), and no player
+  exists in the DOM until somebody presses play.
+- **The partner carousel's weighting lives in ONE array**
+  (`PARTNER_SEQUENCE` in `lib/discovery/partner-cards.ts`); a test pins that the
+  organiser is the most frequent card, every card appears, and no neighbours repeat.
+  Venue and sponsor have no self-serve product, so `/venue-partners` and `/sponsors`
+  are honest enquiry pages (a prefilled email), not forms that drop their input.
+- **Featured events now reads the CMS `featured` collection first**, falling back to
+  the soonest events. That reverses an earlier decision (the page had stopped reading
+  what the Studio writes); `lib/discovery/upcoming.test.ts` pins the new contract.
+
 ## Build order
 
 `accounts` (done) → `organizations` (done) → `events` (done, plus the crew

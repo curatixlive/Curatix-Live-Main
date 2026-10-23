@@ -94,43 +94,45 @@ export function HighlightsAdmin() {
             {rows.map((row, index) => (
               <li
                 key={row.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-2.5"
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface p-2.5"
               >
                 <Still embedUrl={row.embed_url} />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-40">
                   <p className="truncate text-label">{row.event_title}</p>
                   <p className="text-caption text-muted-foreground">
                     {formatEventDate(row.event_starts_at)}
                     {row.caption ? ` · ${row.caption}` : ''}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label="Move up"
-                  disabled={index === 0 || reorder.isPending}
-                  onClick={() => move(index, -1)}
-                >
-                  <ArrowUp className="size-4" aria-hidden />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label="Move down"
-                  disabled={index === rows.length - 1 || reorder.isPending}
-                  onClick={() => move(index, 1)}
-                >
-                  <ArrowDown className="size-4" aria-hidden />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  loading={remove.isPending && remove.variables === row.id}
-                  onClick={() => remove.mutate(row.id)}
-                >
-                  <X className="size-4" aria-hidden />
-                  Remove
-                </Button>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Move up"
+                    disabled={index === 0 || reorder.isPending}
+                    onClick={() => move(index, -1)}
+                  >
+                    <ArrowUp className="size-4" aria-hidden />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Move down"
+                    disabled={index === rows.length - 1 || reorder.isPending}
+                    onClick={() => move(index, 1)}
+                  >
+                    <ArrowDown className="size-4" aria-hidden />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={remove.isPending && remove.variables === row.id}
+                    onClick={() => remove.mutate(row.id)}
+                  >
+                    <X className="size-4" aria-hidden />
+                    Remove
+                  </Button>
+                </div>
               </li>
             ))}
           </ol>
@@ -158,24 +160,26 @@ export function HighlightsAdmin() {
             {(candidates.data?.data ?? []).map((row) => (
               <li
                 key={row.media_id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-2.5"
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface p-2.5"
               >
                 <Still embedUrl={row.embed_url} />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-40">
                   <p className="truncate text-label">{row.event_title}</p>
                   <p className="text-caption text-muted-foreground">
                     {formatEventDate(row.event_starts_at)}
                     {row.caption ? ` · ${row.caption}` : ''}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  loading={add.isPending && add.variables === row.media_id}
-                  onClick={() => add.mutate(row.media_id)}
-                >
-                  <Plus className="size-4" aria-hidden />
-                  Add
-                </Button>
+                <div className="ml-auto">
+                  <Button
+                    size="sm"
+                    loading={add.isPending && add.variables === row.media_id}
+                    onClick={() => add.mutate(row.media_id)}
+                  >
+                    <Plus className="size-4" aria-hidden />
+                    Add
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
