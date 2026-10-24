@@ -34,6 +34,7 @@ export function StickyActionBar({
   total,
   caption,
   leading,
+  emptyLabel,
   children,
   className,
 }: {
@@ -48,6 +49,9 @@ export function StickyActionBar({
    * provider is worth more than repeating a number.
    */
   leading?: React.ReactNode;
+  /** Shown instead of the amount when nothing is chosen: a bare "Free" under
+   *  "No tickets chosen" reads as an offer rather than as an empty basket. */
+  emptyLabel?: string;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -70,7 +74,8 @@ export function StickyActionBar({
     const node = ref.current;
     if (!node) return;
     const root = document.documentElement;
-    const publish = () => root.style.setProperty('--sticky-action-height', `${node.offsetHeight}px`);
+    const publish = () =>
+      root.style.setProperty('--sticky-action-height', `${node.offsetHeight}px`);
     publish();
     const observer = new ResizeObserver(publish);
     observer.observe(node);
@@ -103,12 +108,16 @@ export function StickyActionBar({
       <div className="mx-auto flex w-full max-w-2xl items-center gap-4 sm:px-2">
         {leading ?? (
           <div className="flex min-w-0 flex-col">
-            <AnimatedNumber
-              value={total}
-              format={(value) => formatFromPrice(value) ?? '—'}
-              className="text-h4 text-foreground"
-            />
-            <span className="truncate text-caption text-muted-foreground">{caption}</span>
+            <span className="truncate text-body-sm text-muted-foreground">{caption}</span>
+            {emptyLabel ? (
+              <span className="text-h4 font-extrabold text-foreground">{emptyLabel}</span>
+            ) : (
+              <AnimatedNumber
+                value={total}
+                format={(value) => formatFromPrice(value) ?? '—'}
+                className="text-h4 font-extrabold text-foreground"
+              />
+            )}
           </div>
         )}
         <div className="ml-auto flex shrink-0 items-center">{children}</div>

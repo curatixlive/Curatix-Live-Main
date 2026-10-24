@@ -160,7 +160,10 @@ export function BookingStep() {
         <Rise>
           {/* `h2`, because the screen's `h1` is the event's name in the header.
               A checkout with two competing top-level headings has no outline. */}
-          <h2 className="text-h3 font-semibold">Choose tickets</h2>
+          <Showtime startsAt={event.starts_at} hidden={sessionDays.length > 0} />
+          <h2 className="mt-2 text-caption font-bold uppercase tracking-[0.2em] text-muted-foreground">
+            Choose tickets
+          </h2>
         </Rise>
 
         {/* ── THE SHOWTIME, ABOVE THE TIERS IT FILTERS ──────────────────
@@ -251,22 +254,22 @@ export function BookingStep() {
 
       <StickyActionBar
         total={totals.total}
+        emptyLabel={chosen ? undefined : '—'}
         caption={
           chosen
             ? `${totals.ticketCount} ${totals.ticketCount === 1 ? 'ticket' : 'tickets'}`
             : 'No tickets chosen'
         }
       >
-        {/* "Checkout", not "Continue". At this point the next screen is the
-            last one — it reviews AND takes the payment — so naming the
-            destination is more honest than naming the direction. */}
+        {/* "Proceed": the next screen reviews the order and takes the payment, and
+            this screen's only job is to get there. */}
         <Button
           size="lg"
           onClick={advance}
           disabled={!chosen || totals.overAvailable || totals.crossSession || totals.notOnSale}
           className={cn(CTA_PILL_LG, 'shrink-0')}
         >
-          Checkout
+          Proceed
         </Button>
       </StickyActionBar>
 
@@ -285,5 +288,32 @@ export function BookingStep() {
         next={reviewHref}
       />
     </FunnelScreen>
+  );
+}
+
+/**
+ * The date and time, as two tiles above the tickets — so a person choosing seats
+ * sees WHEN without scrolling back. Hidden for a multi-session event, where the
+ * session picker already is the date and time and a second, static copy would
+ * disagree with the one being pressed.
+ */
+function Showtime({ startsAt, hidden }: { startsAt: string; hidden: boolean }) {
+  if (hidden) return null;
+  const date = new Date(startsAt);
+  const part = (options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', ...options }).format(date);
+  const weekday = part({ weekday: 'short' });
+  const day = `${part({ day: 'numeric' })} ${part({ month: 'short' })}`;
+  const time = part({ hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+  return (
+    <div className="flex flex-wrap items-center gap-3 pb-1">
+      <div className="flex min-w-24 flex-col items-center rounded-2xl border border-primary/40 bg-primary/10 px-5 py-3 text-primary">
+        <span className="text-caption">{weekday}</span>
+        <span className="text-body font-bold">{day}</span>
+      </div>
+      <div className="rounded-2xl border border-primary/40 bg-primary/10 px-5 py-3 text-body-sm font-bold text-primary">
+        {time}
+      </div>
+    </div>
   );
 }

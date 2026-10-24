@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Minus, Plus } from 'lucide-react';
+import { Check, ChevronUp, Minus, Plus } from 'lucide-react';
 import { PhaseBadge, PhaseNotes } from '@/components/pricing/sale-phase';
 import type { TicketTier } from '@/lib/api/types';
 import { formatFromPrice } from '@/lib/discovery/format';
@@ -92,15 +92,9 @@ export function TierPicker({ className }: { className?: string }) {
   }
 
   return (
-    <ul
-      aria-label="Ticket types"
-      className={cn(
-        'flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface',
-        className,
-      )}
-    >
+    <ul aria-label="Ticket types" className={cn('flex flex-col gap-3', className)}>
       {tiers.map((tier) => (
-        <li key={tier.id}>
+        <li key={tier.id} className="overflow-hidden rounded-3xl border border-border bg-surface">
           <TierRow
             tier={tier}
             bestValue={tier.id === bestValueId}
@@ -223,13 +217,11 @@ function TierRow({
             this line must never do (see `nextGroupBand`). */}
         {band && !soldOut ? (
           <p className="text-caption text-success-subtle-foreground">
-            Group price applied — {formatFromPrice(band.price_minor)} each for{' '}
-            {band.min_quantity}+
+            Group price applied — {formatFromPrice(band.price_minor)} each for {band.min_quantity}+
           </p>
         ) : upsell && !disabled ? (
           <p className="text-caption text-muted-foreground">
-            Add {upsell.min_quantity - quantity} more for{' '}
-            {formatFromPrice(upsell.price_minor)} each
+            Add {upsell.min_quantity - quantity} more for {formatFromPrice(upsell.price_minor)} each
           </p>
         ) : null}
 
@@ -260,21 +252,25 @@ function TierRow({
             available on this platform, and "Male Entry" against "Meet and
             Greet" is not enough to tell two apart. Blank is the norm and stays
             absent — an empty line under every row is worse than none. */}
-        {tier.description ? (
-          <p className="text-caption text-muted-foreground">{tier.description}</p>
-        ) : null}
-        {tier.perks.length ? (
-          <ul className="flex flex-wrap gap-x-3 gap-y-1 pt-0.5">
-            {tier.perks.map((perk) => (
-              <li
-                key={perk}
-                className="inline-flex items-center gap-1 text-caption text-muted-foreground"
-              >
-                <Check className="size-3 shrink-0 text-success-subtle-foreground" aria-hidden />
-                {perk}
-              </li>
-            ))}
-          </ul>
+        {tier.description || tier.perks.length ? (
+          <TierDetails>
+            {tier.description ? (
+              <p className="text-body-sm text-muted-foreground">{tier.description}</p>
+            ) : null}
+            {tier.perks.length ? (
+              <ul className="flex flex-wrap gap-x-3 gap-y-1 pt-0.5">
+                {tier.perks.map((perk) => (
+                  <li
+                    key={perk}
+                    className="inline-flex items-center gap-1 text-caption text-muted-foreground"
+                  >
+                    <Check className="size-3 shrink-0 text-success-subtle-foreground" aria-hidden />
+                    {perk}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </TierDetails>
         ) : null}
       </div>
 
@@ -333,7 +329,7 @@ function Stepper({
     // The one filled control in the list, and the reason it is filled: a chosen
     // tier has to be identifiable at a glance in a list of rows that otherwise
     // look identical. It is the ink of the CTA, not a brand colour on a state.
-    <div className="flex h-11 items-center gap-1 rounded-xl bg-cta px-1 text-cta-foreground">
+    <div className="flex h-11 items-center gap-1 rounded-xl border border-border bg-background px-1 text-success">
       <StepButton
         label={`Remove one ${label} ticket`}
         disabled={disabled || value <= 0}
@@ -377,11 +373,44 @@ function StepButton({
       onClick={onClick}
       className={cn(
         'inline-flex size-9 items-center justify-center rounded-lg transition-colors duration-fast',
-        'hover:bg-cta-foreground/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cta-foreground/60',
+        'hover:bg-success/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent',
       )}
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * "Details" opens the description and perks under a tier. They were always
+ * printed, which made every row three lines taller whether or not somebody
+ * wanted them; one press now reveals them, and a tier with nothing to say draws
+ * no toggle at all.
+ */
+function TierDetails({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = React.useState(false);
+  const id = React.useId();
+  return (
+    <div className="pt-1">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-caption font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        Details
+        <ChevronUp
+          className={cn('size-3.5 transition-transform', !open && 'rotate-180')}
+          aria-hidden
+        />
+      </button>
+      {open ? (
+        <div id={id} className="flex flex-col gap-2 pt-3">
+          {children}
+        </div>
+      ) : null}
+    </div>
   );
 }

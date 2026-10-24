@@ -405,9 +405,7 @@ export function EventWidgetDeck() {
     // wash behind the first paragraph on a tall phone and clear it before
     // the poster had moved on a short one.
     const heroHeight = heroRef.current?.offsetHeight ?? 0;
-    blurOpacity.set(
-      heroHeight > 0 ? 1 - Math.min(Math.max(node.scrollTop / heroHeight, 0), 1) : 1,
-    );
+    blurOpacity.set(heroHeight > 0 ? 1 - Math.min(Math.max(node.scrollTop / heroHeight, 0), 1) : 1);
     const next = shouldDock(node.scrollTop, heroHeight, dockedRef.current);
     if (next === dockedRef.current) return;
     dockedRef.current = next;
@@ -430,7 +428,7 @@ export function EventWidgetDeck() {
       setDocked(false);
       blurOpacity.set(1);
       setLightboxAt(null);
-    setCrewAt(null);
+      setCrewAt(null);
       setCurrentIndex(index);
     },
     [events.length, currentIndex, setCurrentIndex, blurOpacity],
@@ -979,35 +977,35 @@ function Hero({
                       wasDragged={() => dragRef.current.moved}
                     />
                   ) : (
-                  <button
-                    key={`${image.url}#${index}`}
-                    ref={(element) => {
-                      slideRefs.current[index] = element;
-                    }}
-                    type="button"
-                    onPointerDown={onSlidePointerDown}
-                    onPointerMove={onSlidePointerMove}
-                    onClick={() => openSlide(index)}
-                    aria-label={
-                      index === 0
-                        ? `View ${event.title} poster full size`
-                        : image.alt || `View photo ${index + 1} full size`
-                    }
-                    // Rounded like the frame, so a slide stepping back
-                    // mid-swipe reads as a card rather than as a square
-                    // cut-out; at rest the frame's own clip makes the two
-                    // radii one edge.
-                    style={{ borderRadius: HERO_RADIUS_PX }}
-                    className="relative h-full w-full shrink-0 snap-center snap-always overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                  >
-                    <SlideImage
-                      src={image.url}
-                      // Only the FIRST is priority. Marking a whole gallery
-                      // high-priority makes every image compete for the same
-                      // connections and delays the one that IS the LCP element.
-                      priority={index === 0}
-                    />
-                  </button>
+                    <button
+                      key={`${image.url}#${index}`}
+                      ref={(element) => {
+                        slideRefs.current[index] = element;
+                      }}
+                      type="button"
+                      onPointerDown={onSlidePointerDown}
+                      onPointerMove={onSlidePointerMove}
+                      onClick={() => openSlide(index)}
+                      aria-label={
+                        index === 0
+                          ? `View ${event.title} poster full size`
+                          : image.alt || `View photo ${index + 1} full size`
+                      }
+                      // Rounded like the frame, so a slide stepping back
+                      // mid-swipe reads as a card rather than as a square
+                      // cut-out; at rest the frame's own clip makes the two
+                      // radii one edge.
+                      style={{ borderRadius: HERO_RADIUS_PX }}
+                      className="relative h-full w-full shrink-0 snap-center snap-always overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    >
+                      <SlideImage
+                        src={image.url}
+                        // Only the FIRST is priority. Marking a whole gallery
+                        // high-priority makes every image compete for the same
+                        // connections and delays the one that IS the LCP element.
+                        priority={index === 0}
+                      />
+                    </button>
                   ),
                 )}
               </div>
@@ -1354,7 +1352,12 @@ function ActivePage({
           onOpenPoster={onOpenPoster}
         />
         {/* WHAT it is, WHERE and WHEN. */}
-        <EventWidgetSummary event={event} content={content} onOpenSheet={onOpenSheet} />
+        <EventWidgetSummary
+          event={event}
+          detail={detail}
+          content={content}
+          onOpenSheet={onOpenSheet}
+        />
         <EventWidgetContent
           key={event.id}
           event={event}

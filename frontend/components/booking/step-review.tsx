@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AlertTriangle, Loader2, Ticket, TimerOff } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Loader2, Ticket, TimerOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -463,9 +463,7 @@ export function ReviewStep() {
             : apiError.message,
           transient,
           reference:
-            typeof apiError?.details?.error_id === 'string'
-              ? apiError.details.error_id
-              : undefined,
+            typeof apiError?.details?.error_id === 'string' ? apiError.details.error_id : undefined,
         });
         toast({
           title: transient ? 'We could not hold your tickets' : 'Those tickets just went',
@@ -978,7 +976,7 @@ export function ReviewStep() {
 
         {/* ── WHAT IT COSTS ───────────────────────────────────────────────── */}
         <Rise index={2}>
-          <RuleHeading>Payment summary</RuleHeading>
+          <RuleHeading>Bill details</RuleHeading>
         </Rise>
         <Rise index={2}>
           <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface">
@@ -1005,7 +1003,7 @@ export function ReviewStep() {
               {donation > 0 ? <SummaryRow label="Donation" value={donation} /> : null}
             </div>
             <div className="flex items-baseline justify-between gap-4 border-t border-border px-card py-card">
-              <span className="text-body font-semibold text-foreground">Grand total</span>
+              <span className="text-body font-semibold text-foreground">To pay</span>
               {/* Summed from the three rows ABOVE it, not read separately off
                   the booking. While a donation write is in flight the row shows
                   the chosen amount and `booking.total_amount` is still the old
@@ -1087,6 +1085,10 @@ export function ReviewStep() {
             </Rise>
           </>
         ) : null}
+        <Rise index={5}>
+          <ThingsToRemember />
+        </Rise>
+
         {/* ── WHY THE BUTTON DOES WHAT IT DOES ────────────────────────────
             The action is in the bar; its explanation is here, where there is
             room to read it. Rendering only the bar left a deployment with no
@@ -1224,6 +1226,57 @@ function SummaryRow({
         {credit ? '−' : ''}
         {formatFromPrice(Math.abs(value))}
       </span>
+    </div>
+  );
+}
+
+/**
+ * "Things to remember": the few facts that matter once money is about to move,
+ * kept behind one press so they are there without lengthening the page. Only
+ * statements that are true of every booking on the platform.
+ */
+function ThingsToRemember() {
+  const [open, setOpen] = React.useState(false);
+  const id = React.useId();
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((o) => !o)}
+        className="flex min-h-control w-full items-center justify-between gap-3 px-card py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="text-body font-semibold text-foreground">Things to remember</span>
+        <ChevronDown
+          className={cn('size-5 text-muted-foreground transition-transform', open && 'rotate-180')}
+          aria-hidden
+        />
+      </button>
+      {open ? (
+        <ul
+          id={id}
+          className="flex flex-col gap-2 border-t border-border px-card py-card text-body-sm text-muted-foreground"
+        >
+          <li>
+            Your QR ticket is emailed the moment payment is confirmed and is always in your account.
+          </li>
+          <li>
+            Tickets cannot be exchanged between tiers, so check the one you chose before paying.
+          </li>
+          <li>Your seats are held for the time on the countdown, then released for others.</li>
+          <li>
+            Refunds follow our{' '}
+            <Link
+              href="/refunds"
+              className="font-semibold text-foreground underline underline-offset-4"
+            >
+              refund policy
+            </Link>
+            .
+          </li>
+        </ul>
+      ) : null}
     </div>
   );
 }

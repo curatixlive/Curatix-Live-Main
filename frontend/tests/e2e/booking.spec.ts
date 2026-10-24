@@ -178,7 +178,7 @@ test.describe('the booking funnel', () => {
     await expect(page.locator('footer')).toHaveCount(0);
     await expect(page.getByRole('navigation', { name: 'Primary' })).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Checkout' }).click();
+    await page.getByRole('button', { name: 'Proceed' }).click();
 
     // The sheet, over the ticket screen — which is still there underneath.
     const sheet = page.getByRole('dialog').filter({ hasText: 'Sign in to continue' });
@@ -342,7 +342,7 @@ test.describe('the booking funnel', () => {
     // is the point: two copies of an auth form is how the two drift, and this
     // one sits in front of a payment.
     await page.goto(`/booking/${eventId}?tickets=${tiers[0]!.id}:1`);
-    await page.getByRole('button', { name: 'Checkout' }).click();
+    await page.getByRole('button', { name: 'Proceed' }).click();
     const sheet = page.getByRole('dialog').filter({ hasText: 'Sign in to continue' });
     await expect(sheet).toBeVisible();
 
@@ -395,7 +395,7 @@ test.describe('the booking funnel', () => {
     await expect(bar).toBeVisible();
     const subtotal = (await bar.getByText(/^₹/).first().textContent())?.trim();
 
-    await page.getByRole('button', { name: 'Checkout' }).click();
+    await page.getByRole('button', { name: 'Proceed' }).click();
     await expect(page).toHaveURL(/\/review/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Review your booking');
     await expect(page.locator('#funnel-main')).toContainText(subtotal!);
@@ -418,7 +418,7 @@ test.describe('the booking funnel', () => {
       await expect(page.locator('h2').first()).toHaveText('Choose tickets');
       await axeClean(page, 'booking step 1 (tickets)');
 
-      await page.getByRole('button', { name: 'Checkout' }).click();
+      await page.getByRole('button', { name: 'Proceed' }).click();
       await expect(page.getByRole('dialog').filter({ hasText: 'Sign in to continue' })).toBeVisible();
       await axeClean(page, 'the sign-in sheet');
 
@@ -469,7 +469,7 @@ test.describe('the booking funnel', () => {
     await add.scrollIntoViewIfNeeded();
     await add.click();
 
-    const proceed = page.getByRole('button', { name: 'Checkout' });
+    const proceed = page.getByRole('button', { name: 'Proceed' });
     await proceed.scrollIntoViewIfNeeded();
     await proceed.click();
 

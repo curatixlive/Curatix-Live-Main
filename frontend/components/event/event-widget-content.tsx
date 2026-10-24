@@ -3,27 +3,26 @@
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import {
-  CalendarClock,
-  ChevronRight,
-  FileText,
-  HelpCircle,
-  MapPin,
-  Ticket,
-} from 'lucide-react';
+import { CalendarDays, ChevronRight, FileText, HelpCircle, MapPin, Ticket } from 'lucide-react';
 import type { EventContent } from '@/lib/api/event-content';
 import { LineupRail } from './lineup-rail';
 import type { EventCard as EventCardData, EventDetail } from '@/lib/api/types';
-import { categoryBySlug } from '@/lib/discovery/categories';
-import { formatEventDateTime, formatEventTime, formatMoney } from '@/lib/discovery/format';
+import { formatEventDateTime, formatEventTime } from '@/lib/discovery/format';
 import { selectSimilarEvents, isOrganiserRail } from '@/lib/discovery/similar-events';
-import { availabilityLabel, sellableTiers, summariseTiers, unitPriceFor } from '@/lib/discovery/tiers';
 import { eventPath } from '@/lib/events/ref';
 import { cn } from '@/lib/utils/cn';
 import type { TicketTier } from '@/lib/api/types';
 import { TrackEventView } from '@/components/analytics/track-event-view';
 import { AddToCalendar } from './add-to-calendar';
-import { Countdown } from './countdown';
+import {
+  DirectionsButton,
+  FactsGrid,
+  HelpCard,
+  OffersCard,
+  SceneTabs,
+  VibeDivider,
+  type SceneTab,
+} from './scene/scene-parts';
 import { type GalleryImage } from './hero-gallery';
 import { GalleryGrid } from './gallery-grid';
 import { videoThumbnail } from '@/lib/events/video-thumbnail';
@@ -86,98 +85,87 @@ export type EventWidgetContentProps = {
  */
 export function EventWidgetSummary({
   event,
-  content,
+  detail,
   onOpenSheet,
   className,
 }: {
   event: EventCardData;
-  content: EventContent | null | undefined;
+  /** Optional: only the venue's coordinates are read, for a precise directions link. */
+  detail?: EventDetail | null;
+  content?: EventContent | null | undefined;
   onOpenSheet: (sheet: NonNullable<SubSheetType>) => void;
   className?: string;
 }) {
-  // The REAL category only. A second pill ("Nightlife") used to be hard-coded
-  // beside it, so every event on the platform claimed the same two tags.
-  const category = categoryBySlug(event.category);
-  const firstTimelineEntry = (content?.timeline ?? []).find((entry) => entry.starts_at);
-
   return (
     <div className={cn('flex flex-col gap-4 px-4 pt-5', className)}>
-      {category ? (
-        <div className="flex flex-wrap gap-2">
-          <span className="rounded-full border border-border bg-muted px-3 py-1 text-caption font-semibold text-muted-foreground">
-            {category.label}
-          </span>
+      {/* The name, set like a poster line: capitals, heavy, a little tracking. */}
+      <h2 className="text-h3 font-extrabold uppercase leading-snug tracking-wide text-foreground">
+        {event.title}
+      </h2>
+
+      <div className="flex flex-col divide-y divide-border border-y border-border">
+        <div className="flex items-center gap-3 py-3.5">
+          <CalendarDays className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          <p className="text-body-sm font-semibold text-foreground">
+            {formatSceneDate(event.starts_at)}
+          </p>
         </div>
-      ) : null}
-
-      <div className="flex flex-col gap-1">
-        <h2 className="text-h3 font-extrabold leading-snug tracking-tight text-foreground">
-          {event.title}
-        </h2>
-        <p className="text-body-sm font-semibold text-primary">
-          {formatEventDateTime(event.starts_at)}
-        </p>
-      </div>
-
-      {/* ── THE TWO INFO CARDS ────────────────────────────────────────────
-          Where and when, in that order, because "can I get there" is the
-          question somebody asks before "what time". `gap-3` between them and
-          nothing else in this stack, so the pair reads as one block rather
-          than as two unrelated rows. */}
-      <div className="flex flex-col gap-3">
-        <DisclosureRow
-          icon={<MapPin className="size-5" aria-hidden />}
-          label={`${event.venue}, ${event.city}`}
-          hint="Venue details"
-          onClick={() => onOpenSheet('venue')}
-        />
-        {/* The summary states a REAL time or omits it — this row used to read
-            "Starts at 8 PM" on every event on the platform. */}
-        <DisclosureRow
-          icon={<CalendarClock className="size-5" aria-hidden />}
-          label={
-            firstTimelineEntry?.starts_at
-              ? `${firstTimelineEntry.label} at ${formatEventTime(firstTimelineEntry.starts_at)}`
-              : `Starts at ${formatEventTime(event.starts_at)}`
-          }
-          hint="View full schedule & timeline"
-          onClick={() => onOpenSheet('schedule')}
-        />
+        <div className="flex items-center gap-3 py-3.5">
+          <MapPin className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          <button
+            type="button"
+            onClick={() => onOpenSheet('venue')}
+            className="flex min-w-0 flex-1 flex-col text-left"
+          >
+            <span className="truncate text-body-sm font-semibold text-foreground">
+              {event.venue}
+            </span>
+            <span className="truncate text-caption text-muted-foreground">{event.city}</span>
+          </button>
+          <DirectionsButton
+            event={{
+              venue: event.venue,
+              city: event.city,
+              latitude: detail?.latitude ?? null,
+              longitude: detail?.longitude ?? null,
+            }}
+          />
+        </div>
       </div>
     </div>
   );
+}
+
+/** "17th Oct • 8:00 PM", in Indian time: the day a person means is the local one. */
+function formatSceneDate(iso: string): string {
+  const date = new Date(iso);
+  const day = Number(
+    new Intl.DateTimeFormat('en-IN', { day: 'numeric', timeZone: 'Asia/Kolkata' }).format(date),
+  );
+  const month = new Intl.DateTimeFormat('en-IN', {
+    month: 'short',
+    timeZone: 'Asia/Kolkata',
+  }).format(date);
+  const ordinal =
+    day % 10 === 1 && day !== 11
+      ? 'st'
+      : day % 10 === 2 && day !== 12
+        ? 'nd'
+        : day % 10 === 3 && day !== 13
+          ? 'rd'
+          : 'th';
+  return `${day}${ordinal} ${month} • ${formatEventTime(iso)}`;
 }
 
 export function EventWidgetContent({
   event,
   detail,
   content,
-  tiers,
   pool,
   onOpenSheet,
   onSelectEvent,
   onOpenCrew,
 }: EventWidgetContentProps) {
-  const summary = React.useMemo(() => summariseTiers(tiers), [tiers]);
-  const visibleTiers = React.useMemo(
-    () => (tiers ? sellableTiers(tiers).slice(0, 3) : []),
-    [tiers],
-  );
-
-  /**
-   * THE TRAILER LEADS THE GALLERY.
-   *
-   * It used to be filtered out of this list entirely, so an organiser who
-   * attached a video had nowhere it appeared: the grid took `kind ===
-   * 'gallery'` and the poster strip took the poster. First, because the tile
-   * layout gives position 0 the large two-row cell — and a trailer is the one
-   * piece of media on an event that somebody deliberately made to be watched.
-   *
-   * `poster` is DERIVED from the embed url — see `videoThumbnail`, which can
-   * do it for YouTube and deliberately cannot for Vimeo. A tile with no still
-   * draws its own gradient behind the play badge, which is a chosen state
-   * rather than a broken image.
-   */
   const galleryImages: GalleryImage[] = React.useMemo(() => {
     const media = content?.media ?? [];
     const videos = media
@@ -200,109 +188,98 @@ export function EventWidgetContent({
   );
   const railIsOrganiser = isOrganiserRail(event, similar);
 
-  const aboutPreview = detail?.short_description?.trim() || detail?.description?.trim() || '';
-  const hasMoreAbout = Boolean(detail?.description?.trim());
+  const about = detail?.description?.trim() || detail?.short_description?.trim() || '';
+  const hasPhotos = galleryImages.length > 0;
+
+  const tabs = React.useMemo<SceneTab[]>(
+    () =>
+      [
+        about ? { id: 'scene-about', label: 'About' } : null,
+        hasPhotos ? { id: 'scene-photos', label: 'Photos' } : null,
+        { id: 'scene-venue', label: 'Venue' },
+        { id: 'scene-help', label: 'Help' },
+      ].filter((tab): tab is SceneTab => tab !== null),
+    [about, hasPhotos],
+  );
 
   return (
-    <div className="flex flex-col gap-6 px-4 pt-6">
-      {/* One view of this event — the deck mounts one page per event, and
-          the similar-events rail switches it in place, so each is a view. */}
+    <div className="flex flex-col gap-7 px-4 pb-4 pt-5">
       <TrackEventView eventId={event.id} />
-      {/* Actions. All three are the existing implementations — none of them
-             navigates away from the widget. */}
-      <div className="flex items-center gap-2">
-        <ShareMenu
-          title={event.title}
-          path={eventPath(event)}
-          className="flex-1 justify-center"
-        />
-        {detail ? <AddToCalendar event={detail} className="flex-1 justify-center" /> : null}
-      </div>
 
-      {/* 7. Starts in ---------------------------------------------------- */}
-      <Countdown startsAt={event.starts_at} />
+      <SceneTabs tabs={tabs} />
 
-      {/* 8. Tickets ------------------------------------------------------ */}
-      {visibleTiers.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <h3 className="text-h4 text-foreground">Tickets</h3>
-            {availabilityLabel(summary.state) ? (
-              <span className="text-caption font-semibold text-muted-foreground">
-                {availabilityLabel(summary.state)}
-              </span>
-            ) : null}
-          </div>
-          <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
-            {visibleTiers.map((tier) => (
-              <li key={tier.id} className="flex items-center justify-between gap-3 p-3.5">
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="truncate text-body-sm font-semibold text-foreground">
-                    {tier.name}
-                  </span>
-                  {tier.available <= 0 ? (
-                    <span className="text-caption text-muted-foreground">Sold out</span>
-                  ) : null}
-                </div>
-                <span className="shrink-0 text-body-sm font-bold tabular-nums text-foreground">
-                  {formatMoney(unitPriceFor(tier))}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {tiers && sellableTiers(tiers).length > visibleTiers.length ? (
-            <p className="text-caption text-muted-foreground">
-              {sellableTiers(tiers).length - visibleTiers.length} more ticket type
-              {sellableTiers(tiers).length - visibleTiers.length === 1 ? '' : 's'} on the next screen
-            </p>
-          ) : null}
-        </section>
-      ) : null}
+      <OffersCard eventId={event.id} />
 
-      {/* 9. About -------------------------------------------------------- */}
-      {aboutPreview ? (
-        <section className="flex flex-col gap-2">
-          <h3 className="text-h4 text-foreground">About the event</h3>
-          <p className="line-clamp-3 whitespace-pre-line text-body-sm text-muted-foreground">
-            {aboutPreview}
+      {about ? (
+        <section id="scene-about" className="flex scroll-mt-20 flex-col gap-3">
+          <h3 className="text-h4 text-foreground">About</h3>
+          <p className="line-clamp-5 whitespace-pre-line text-body-sm leading-relaxed text-muted-foreground">
+            {about}
           </p>
-          {hasMoreAbout ? (
-            <button
-              type="button"
-              onClick={() => onOpenSheet('about')}
-              className="flex items-center gap-1 self-start text-body-sm font-bold text-foreground"
-            >
-              Read more <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => onOpenSheet('about')}
+            className="self-start text-body-sm font-bold text-foreground underline-offset-4 hover:underline"
+          >
+            ...more
+          </button>
+          <FactsGrid detail={detail} />
         </section>
       ) : null}
 
-      {/* 10. Who's taking the stage. SECONDARY — for a club night the names
-              ARE the product, so this is visible rather than filed behind a
-              disclosure row with the refund policy. Absent, not empty, when
-              the organiser has not named anybody. */}
       <LineupRail crew={content?.crew ?? []} onOpenPortrait={onOpenCrew} />
 
-      {/* 11. Gallery — a masonry GRID, not a strip of equal thumbnails.
-              One large picture with smaller ones packed beside it shows the
-              SHAPE of the collection at a glance, where a horizontal strip
-              ran off the edge and made the count unknowable without
-              scrolling to the end. No big duplicate of the poster: this
-              screen already has one at the top. */}
-      {galleryImages.length > 0 ? (
-        <section className="flex flex-col gap-3">
-          <h3 className="text-h4 text-foreground">Gallery</h3>
+      {hasPhotos ? (
+        <section id="scene-photos" className="flex scroll-mt-20 flex-col gap-4">
+          <VibeDivider>Check out the vibe</VibeDivider>
+          <h3 className="text-h4 text-foreground">Photos &amp; Videos</h3>
           <GalleryGrid images={galleryImages} />
         </section>
       ) : null}
 
-      {/* Organiser --------------------------------------------------- */}
+      <section id="scene-venue" className="flex scroll-mt-20 flex-col gap-3">
+        <h3 className="text-h4 text-foreground">Venue</h3>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onOpenSheet('venue')}
+            className="flex min-w-0 flex-1 flex-col text-left"
+          >
+            <span className="text-body-sm font-semibold text-foreground">
+              {event.venue}
+              <span className="font-normal text-muted-foreground"> · {event.city}</span>
+            </span>
+            <span className="text-caption text-muted-foreground">Venue details</span>
+          </button>
+          <DirectionsButton
+            event={{
+              venue: event.venue,
+              city: event.city,
+              latitude: detail?.latitude ?? null,
+              longitude: detail?.longitude ?? null,
+            }}
+          />
+        </div>
+      </section>
+
+      <section id="scene-help" className="flex scroll-mt-20 flex-col gap-3">
+        <HelpCard />
+        <div className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+          <MoreRow
+            icon={<FileText className="size-5" aria-hidden />}
+            label="Event terms and conditions"
+            onClick={() => onOpenSheet('terms')}
+          />
+          <MoreRow
+            icon={<HelpCircle className="size-5" aria-hidden />}
+            label="Frequently asked questions"
+            onClick={() => onOpenSheet('faq')}
+          />
+        </div>
+      </section>
+
       <section className="flex flex-col gap-3">
         <h3 className="text-h4 text-foreground">Organised by</h3>
-        {/* An explicit name. Without one the button announces as its own
-            contents — an initial and a company name — which says who runs the
-            event but not that pressing it opens anything. */}
         <button
           type="button"
           onClick={() => onOpenSheet('organiser')}
@@ -322,34 +299,17 @@ export function EventWidgetContent({
         </button>
       </section>
 
-      {/* 13. More — the two long-form documents, grouped rather than
-              scattered through the page. Restored as it was: the Help
-              accordion that replaced it has been withdrawn. */}
-      <section className="flex flex-col gap-3">
-        <h3 className="text-h4 text-foreground">More</h3>
-        <div className="flex flex-col divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
-          <MoreRow
-            icon={<HelpCircle className="size-5" aria-hidden />}
-            label="Frequently asked questions"
-            onClick={() => onOpenSheet('faq')}
-          />
-          <MoreRow
-            icon={<FileText className="size-5" aria-hidden />}
-            label="Terms and conditions"
-            onClick={() => onOpenSheet('terms')}
-          />
-        </div>
-      </section>
+      <div className="flex items-center gap-2">
+        <ShareMenu title={event.title} path={eventPath(event)} className="flex-1 justify-center" />
+        {detail ? <AddToCalendar event={detail} className="flex-1 justify-center" /> : null}
+      </div>
 
-      {/* 14. Similar events ---------------------------------------------- */}
       {similar.length > 0 ? (
         <section className="flex flex-col gap-3">
           <h3 className="text-h4 text-foreground">
             {railIsOrganiser ? `More from ${event.organization_name}` : 'Similar events'}
           </h3>
-          {/* A rail with real edge peeking and CSS scroll-snap — no library, no
-              scroll handler, and it stays draggable and swipeable. */}
-          <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto touch-manipulation scroll-pl-4 px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <ul className="-mx-4 flex touch-manipulation snap-x snap-mandatory scroll-pl-4 gap-3 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {similar.map((other) => (
               <li key={other.id} className="w-36 shrink-0 snap-start">
                 <SimilarCard event={other} onSelect={onSelectEvent} />
@@ -365,43 +325,6 @@ export function EventWidgetContent({
 /* -------------------------------------------------------------------------- */
 /* Rows                                                                       */
 /* -------------------------------------------------------------------------- */
-
-/**
- * A row carries a SUMMARY, not just a label. "Venue details" alone makes the
- * reader press to find out whether pressing was worth it; the venue name has
- * already answered the common case.
- */
-function DisclosureRow({
-  icon,
-  label,
-  hint,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  hint: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      // `p-4` and `rounded-2xl` (16px), uniform on all four sides. It was
-      // `p-3.5`, a half-step nothing else on the page uses, which read as a
-      // slightly squashed version of the same card.
-      className="flex w-full items-center gap-3.5 rounded-2xl border border-border bg-surface p-4 text-left transition-colors active:bg-muted"
-    >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-        {icon}
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-body-sm font-semibold text-foreground">{label}</span>
-        <span className="truncate text-caption text-muted-foreground">{hint}</span>
-      </span>
-      <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-    </button>
-  );
-}
 
 function MoreRow({
   icon,

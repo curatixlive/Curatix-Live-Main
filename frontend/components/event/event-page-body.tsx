@@ -30,6 +30,14 @@ import { EventReviews } from '@/components/reviews/event-reviews';
 import { Building2, CalendarClock, HelpCircle, Info, MapPin, ScrollText } from 'lucide-react';
 import type { EventContent } from '@/lib/api/event-content';
 import { LineupRail } from './lineup-rail';
+import {
+  DirectionsButton,
+  FactsGrid,
+  HelpCard,
+  OffersCard,
+  SceneTabs,
+  type SceneTab,
+} from './scene/scene-parts';
 import { groupSessions } from '@/lib/event/sessions';
 import type { EventDetail, TicketTier } from '@/lib/api/types';
 import { ClayIcon } from '@/components/illustrations/clay';
@@ -140,6 +148,13 @@ export function EventPageBody({
   // stated, so a new disclosure lands in the body unless it is named here —
   // which is the safe default: the rail is beside the money and has room for
   // two rows, not six.
+  const sceneTabs: SceneTab[] = [
+    event.description ? { id: 'scene-about', label: 'About' } : null,
+    galleryImages.length ? { id: 'scene-photos', label: 'Photos' } : null,
+    { id: 'scene-venue', label: 'Venue' },
+    { id: 'scene-help', label: 'Help' },
+  ].filter((tab): tab is SceneTab => tab !== null);
+
   const allDisclosures = buildDisclosures(event, content, tiers);
   const bodyItems = allDisclosures.filter((item) => !RAIL_KEYS.includes(item.key));
   const railItems = RAIL_KEYS.map((key) => allDisclosures.find((item) => item.key === key))
@@ -220,7 +235,9 @@ export function EventPageBody({
                 ) : null}
               </div>
 
-              <h1 className="text-h2 md:text-h1">{event.title}</h1>
+              <h1 className="text-h2 font-extrabold uppercase tracking-wide md:text-h1">
+                {event.title}
+              </h1>
 
               {/* WHEN, then WHERE — two lines, not one run-on. The date is the
                   single fact that decides whether the rest of the page is worth
@@ -230,13 +247,18 @@ export function EventPageBody({
                 <p className="text-body-lg font-semibold text-primary">
                   {formatEventDateLong(event.starts_at)} · {formatEventTime(event.starts_at)}
                 </p>
-                <p className="text-body text-muted-foreground">
-                  {event.venue}, {event.city}
-                </p>
+                <div className="flex items-center gap-3">
+                  <p className="text-body text-muted-foreground">
+                    {event.venue}, {event.city}
+                  </p>
+                  <DirectionsButton event={event} className="size-9 rounded-lg" />
+                </div>
               </div>
             </div>
 
             <HeroGallery images={heroImages} categorySlug={category?.slug} />
+
+            {preview ? null : <SceneTabs tabs={sceneTabs} />}
 
             <div className="flex min-w-0 flex-col gap-4">
               {/* Save, share and add-to-calendar all need a PUBLISHED event —
@@ -282,6 +304,7 @@ export function EventPageBody({
               ageRestriction={event.age_restriction}
               questions={content.questions}
             />
+            {preview ? null : <OffersCard eventId={event.id} />}
             {railItems.length ? <EventDisclosures items={railItems} /> : null}
           </div>
 
@@ -292,8 +315,8 @@ export function EventPageBody({
                 marking a second set of images high-priority competes with it
                 for the same bandwidth. */}
             {galleryImages.length ? (
-              <section className="flex flex-col gap-4">
-                <SectionHeading>Gallery</SectionHeading>
+              <section id="scene-photos" className="flex scroll-mt-24 flex-col gap-4">
+                <SectionHeading>Photos &amp; Videos</SectionHeading>
                 <HeroGallery images={galleryImages} priority={false} hideMainImage />
               </section>
             ) : null}
@@ -306,11 +329,14 @@ export function EventPageBody({
             ) : null}
 
             {event.description ? (
-              <section className="flex flex-col gap-4">
-                <SectionHeading>About this event</SectionHeading>
+              <section id="scene-about" className="flex scroll-mt-24 flex-col gap-4">
+                <SectionHeading>About</SectionHeading>
                 <p className="max-w-2xl whitespace-pre-line text-body-lg text-muted-foreground">
                   {event.description}
                 </p>
+                <div className="max-w-2xl">
+                  <FactsGrid detail={event} />
+                </div>
               </section>
             ) : null}
 
@@ -351,9 +377,13 @@ export function EventPageBody({
                 omits the running order when the organiser supplied none, and
                 omits accessibility rather than opening a sheet that says
                 nothing — silence is honest where a placeholder is a claim. */}
-            <section className="flex flex-col gap-4">
+            <section id="scene-venue" className="flex scroll-mt-24 flex-col gap-4">
               <SectionHeading>Event information</SectionHeading>
               <EventDisclosures items={bodyItems} />
+            </section>
+
+            <section id="scene-help" className="flex max-w-2xl scroll-mt-24 flex-col gap-4">
+              <HelpCard />
             </section>
 
             {/* Reviews sit AFTER the practical detail and BEFORE the rules:
