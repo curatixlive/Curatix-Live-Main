@@ -313,6 +313,9 @@ export type VerifyResult = {
   ticket_type: string | null;
   used_at: string | null;
   gate: string | null;
+  /** Assigned seating: blank for general admission. */
+  seat_label?: string | null;
+  seat_section?: string | null;
 };
 
 export const verifyTicket = (input: { event_id: string; qr_token: string; gate?: string }) =>

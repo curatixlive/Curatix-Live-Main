@@ -62,6 +62,8 @@ export type EventCard = {
  * the placeholder route and its metadata. */
 export type EventDetail = EventCard & {
   description: string;
+  /** True when the event sells assigned seats; the checkout draws a seat map. */
+  seating_enabled?: boolean;
   ends_at: string | null;
   status: string;
   version: number;

@@ -32,6 +32,9 @@ export type IssuedTicket = {
   ticket_type_name: string;
   status: 'active' | 'used' | 'void';
   /** The signed token. It IS the ticket — `checkin` verifies this string. */
+  /** Assigned seating: blank for general admission. */
+  seat_label?: string;
+  seat_section?: string;
   qr_token: string;
   created_at: string;
 };

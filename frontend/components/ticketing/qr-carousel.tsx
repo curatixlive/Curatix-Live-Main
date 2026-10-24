@@ -145,6 +145,15 @@ export function QrCarousel({
         </ul>
       ) : null}
 
+      {tickets[safe]?.seat_label ? (
+        <p className="text-h4 text-ink-25" aria-live="polite">
+          Seat {tickets[safe]?.seat_label}
+          {tickets[safe]?.seat_section ? (
+            <span className="text-body-sm text-ink-400"> · {tickets[safe]?.seat_section}</span>
+          ) : null}
+        </p>
+      ) : null}
+
       <p className="text-caption uppercase tracking-wide text-ink-400" aria-live="polite">
         {many
           ? `Ticket ${safe + 1} of ${count} · each admits one person, once`

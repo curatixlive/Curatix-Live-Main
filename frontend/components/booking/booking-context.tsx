@@ -4,6 +4,7 @@ import * as React from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { fetchEventTiers } from '@/lib/api/events';
+import { fetchSeatMap, type SeatMap } from '@/lib/api/seating';
 import type { Booking, EventDetail, TicketTier } from '@/lib/api/types';
 import type { EventQuestion, EventSlot } from '@/lib/api/event-content';
 import { answersFor, setAnswer, unansweredRequired } from '@/lib/booking/answers';
@@ -15,11 +16,15 @@ import {
   type SessionDay,
 } from '@/lib/event/sessions';
 import {
+  MAX_SEATS_PER_BOOKING,
+  SEATS_PARAM,
   SELECTION_PARAM,
   SESSION_PARAM,
   type Selection,
   type SelectionTotals,
+  parseSeatIds,
   parseSelection,
+  serialiseSeatIds,
   serialiseSelection,
   setQuantity as setQuantityIn,
   totalsFor,
@@ -55,6 +60,13 @@ type BookingContextValue = {
   /** Takes an updater, like `setState` — see `liveSelection` for why. */
   setQuantity: (tierId: string, update: (current: number) => number) => void;
   clearSelection: () => void;
+  /** Assigned seating: the live seat map, null for general admission. */
+  seatMap: SeatMap | null;
+  seatMapLoading: boolean;
+  /** The chosen seat ids (also in the URL as `seats=`). */
+  seatIds: string[];
+  /** Select / deselect one seat. Ignored when the seat is not available. */
+  toggleSeat: (seatId: string) => void;
   /** The created booking, once the review step has reserved inventory. */
   booking: Booking | null;
   /**
@@ -188,10 +200,51 @@ export function BookingProvider({
   // keeps the ticket cards from re-rendering on each quantity tap.
   const tiers = React.useMemo(() => tiersQuery.data?.data ?? [], [tiersQuery.data]);
 
-  const selection = React.useMemo(
-    () => parseSelection(searchParams?.get(SELECTION_PARAM)),
-    [searchParams],
-  );
+  // ── ASSIGNED SEATING ───────────────────────────────────────────────────
+  //
+  // Seat availability is fetched live and never cached (same rule as tiers).
+  // For a seated event the basket is DERIVED from the chosen seats — grouped by
+  // the section's own ticket type — so totals, review and the idempotency key
+  // keep working off one `Selection` shape, with the seat ids riding on it.
+  const seated = Boolean(event.seating_enabled);
+  const seatQuery = useQuery({
+    queryKey: ['event-seats', event.id],
+    queryFn: () => fetchSeatMap(event.id),
+    enabled: seated,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: TIERS_REFRESH_MS,
+  });
+  const seatMap = seated ? (seatQuery.data ?? null) : null;
+
+  const seatParam = searchParams?.get(SEATS_PARAM);
+  const seatIds = React.useMemo(() => {
+    const ids = parseSeatIds(seatParam);
+    if (!seatMap) return ids;
+    // Drop seats that are gone or taken since the link was made.
+    const open = new Set(seatMap.seats.filter((s) => s.status === 'available').map((s) => s.id));
+    return ids.filter((id) => open.has(id));
+  }, [seatParam, seatMap]);
+
+  const tierQuery = searchParams?.get(SELECTION_PARAM);
+  const selection = React.useMemo<Selection>(() => {
+    if (!seated) return parseSelection(tierQuery);
+    if (!seatMap) return [];
+    const bySeat = new Map(seatMap.seats.map((seat) => [seat.id, seat]));
+    const tierOfSection = new Map(seatMap.sections.map((sec) => [sec.id, sec.ticket_type_id]));
+    const lines = new Map<string, string[]>();
+    for (const id of seatIds) {
+      const seat = bySeat.get(id);
+      const tierId = seat ? tierOfSection.get(seat.section_id) : undefined;
+      if (!tierId) continue;
+      lines.set(tierId, [...(lines.get(tierId) ?? []), id]);
+    }
+    return [...lines.entries()].map(([tierId, ids]) => ({
+      tierId,
+      quantity: ids.length,
+      seatIds: ids,
+    }));
+  }, [seated, seatMap, seatIds, tierQuery]);
 
   /**
    * The hold and what it was reserved for, as ONE value.
@@ -260,7 +313,33 @@ export function BookingProvider({
     [liveSelection, writeSelection],
   );
 
-  const clearSelection = React.useCallback(() => writeSelection([]), [writeSelection]);
+  const writeSeats = React.useCallback(
+    (ids: string[]) => {
+      const params = new URLSearchParams(window.location.search);
+      if (ids.length) params.set(SEATS_PARAM, serialiseSeatIds(ids));
+      else params.delete(SEATS_PARAM);
+      const query = params.toString();
+      window.history.replaceState(null, '', query ? `${pathname}?${query}` : pathname);
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router],
+  );
+
+  const toggleSeat = React.useCallback(
+    (seatId: string) => {
+      // Read the address bar, not the render, so two quick taps both land.
+      const current = parseSeatIds(new URLSearchParams(window.location.search).get(SEATS_PARAM));
+      if (current.includes(seatId)) return writeSeats(current.filter((id) => id !== seatId));
+      if (current.length >= MAX_SEATS_PER_BOOKING) return;
+      writeSeats([...current, seatId]);
+    },
+    [writeSeats],
+  );
+
+  const clearSelection = React.useCallback(() => {
+    if (seated) writeSeats([]);
+    writeSelection([]);
+  }, [seated, writeSeats, writeSelection]);
 
   // ── THE CHOSEN SHOWTIME ────────────────────────────────────────────────
   //
@@ -342,6 +421,10 @@ export function BookingProvider({
       totals,
       setQuantity,
       clearSelection,
+      seatMap,
+      seatMapLoading: seated && seatQuery.isPending,
+      seatIds,
+      toggleSeat,
       booking,
       reservedFor,
       setBooking,
@@ -371,6 +454,11 @@ export function BookingProvider({
       totals,
       setQuantity,
       clearSelection,
+      seatMap,
+      seated,
+      seatQuery.isPending,
+      seatIds,
+      toggleSeat,
       booking,
       reservedFor,
       setBooking,

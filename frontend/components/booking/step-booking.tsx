@@ -14,6 +14,7 @@ import { EventSubtitle, FunnelScreen } from './funnel-shell';
 import { Rise, StepTransition } from './motion';
 import { StickyActionBar } from './sticky-action-bar';
 import { TierPicker } from './tier-picker';
+import { SeatPicker } from './seat-picker';
 import { SessionPicker } from '@/components/event/session-picker';
 import { Questionnaire } from './questionnaire';
 
@@ -65,6 +66,7 @@ export function BookingStep() {
     session,
     setSession,
     unanswered,
+    seatIds,
   } = useBooking();
   // Nothing is marked wrong until somebody tries to leave — a required
   // question is not a mistake on arrival.
@@ -133,7 +135,9 @@ export function BookingStep() {
   // loss that reads as the picker resetting itself rather than as a routing
   // bug. Anything else the funnel ever puts in the URL is now carried too.
   const params = new URLSearchParams(query);
-  const encoded = serialiseSelection(selection);
+  // A seated event's basket is its seats (already in the query as `seats=`);
+  // writing a derived `tickets=` beside it would give the URL two sources of truth.
+  const encoded = seatIds.length ? '' : serialiseSelection(selection);
   if (encoded) params.set(SELECTION_PARAM, encoded);
   else params.delete(SELECTION_PARAM);
   const search = params.toString();
@@ -182,7 +186,7 @@ export function BookingStep() {
         ) : null}
 
         <Rise index={sessionDays.length > 0 ? 2 : 1}>
-          <TierPicker />
+          {event.seating_enabled ? <SeatPicker /> : <TierPicker />}
         </Rise>
 
         {/* AFTER the tiers: what somebody is buying comes before what the
@@ -243,7 +247,7 @@ export function BookingStep() {
             what stops the countdown that appears there reading as a trick. One
             line, at the foot of the list, where somebody has finished choosing
             rather than before they have started. */}
-        {tiers.length ? (
+        {tiers.length || event.seating_enabled ? (
           <Rise index={3}>
             <p className="px-1 text-caption text-muted-foreground">
               Availability updates live. Nothing is held until the next step.

@@ -18,7 +18,7 @@ import { unitPriceAt } from '@/lib/discovery/tiers';
  * Nothing here ever divides by 100 — only the formatter does, once, at render.
  */
 
-export type Selection = { tierId: string; quantity: number }[];
+export type Selection = { tierId: string; quantity: number; seatIds?: string[] }[];
 
 export const SELECTION_PARAM = 'tickets';
 
@@ -41,6 +41,23 @@ export const SELECTION_PARAM = 'tickets';
  * chosen range (`dateFrom`/`dateTo`): related, separately addressed.
  */
 export const SESSION_PARAM = 'session';
+
+/** Which seats were chosen, on an event with assigned seating. */
+export const SEATS_PARAM = 'seats';
+
+export const MAX_SEATS_PER_BOOKING = 10;
+
+export function parseSeatIds(value: string | null | undefined): string[] {
+  if (!value) return [];
+  const out: string[] = [];
+  for (const part of value.split(',')) {
+    const id = part.trim();
+    if (/^[0-9a-f-]{36}$/i.test(id) && !out.includes(id)) out.push(id);
+  }
+  return out.slice(0, MAX_SEATS_PER_BOOKING);
+}
+
+export const serialiseSeatIds = (ids: readonly string[]): string => ids.join(',');
 
 export function parseSelection(value: string | null | undefined): Selection {
   if (!value) return [];
@@ -254,6 +271,10 @@ function spansTwoSessions(lines: SelectionLine[]): boolean {
 export const toBookingItems = (selection: Selection) =>
   selection.map((line) => ({ ticket_type_id: line.tierId, quantity: line.quantity }));
 
+/** The seats a basket names, in a stable order — empty for general admission. */
+export const toSeatIds = (selection: Selection): string[] =>
+  selection.flatMap((line) => line.seatIds ?? []).sort();
+
 /**
  * A stable idempotency key for one checkout ATTEMPT at a selection.
  *
@@ -306,11 +327,26 @@ export function selectionSignature(selection: Selection): string {
   return [...selection]
     .filter((line) => line.quantity > 0)
     .sort((a, b) => a.tierId.localeCompare(b.tierId))
+    // The SEATS are part of the identity: two baskets with one VIP seat each are
+    // different purchases, and sharing a signature would share an idempotency key
+    // and replay the first buyer's choice of seat.
+    .map((line) =>
+      line.seatIds?.length
+        ? `${line.tierId}:${line.quantity}[${[...line.seatIds].sort().join('+')}]`
+        : `${line.tierId}:${line.quantity}`,
+    )
+    .join(',');
+}
+
+/** The tier counts alone — what a booking's own line items can be compared with. */
+export function tierSignature(selection: Selection): string {
+  return [...selection]
+    .filter((line) => line.quantity > 0)
+    .sort((a, b) => a.tierId.localeCompare(b.tierId))
     .map((line) => `${line.tierId}:${line.quantity}`)
     .join(',');
 }
 
-/** The same fingerprint, taken from a booking's own reserved lines. */
 export function bookingItemsSignature(
   items: ReadonlyArray<{ ticket_type_id: string; quantity: number }>,
 ): string {

@@ -981,6 +981,7 @@ function Verdict({ scan }: { scan: Scan | undefined }) {
         detail={
           [scan.result.ticket_type, scan.result.gate].filter(Boolean).join(' · ') || 'Admitted'
         }
+        seat={seatText(scan.result)}
       />
     );
   }
@@ -1021,10 +1022,13 @@ function VerdictBand({
   tone,
   title,
   detail,
+  seat,
 }: {
   tone: keyof typeof BANDS;
   title: string;
   detail: string;
+  /** "Seat A4 · Gold" — shown large so a steward can point the guest to it. */
+  seat?: string;
 }) {
   const band = BANDS[tone];
   const Icon = band.icon;
@@ -1046,11 +1050,17 @@ function VerdictBand({
       </span>
       <span className="min-w-0">
         <span className="block text-h4">{title}</span>
+        {seat ? <span className="block text-h4">{seat}</span> : null}
         <span className="block text-body-sm">{detail}</span>
       </span>
     </div>
   );
 }
+
+const seatText = (result: VerifyResult): string | undefined =>
+  result.seat_label
+    ? `Seat ${result.seat_label}${result.seat_section ? ` · ${result.seat_section}` : ''}`
+    : undefined;
 
 /**
  * Admitted against capacity, from the endpoint that owns the number.
@@ -1142,7 +1152,9 @@ function RecentScans({
                 <span className="block truncate text-caption text-foreground">
                   {scan.result
                     ? scan.result.allowed
-                      ? (scan.result.ticket_type ?? 'Admitted')
+                      ? [scan.result.ticket_type ?? 'Admitted', seatText(scan.result)]
+                          .filter(Boolean)
+                          .join(' · ')
                       : (DENIAL_COPY[scan.result.reason] ?? scan.result.reason)
                     : scan.queued
                       ? 'Queued — waiting for the connection'

@@ -26,12 +26,16 @@ import { rememberCashfreeMode } from '@/lib/booking/cashfree';
 import { rememberKeyId } from '@/lib/booking/razorpay';
 import {
   DONATION_MAX_MINOR,
+  SEATS_PARAM,
   SELECTION_PARAM,
   idempotencyKeyFor,
   bookingItemsSignature,
   selectionSignature,
+  serialiseSeatIds,
   serialiseSelection,
+  tierSignature,
   toBookingItems,
+  toSeatIds,
 } from '@/lib/booking/selection';
 import { formatEventDate, formatEventTime, formatFromPrice } from '@/lib/discovery/format';
 import { useToast } from '@/components/ui/toast';
@@ -106,6 +110,8 @@ export function ReviewStep() {
     setPaymentKeyId,
     setPaymentProvider,
     setAvailableProviders,
+    seatMapLoading,
+    seatIds,
   } = useBooking();
   const { status, user } = useAuth();
   const router = useRouter();
@@ -154,7 +160,11 @@ export function ReviewStep() {
   const retried = React.useRef(false);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
 
-  const query = selection.length ? `?${SELECTION_PARAM}=${serialiseSelection(selection)}` : '';
+  const query = seatIds.length
+    ? `?${SEATS_PARAM}=${serialiseSeatIds(seatIds)}`
+    : selection.length
+      ? `?${SELECTION_PARAM}=${serialiseSelection(selection)}`
+      : '';
   /**
    * Back to the TICKET SCREEN — `/booking/{id}` — and this has now been both
    * ways, which is the point.
@@ -176,8 +186,9 @@ export function ReviewStep() {
 
   // Nothing chosen (a bookmarked or hand-edited URL) — back to the picker.
   React.useEffect(() => {
-    if (status !== 'unknown' && !selection.length) router.replace(pickerHref);
-  }, [status, selection.length, router, pickerHref]);
+    // A seated event's basket is empty until its seat map has loaded.
+    if (status !== 'unknown' && !seatMapLoading && !selection.length) router.replace(pickerHref);
+  }, [status, seatMapLoading, selection.length, router, pickerHref]);
 
   /**
    * ── THE ZOMBIE-CHECKOUT GUARD ──────────────────────────────────────────
@@ -285,7 +296,7 @@ export function ReviewStep() {
     // FALLBACK for a booking adopted from elsewhere (the confirmation screen
     // publishes the one it polled). Still worth having: it catches a replay
     // whose lines genuinely differ.
-    if (booking.items?.length) return bookingItemsSignature(booking.items) !== current;
+    if (booking.items?.length) return bookingItemsSignature(booking.items) !== tierSignature(selection);
     // Neither available: do NOT guess. Cancelling a hold on a hunch is worse
     // than showing one, and the picker cancels anything left over anyway.
     return false;
@@ -338,7 +349,7 @@ export function ReviewStep() {
       try {
         const result = await createBooking(
           event.id,
-          toBookingItems(selection),
+          toSeatIds(selection).length ? [] : toBookingItems(selection),
           idempotencyKeyFor(event.id, selection, attemptFor(event.id, selection)),
           // Collected on the PICKER, one screen back — this reserve fires on
           // mount, before anybody could have read a form. They travel with the
@@ -351,6 +362,8 @@ export function ReviewStep() {
           // freshest value and one fewer dependency on an effect that must
           // never re-fire — a second run is a second hold on real inventory.
           answersFor(event.id),
+          undefined,
+          toSeatIds(selection),
         );
 
         // ── PREVIOUS PURCHASE DETECTED ──────────────────────────────────

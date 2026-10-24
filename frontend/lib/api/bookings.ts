@@ -44,13 +44,15 @@ export function createBooking(
    * derived key exists to provide, switched off on the money path.
    */
   gateway?: string,
+  /** The chosen seats, for an event with assigned seating. Sent INSTEAD of items. */
+  seatIds?: string[],
 ): Promise<CreateBookingResponse> {
   const hasAnswers = answers && Object.keys(answers).length > 0;
   return api.post<CreateBookingResponse>(
     '/bookings',
     {
       event_id: eventId,
-      items,
+      ...(seatIds && seatIds.length ? { seat_ids: seatIds } : { items }),
       ...(hasAnswers ? { answers } : {}),
       // A REQUEST, not an instruction: the server falls back to the
       // deployment default for anything it does not offer, so a stale value
