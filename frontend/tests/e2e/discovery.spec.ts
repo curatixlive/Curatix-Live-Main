@@ -226,78 +226,23 @@ test.describe('home', () => {
     await expect(pageHeading).toBeAttached();
     await expect(pageHeading).toContainText(/Live events/i);
 
-    // Eight SPECIFIC categories, each its own landing page — no "Explore".
-    for (const label of [
-      'Concerts',
-      'Comedy',
-      'Workshops',
-      'Sports',
-      'Festivals',
-      'Nightlife',
-      'Food & Drink',
-      'Tech',
-    ]) {
-      await expect(
-        page.getByRole('link', { name: new RegExp(`^${label.replace('&', '&')}`) }).first(),
-      ).toBeVisible();
-    }
-    await expect(page.getByRole('link', { name: /^Concerts/ }).first()).toHaveAttribute(
-      'href',
-      '/categories/concerts',
-    );
+    // The front page, as it is now: a mood chooser, one featured rail that leads
+    // to real event pages, a "find your next experience" block, and the footer.
+    // (This spec used to assert eight category links and a "Trending near you"
+    // rail that the redesigned front page no longer has; it now asserts what the
+    // page actually promises.)
+    await expect(page.getByRole('heading', { name: 'What do you feel like?' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Featured events', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Find your next experience' })).toBeVisible();
 
-    // The hero. A labelled `<section>` — so, a `region` — carrying the
-    // carousel, whose name says whether the events in it were CURATED by an
-    // operator or fell back to the index. Either is fine here; what must be
-    // true is that it exists and leads somewhere real.
-    const hero = page.getByRole('region', { name: /Featured events|Events on sale now/ });
-    await expect(hero).toBeVisible();
-    await expect(hero.getByRole('link', { name: 'Book tickets' })).toHaveAttribute(
+    const featured = page.getByRole('list', { name: 'Featured events' });
+    await expect(featured.locator('a[href^="/events/"]').first()).toHaveAttribute(
       'href',
       /^\/events\//,
     );
 
-    // The listing under it, with the browse page's own filter vocabulary.
-    await expect(page.getByRole('heading', { name: 'All Events', exact: true })).toBeVisible();
-    // Every chip is a real, shareable URL rather than a client-side toggle —
-    // which is the whole reason they are links and not buttons.
-    //
-    // SCOPED to the section: the footer offers "This weekend" too, and an
-    // unscoped role query resolves to both. Two links to the same filter from
-    // two places is correct product behaviour; a spec that cannot say which
-    // one it means is not.
-    const allEvents = page.getByRole('region', { name: 'All Events' });
-    await expect(allEvents.getByRole('link', { name: 'This Weekend' })).toHaveAttribute(
-      'href',
-      '/events?when=weekend',
-    );
-    await expect(allEvents.getByRole('link', { name: 'Free', exact: true })).toHaveAttribute(
-      'href',
-      '/events?price=free',
-    );
-
-    await expect(page.getByRole('heading', { name: 'Browse by mood', exact: true })).toBeVisible();
-    // "Trending near you" is BACK, and this assertion had to be corrected
-    // rather than the section removed. `1d1166a` took it out and this spec
-    // recorded that as "deliberately GONE"; `e2d838b` put it back when the home
-    // page was re-sequenced to the reference layout, and the spec was not moved
-    // with it. It kept passing only because the rail is a CLIENT component that
-    // swaps in after a fetch — so `toHaveCount(0)` was true for the first
-    // moment and false a heartbeat later. A count-zero assertion against
-    // something that arrives late passes for the wrong reason, every time.
-    //
-    // Asserting it EXISTS also fixes what came after: waiting for a section
-    // that streams in late is what lets the checks below it run against a
-    // finished page instead of racing the RSC stream.
-    await expect(page.getByRole('heading', { name: 'Trending near you' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Why Curatix', exact: true })).toBeVisible();
-    await expect(page.getByText('Instant tickets')).toBeVisible();
     await expect(page.getByRole('contentinfo')).toBeVisible();
-
-    // The homepage is deliberately SHORT now: the rails that used to sit here
-    // are one tap away behind a filter, not stacked below the fold.
-    await expect(page.getByRole('heading', { name: 'Upcoming', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'Popular cities', exact: true })).toHaveCount(0);
 
     await expectPublic(page);
   });
@@ -368,7 +313,7 @@ test.describe('home', () => {
     await page.goto('/');
     await dismissAutoOverlays(page);
 
-    const rail = page.getByRole('list', { name: 'All events' });
+    const rail = page.getByRole('list', { name: 'Featured events' });
     await rail.scrollIntoViewIfNeeded();
 
     // A real scroll container either way, so somebody can always move it
@@ -790,20 +735,13 @@ test.describe('layout and navigation', () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/');
 
-    const hero = page.getByRole('region', { name: /Featured events|Events on sale now/ });
-    await expect(hero).toBeVisible();
-
-    // The event's NAME, its PRICE and the way to buy it are all above the
-    // fold. That is the whole argument for a hero that commits to one event
-    // instead of shelving five: there is room to say what it is and what it
-    // costs, and the CTA is reachable without a scroll.
-    const cta = hero.getByRole('link', { name: 'Book tickets' });
-    await expect(cta).toBeVisible();
-    const ctaBox = await cta.boundingBox();
-    expect(ctaBox!.y).toBeLessThan(900);
-
-    // And it is a real event page, not a placeholder.
-    await expect(cta).toHaveAttribute('href', EVENT_URL);
+    // The first screen is a way in, not chrome: the front page's hero offers
+    // "Explore all events" above the fold and it leads to the real listing.
+    const explore = page.getByRole('link', { name: 'Explore all events' }).first();
+    await expect(explore).toBeVisible();
+    const box = await explore.boundingBox();
+    expect(box!.y).toBeLessThan(900);
+    await expect(explore).toHaveAttribute('href', '/events');
   });
 
   test('nav marks the current page, and the pill follows the route', async ({ page }) => {
@@ -921,17 +859,13 @@ test.describe('layout and navigation', () => {
     await page.goto('/');
     await dismissAutoOverlays(page);
 
-    // "All Events", not "Trending near you": the trending rail is no longer on
-    // the front page (its cards showed the same events as the grid, under a
-    // heading implying they were different ones). The claim is unchanged — a
-    // heading and the first card under it share one left edge — and this is
-    // the section that now carries it.
+    // The "Featured events" heading and the first card under it share one left
+    // edge — a rail that bleeds past the container reads as misaligned.
     const heading = await page
-      .getByRole('heading', { name: 'All Events', exact: true })
+      .getByRole('heading', { name: 'Featured events', exact: true })
       .boundingBox();
     const firstCard = await page
-      .getByRole('heading', { name: 'All Events', exact: true })
-      .locator('xpath=ancestor::section')
+      .getByRole('list', { name: 'Featured events' })
       .locator('a[href^="/events/"]')
       .first()
       .boundingBox();

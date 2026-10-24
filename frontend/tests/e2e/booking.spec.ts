@@ -135,7 +135,7 @@ test.describe('the booking funnel', () => {
     await page.goto(`/booking/${eventId}/review?tickets=${tiers[0]!.id}:2`);
 
     await expect(page).toHaveURL(/\/review/);
-    const main = page.locator('#funnel-main');
+    const main = page.locator('#funnel-main').last();
     await expect(main).toContainText(`${tiers[0]!.name}`);
     await expect(main).toContainText('2 x');
 
@@ -206,9 +206,9 @@ test.describe('the booking funnel', () => {
     await signedIn(page);
     await page.goto(`/booking/${eventId}/review?tickets=${tiers[0]!.id}:1`);
     await expect(page).toHaveURL(/\/review/);
-    await expect(
-      page.getByRole('dialog').filter({ hasText: 'Sign in to continue' }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('dialog').filter({ hasText: 'Sign in to continue' })).toHaveCount(
+      0,
+    );
   });
 
   test('reserves real inventory at review, with a real hold deadline', async ({ page }) => {
@@ -297,7 +297,7 @@ test.describe('the booking funnel', () => {
     await page.waitForURL(/[?&]booking=/, { timeout: 20_000 });
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Review your booking');
 
-    const main = page.locator('#funnel-main');
+    const main = page.locator('#funnel-main').last();
     // The pay control carries the AMOUNT now — `₹806.99 | Pay`, not `Pay ₹806.99`
     // — because the number is the last thing read before the press and belongs
     // on the thing being pressed. Matching the old name made this test take the
@@ -363,9 +363,7 @@ test.describe('the booking funnel', () => {
     await expect(sheet.getByLabel('Country calling code')).toHaveValue('+91');
     await sheet.getByLabel('Phone number').fill('9876543210');
     await sheet.getByRole('button', { name: 'Send code' }).click();
-    await expect(sheet.getByRole('status')).toContainText(
-      /Phone sign-in isn't connected yet/i,
-    );
+    await expect(sheet.getByRole('status')).toContainText(/Phone sign-in isn't connected yet/i);
     // A sheet, not a navigation: the ticket screen is still underneath.
     expect(page.url()).toBe(urlBefore);
 
@@ -388,7 +386,7 @@ test.describe('the booking funnel', () => {
     //
     // The TICKET subtotal, not the grand total — the fee is added on the second
     // screen, so the two bars deliberately differ by exactly 1%.
-    const bar = page.locator('div.fixed.bottom-0');
+    const bar = page.locator('div.fixed.bottom-0').last();
 
     await page.goto(`/booking/${eventId}?tickets=${tiers[0]!.id}:1`);
     await expect(page.locator('h2').first()).toHaveText('Choose tickets');
@@ -398,7 +396,7 @@ test.describe('the booking funnel', () => {
     await page.getByRole('button', { name: 'Proceed' }).click();
     await expect(page).toHaveURL(/\/review/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Review your booking');
-    await expect(page.locator('#funnel-main')).toContainText(subtotal!);
+    await expect(page.locator('#funnel-main').last()).toContainText(subtotal!);
   });
 
   test.describe('accessibility', () => {
@@ -419,7 +417,9 @@ test.describe('the booking funnel', () => {
       await axeClean(page, 'booking step 1 (tickets)');
 
       await page.getByRole('button', { name: 'Proceed' }).click();
-      await expect(page.getByRole('dialog').filter({ hasText: 'Sign in to continue' })).toBeVisible();
+      await expect(
+        page.getByRole('dialog').filter({ hasText: 'Sign in to continue' }),
+      ).toBeVisible();
       await axeClean(page, 'the sign-in sheet');
 
       await signedIn(page);

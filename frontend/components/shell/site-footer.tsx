@@ -225,6 +225,7 @@ export function SiteFooter({ className }: { className?: string }) {
           <div className="flex flex-col items-center gap-stack-lg lg:items-start">
             <Link
               href="/"
+              aria-label="Curatix home"
               className="inline-flex w-fit items-center rounded-full text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sunken"
             >
               <BrandLockup />
