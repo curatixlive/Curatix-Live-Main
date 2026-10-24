@@ -105,18 +105,18 @@ export function BrandLockup({
   className?: string;
   collapsed?: boolean;
 }) {
+  // The wordmark is TEXT, not an image: it is the brand name, so it should be
+  // selectable, translatable, always crisp and correct in both themes without
+  // a second asset. Weight and tracking do the work a logotype's drawing did.
   return (
-    <span className={cn('inline-flex items-center gap-2.5 shrink-0', className)}>
-      <img
-        src="/curatix-logo.png"
-        alt={BRAND_NAME}
-        className={cn('h-10 w-auto object-contain dark:hidden', collapsed && 'h-8')}
-      />
-      <img
-        src="/curatix-logo-dark.png"
-        alt={BRAND_NAME}
-        className={cn('hidden h-10 w-auto object-contain dark:block', collapsed && 'h-8')}
-      />
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center font-extrabold leading-none tracking-tight text-foreground',
+        collapsed ? 'text-xl' : 'text-2xl',
+        className,
+      )}
+    >
+      {BRAND_NAME}
     </span>
   );
 }

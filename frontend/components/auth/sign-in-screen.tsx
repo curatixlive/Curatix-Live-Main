@@ -121,7 +121,7 @@ export function SignInScreen() {
   }, [status, router, next]);
 
   return (
-        // `gap-block`, not `gap-section`: 40px between a wordmark and the card it
+    // `gap-block`, not `gap-section`: 40px between a wordmark and the card it
     // sits above is page rhythm applied to two things that belong together.
     <div className="flex w-full max-w-md flex-col gap-block">
       {/* The mark, not a second wordmark in the header's size. On the front

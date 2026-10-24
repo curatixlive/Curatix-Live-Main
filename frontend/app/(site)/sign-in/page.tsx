@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { Metadata } from 'next';
 import { Container } from '@/components/shell/container';
 import { SignInScreen } from '@/components/auth/sign-in-screen';
+import { AuthBackdrop } from '@/components/auth/auth-backdrop';
 import { pageMetadata } from '@/lib/seo/metadata';
 
 export const metadata: Metadata = {
@@ -30,15 +31,18 @@ export const metadata: Metadata = {
  */
 export default function SignInPage() {
   return (
-    <Container className="flex justify-center py-12 md:py-16">
-      {/* `SignInScreen` reads `?next=`, and `useSearchParams` without a
+    <div className="auth-scene relative isolate overflow-hidden">
+      <AuthBackdrop />
+      <Container className="flex justify-center py-12 md:py-16">
+        {/* `SignInScreen` reads `?next=`, and `useSearchParams` without a
           boundary makes the whole route client-rendered at request time. The
           boundary keeps the shell (header, footer, this container) static and
           only defers the panel. */}
-      <React.Suspense fallback={<SignInFallback />}>
-        <SignInScreen />
-      </React.Suspense>
-    </Container>
+        <React.Suspense fallback={<SignInFallback />}>
+          <SignInScreen />
+        </React.Suspense>
+      </Container>
+    </div>
   );
 }
 

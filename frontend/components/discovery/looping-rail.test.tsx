@@ -97,16 +97,30 @@ describe('LoopingRail', () => {
     expect(screen.queryByRole('button', { name: /scrolling/ })).toBeNull();
   });
 
-  it('offers arrows and a real pause button when there is more than fits', () => {
+  it('offers arrows, and no pause button, when there is more than fits', () => {
     mountOverflowing(6);
     expect(screen.getByRole('button', { name: 'Next Featured events' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Previous Featured events' })).toBeInTheDocument();
-    const pause = screen.getByRole('button', { name: /Pause scrolling/ });
-    fireEvent.click(pause);
-    expect(screen.getByRole('button', { name: /Resume scrolling/ })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(screen.queryByRole('button', { name: /scrolling/i })).toBeNull();
+  });
+
+  it('brings the middle card forward and sends the ends back', () => {
+    mountOverflowing(3);
+    const ul = layout({ scrollWidth: 1400, clientWidth: 800 });
+    const [left, middle, right] = Array.from(ul.children) as HTMLElement[];
+    ul.getBoundingClientRect = () => ({ left: 0, width: 800 }) as DOMRect;
+    const place = (el: HTMLElement, x: number) =>
+      (el.getBoundingClientRect = () => ({ left: x, width: 200 }) as DOMRect);
+    place(left!, 0);
+    place(middle!, 300);
+    place(right!, 600);
+    fireEvent.scroll(ul);
+    act(() => void vi.advanceTimersByTime(50));
+    const scale = (el: HTMLElement) =>
+      Number.parseFloat(el.style.transform.replace(/[^0-9.]/g, ''));
+    expect(scale(middle!)).toBeGreaterThan(scale(left!));
+    expect(scale(middle!)).toBeGreaterThan(scale(right!));
+    expect(Number(middle!.style.opacity)).toBeGreaterThan(Number(left!.style.opacity));
   });
 
   it('glides one card forward from the middle, and rotates only at the end', () => {
@@ -149,17 +163,12 @@ describe('LoopingRail', () => {
     const ul = layout({ scrollWidth: 1400, clientWidth: 800 });
     act(() => void vi.advanceTimersByTime(10_000));
     expect(ul.scrollBy).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button', { name: /scrolling/ })).toBeNull(); // nothing to pause
   });
 
-  it('stops while the pointer is over it, and while a pause is pressed', () => {
+  it('stops while the pointer is over it', () => {
     mountOverflowing(6, { intervalSeconds: 2 });
     const ul = layout({ scrollWidth: 1400, clientWidth: 800 });
     fireEvent.pointerEnter(ul.parentElement!);
-    act(() => void vi.advanceTimersByTime(6000));
-    expect(ul.scrollBy).not.toHaveBeenCalled();
-    fireEvent.pointerLeave(ul.parentElement!);
-    fireEvent.click(screen.getByRole('button', { name: /Pause scrolling/ }));
     act(() => void vi.advanceTimersByTime(6000));
     expect(ul.scrollBy).not.toHaveBeenCalled();
   });

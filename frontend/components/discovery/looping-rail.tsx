@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   needsBackwardRotation,
   needsForwardRotation,
@@ -67,7 +67,6 @@ export function LoopingRail({
 
   const ref = React.useRef<HTMLUListElement>(null);
   const [canLoop, setCanLoop] = React.useState(false);
-  const [userPaused, setUserPaused] = React.useState(false);
   const [engaged, setEngaged] = React.useState(false);
   const [recent, setRecent] = React.useState(false);
   const [visible, setVisible] = React.useState(true);
@@ -162,6 +161,38 @@ export function LoopingRail({
     });
   }, [order, glide]);
 
+  // The card nearest the middle of the rail comes forward: full size and full
+  // colour, with its neighbours a little smaller and dimmer, easing as the rail
+  // moves. Written straight to the nodes from the scroll handler (one
+  // requestAnimationFrame per frame), so a scroll costs no React render.
+  const frame = React.useRef(0);
+  const applyFocus = React.useCallback(() => {
+    const node = ref.current;
+    if (!node) return;
+    const view = node.getBoundingClientRect();
+    const half = view.width / 2 || 1;
+    const centre = view.left + half;
+    for (const el of Array.from(node.children) as HTMLElement[]) {
+      const box = el.getBoundingClientRect();
+      const d = Math.min(Math.abs(box.left + box.width / 2 - centre) / half, 1);
+      el.style.transform = `scale(${(1 - 0.1 * d).toFixed(3)})`;
+      el.style.opacity = (1 - 0.4 * d).toFixed(2);
+      el.style.zIndex = d < 0.3 ? '1' : '0';
+    }
+  }, []);
+  const queueFocus = React.useCallback(() => {
+    window.cancelAnimationFrame(frame.current);
+    frame.current = window.requestAnimationFrame(applyFocus);
+  }, [applyFocus]);
+  React.useLayoutEffect(() => {
+    applyFocus();
+    window.addEventListener('resize', queueFocus);
+    return () => {
+      window.removeEventListener('resize', queueFocus);
+      window.cancelAnimationFrame(frame.current);
+    };
+  }, [order, applyFocus, queueFocus]);
+
   const advance = React.useCallback(
     (direction: 1 | -1) => {
       const node = ref.current;
@@ -186,15 +217,7 @@ export function LoopingRail({
     [glide, stride],
   );
 
-  const running =
-    autoscroll &&
-    canLoop &&
-    !userPaused &&
-    !engaged &&
-    !recent &&
-    visible &&
-    !tabHidden &&
-    !reduced;
+  const running = autoscroll && canLoop && !engaged && !recent && visible && !tabHidden && !reduced;
 
   React.useEffect(() => {
     if (!running) return;
@@ -211,7 +234,6 @@ export function LoopingRail({
 
   if (items.length === 0) return null;
   const showControls = canLoop;
-  const showPause = autoscroll && canLoop && !reduced;
 
   return (
     <div
@@ -228,12 +250,13 @@ export function LoopingRail({
         onWheel={noteInteraction}
         onKeyDown={noteInteraction}
         onScroll={() => {
+          queueFocus();
           if (!programmatic.current) noteInteraction();
         }}
         className="scrollbar-none -mx-4 flex touch-manipulation snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 lg:mx-0 lg:gap-6 lg:px-0"
       >
         {order.map((id) => (
-          <li key={id} className={cn('shrink-0 snap-start', itemClassName)}>
+          <li key={id} className={cn('shrink-0 snap-start will-change-transform', itemClassName)}>
             {byId.get(id)}
           </li>
         ))}
@@ -258,24 +281,6 @@ export function LoopingRail({
             }}
           />
         </>
-      ) : null}
-
-      {showPause ? (
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            aria-pressed={userPaused}
-            onClick={() => setUserPaused((p) => !p)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-          >
-            {userPaused ? (
-              <Play className="size-3.5" aria-hidden />
-            ) : (
-              <Pause className="size-3.5" aria-hidden />
-            )}
-            {userPaused ? 'Resume scrolling' : 'Pause scrolling'}
-          </button>
-        </div>
       ) : null}
     </div>
   );

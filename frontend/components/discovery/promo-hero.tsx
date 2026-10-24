@@ -142,7 +142,6 @@ export function PromoHero({
 
   const go = (next: number) => setIndex(((next % count) + count) % count);
   const href = safeCampaignHref(current.cta_href);
-  const showPauseControl = count > 1 && current.kind === 'image' && !reduced;
 
   return (
     <section
@@ -219,26 +218,22 @@ export function PromoHero({
           </div>
 
           {count > 1 ? (
-            <div className="absolute bottom-3 right-3 flex items-center gap-1.5 sm:bottom-6 sm:right-6">
-              {showPauseControl ? (
-                <ControlButton
-                  label={userPaused ? 'Play slideshow' : 'Pause slideshow'}
-                  onClick={() => setUserPaused((p) => !p)}
-                >
-                  {userPaused ? (
-                    <Play className="size-4" aria-hidden />
-                  ) : (
-                    <Pause className="size-4" aria-hidden />
-                  )}
+            <>
+              {/* At the sides, vertically centred, from tablet up: the text and button
+                  sit at the bottom, so a long headline can never run into them. On a
+                  phone there are no arrows at all — swiping and the dots below do
+                  the job, and arrows there would sit on top of the copy. */}
+              <div className="absolute left-4 top-1/2 hidden -translate-y-1/2 md:block">
+                <ControlButton label="Previous promotion" onClick={() => go(index - 1)}>
+                  <ChevronLeft className="size-4" aria-hidden />
                 </ControlButton>
-              ) : null}
-              <ControlButton label="Previous promotion" onClick={() => go(index - 1)}>
-                <ChevronLeft className="size-4" aria-hidden />
-              </ControlButton>
-              <ControlButton label="Next promotion" onClick={() => go(index + 1)}>
-                <ChevronRight className="size-4" aria-hidden />
-              </ControlButton>
-            </div>
+              </div>
+              <div className="absolute right-4 top-1/2 hidden -translate-y-1/2 md:block">
+                <ControlButton label="Next promotion" onClick={() => go(index + 1)}>
+                  <ChevronRight className="size-4" aria-hidden />
+                </ControlButton>
+              </div>
+            </>
           ) : null}
         </div>
 
