@@ -68,6 +68,9 @@ export type EventContentFields = {
   duration_minutes: number | null;
   language: string;
   age_restriction: string;
+  address?: string;
+  state?: string;
+  postal_code?: string;
   accessibility_notes: string;
   /**
    * The organiser's own rules, replaced WHOLESALE — an empty array clears

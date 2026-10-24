@@ -553,6 +553,8 @@ class OrganizerRepository:
                 "gate",
                 "attendee_name",
                 "attendee_email",
+                "seat_label",
+                "seat_section",
                 "created_at",
                 "booking__id",
                 "booking__user__id",
@@ -585,6 +587,7 @@ class OrganizerRepository:
             filters = (
                 Q(attendee_name__icontains=search)
                 | Q(attendee_email__icontains=search)
+                | Q(seat_label__icontains=search)
                 | Q(booking__user__full_name__icontains=search)
                 | Q(booking__user__email__icontains=search)
             )

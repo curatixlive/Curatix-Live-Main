@@ -158,6 +158,14 @@ class Event(models.Model):
     language = models.CharField(max_length=120, blank=True, default="")
     #: "18+", "All ages", "Under 16 with a guardian". Same reasoning.
     age_restriction = models.CharField(max_length=60, blank=True, default="")
+    #: Where exactly: the street address beside `venue` (the place's NAME), and
+    #: the state and postal code the address belongs to. All free text and all
+    #: optional — a venue picked from Google already pins coordinates, and an
+    #: organiser who only knows the venue's name should not be forced to invent
+    #: a postcode.
+    address = models.CharField(max_length=255, blank=True, default="")
+    state = models.CharField(max_length=120, blank=True, default="")
+    postal_code = models.CharField(max_length=12, blank=True, default="")
     accessibility_notes = models.TextField(blank=True, default="")
 
     #: The ORGANISER's own rules for this event — entry conditions, prohibited

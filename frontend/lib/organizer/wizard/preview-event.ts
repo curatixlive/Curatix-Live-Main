@@ -131,6 +131,9 @@ export function draftToPreview(
     title: draft.title.trim() || 'Untitled event',
     venue: draft.venue,
     city: draft.city,
+    address: draft.address,
+    state: draft.state,
+    postal_code: draft.postalCode,
     // The organiser's own choice, so the preview's chip is the one the
     // browse tile will show rather than a blank.
     category: draft.category,

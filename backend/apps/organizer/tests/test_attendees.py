@@ -171,6 +171,23 @@ class TestFilters:
         rows = auth(world.owner).get(path(world.event.id), {"q": "priya"}).json()["data"]
         assert [row["ticket_id"] for row in rows] == [str(ticket.id)]
 
+    def test_a_seated_ticket_carries_its_seat_and_is_found_by_it(self, world: World) -> None:
+        ticket = Ticket.objects.filter(booking=world.booking).first()
+        assert ticket is not None
+        ticket.seat_label = "C7"
+        ticket.seat_section = "Gold"
+        ticket.save(update_fields=["seat_label", "seat_section"])
+
+        rows = auth(world.owner).get(path(world.event.id)).json()["data"]
+        row = next(r for r in rows if r["ticket_id"] == str(ticket.id))
+        assert (row["seat_label"], row["seat_section"]) == ("C7", "Gold")
+        # General admission rows carry blanks, never nulls.
+        others = [r for r in rows if r["ticket_id"] != str(ticket.id)]
+        assert others and all(r["seat_label"] == "" for r in others)
+
+        found = auth(world.owner).get(path(world.event.id), {"q": "C7"}).json()["data"]
+        assert [r["ticket_id"] for r in found] == [str(ticket.id)]
+
     def test_search_matches_a_whole_ticket_id(self, world: World) -> None:
         # What a support desk pastes. The column is a uuid, so it is matched
         # EXACTLY — a substring search would need a cast that throws the index

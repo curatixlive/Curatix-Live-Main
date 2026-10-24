@@ -65,7 +65,13 @@ describe('draftToPreview', () => {
         tiers: [
           tierWith({
             phases: [
-              { key: 'p1', name: 'Early bird', price: '499', endsAt: '2026-04-01T00:00', quantity: '' },
+              {
+                key: 'p1',
+                name: 'Early bird',
+                price: '499',
+                endsAt: '2026-04-01T00:00',
+                quantity: '',
+              },
               { key: 'p2', name: 'Phase 1', price: '799', endsAt: '', quantity: '' },
             ],
           }),
@@ -88,7 +94,13 @@ describe('draftToPreview', () => {
         tiers: [
           tierWith({
             phases: [
-              { key: 'p1', name: 'Early bird', price: '499', endsAt: '2026-01-01T00:00', quantity: '' },
+              {
+                key: 'p1',
+                name: 'Early bird',
+                price: '499',
+                endsAt: '2026-01-01T00:00',
+                quantity: '',
+              },
               { key: 'p2', name: 'Phase 1', price: '799', endsAt: '', quantity: '' },
             ],
           }),

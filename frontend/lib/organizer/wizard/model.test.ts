@@ -822,9 +822,7 @@ describe('the three fields that used to be written nowhere', () => {
 
   it('notices a category change, or the PATCH is never scheduled', () => {
     const before = emptyDraft('org-1');
-    expect(patchFingerprint(before)).not.toBe(
-      patchFingerprint({ ...before, category: 'comedy' }),
-    );
+    expect(patchFingerprint(before)).not.toBe(patchFingerprint({ ...before, category: 'comedy' }));
   });
 
   it('sends the array index as the tier position', () => {
@@ -1175,8 +1173,9 @@ describe('group prices', () => {
     it('is 0 rather than Infinity when the size is missing', () => {
       // A half-typed row runs through this on every keystroke, and a division
       // by zero reaching `toTierInput` would put `Infinity` in a payload.
-      expect(bandUnitPriceMinor({ key: 'k', minQuantity: '', totalPrice: '500', description: '' }))
-        .toBe(0);
+      expect(
+        bandUnitPriceMinor({ key: 'k', minQuantity: '', totalPrice: '500', description: '' }),
+      ).toBe(0);
     });
   });
 
@@ -1305,5 +1304,35 @@ describe('group prices', () => {
     const restored = restoreDraft(stored, ['org-1']);
 
     expect(restored.tiers[0].groupBands).toEqual([]);
+  });
+});
+
+describe('address, state and postal code', () => {
+  it('are sent on a save, trimmed', () => {
+    const draft = {
+      ...emptyDraft('org'),
+      address: '  Above Westside, Madinaguda ',
+      state: ' Telangana ',
+      postalCode: ' 500049 ',
+    };
+    expect(toPatchInput(draft)).toMatchObject({
+      address: 'Above Westside, Madinaguda',
+      state: 'Telangana',
+      postal_code: '500049',
+    });
+  });
+
+  it('change the save fingerprint, so a typed postcode actually saves', () => {
+    const base = emptyDraft('org');
+    expect(patchFingerprint({ ...base, postalCode: '500049' })).not.toBe(patchFingerprint(base));
+  });
+
+  it('survive a draft restored from storage written before they existed', () => {
+    const old = { ...emptyDraft('org') } as Partial<Draft>;
+    delete old.address;
+    delete old.state;
+    delete old.postalCode;
+    const restored = restoreDraft(old, ['org']);
+    expect([restored.address, restored.state, restored.postalCode]).toEqual(['', '', '']);
   });
 });

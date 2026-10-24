@@ -373,6 +373,11 @@ class UpdateEventRequestSerializer(_ScheduleAliasMixin, serializers.Serializer):
     )
     language = serializers.CharField(max_length=80, required=False, allow_blank=True)
     age_restriction = serializers.CharField(max_length=60, required=False, allow_blank=True)
+    #: The full street address, beside `venue` (the place's name). Blank when the
+    #: organiser only named the venue; the page then shows venue and city alone.
+    address = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    state = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    postal_code = serializers.CharField(max_length=12, required=False, allow_blank=True)
     accessibility_notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
     seo_title = serializers.CharField(max_length=70, required=False, allow_blank=True)
     seo_description = serializers.CharField(max_length=160, required=False, allow_blank=True)
@@ -412,6 +417,9 @@ class UpdateEventRequestSerializer(_ScheduleAliasMixin, serializers.Serializer):
         "duration_minutes",
         "language",
         "age_restriction",
+        "address",
+        "state",
+        "postal_code",
         "accessibility_notes",
         "seo_title",
         "seo_description",
@@ -645,6 +653,9 @@ class EventDetailSerializer(serializers.ModelSerializer):
             "duration_minutes",
             "language",
             "age_restriction",
+            "address",
+            "state",
+            "postal_code",
             "accessibility_notes",
             # The organiser's own rules. A list of {title, body}; empty for an
             # event that set none, which the page renders as nothing rather

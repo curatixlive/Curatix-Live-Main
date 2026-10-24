@@ -500,6 +500,9 @@ export type AttendeeRow = {
   status: 'active' | 'used' | 'void';
   used_at: string | null;
   gate: string;
+  /** Assigned seating: blank for general admission. */
+  seat_label?: string;
+  seat_section?: string;
   booking_id: string;
   created_at: string;
 };

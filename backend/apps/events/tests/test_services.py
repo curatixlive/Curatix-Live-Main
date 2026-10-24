@@ -169,6 +169,27 @@ def test_update_event_writes_the_content_fields(service, make_event, owner):
 
 
 @pytest.mark.django_db
+def test_update_event_writes_the_address_state_and_postal_code(service, make_event, owner):
+    """A column the event page can render must be reachable by a PATCH."""
+    event = make_event(status=EventStatus.DRAFT)
+
+    updated = service.update_event(
+        event_id=event.id,
+        actor_id=owner.id,
+        expected_version=1,
+        changes={
+            "address": "Above Westside Showroom, Madinaguda, Main Road",
+            "state": "Telangana",
+            "postal_code": "500049",
+        },
+    )
+
+    assert updated.address == "Above Westside Showroom, Madinaguda, Main Road"
+    assert updated.state == "Telangana"
+    assert updated.postal_code == "500049"
+
+
+@pytest.mark.django_db
 def test_update_event_ignores_a_field_that_is_not_editable(service, make_event, owner):
     """`status` is a lifecycle transition, not a column a PATCH may set —
     otherwise a draft could go live without passing a single publish check."""

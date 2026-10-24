@@ -286,7 +286,14 @@ export function VenueCard({ event }: { event: EventDetail }) {
       <div className="flex flex-col gap-4 p-card sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <p className="truncate text-body-lg font-semibold text-foreground">{event.venue}</p>
-          <p className="text-body-sm text-muted-foreground">{event.city}</p>
+          {event.address?.trim() ? (
+            <p className="text-body-sm text-muted-foreground">{event.address.trim()}</p>
+          ) : null}
+          <p className="text-body-sm text-muted-foreground">
+            {[event.city, event.state?.trim(), event.postal_code?.trim()]
+              .filter(Boolean)
+              .join(', ')}
+          </p>
         </div>
         <a href={directions} target="_blank" rel="noopener noreferrer" className={ACTION_PILL}>
           <Navigation className="size-4" aria-hidden />

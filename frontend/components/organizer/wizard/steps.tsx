@@ -19,7 +19,7 @@ import {
 import { POPULAR_CITIES } from '@/lib/discovery/cities';
 import { CityCombobox } from '@/components/ui/city-combobox';
 import { parseMapsLink } from '@/lib/maps/parse-maps-link';
-import { directionsUrl } from '@/lib/api/maps';
+import { directionsUrl, reverseGeocode } from '@/lib/api/maps';
 import { createOrganizerCategory } from '@/lib/api/categories';
 import { errorMessage } from '@/lib/api/errors';
 import { Button, Input, Label, SegmentedControl } from '@/components/ui';
@@ -85,10 +85,7 @@ export function BasicsStep({
 }: StepProps & { organizations: readonly { id: string; name: string }[] }) {
   return (
     <div className="flex flex-col gap-block">
-      <StepHeader
-        title="Basics"
-        step={1}
-      />
+      <StepHeader title="Basics" step={1} />
 
       {/* The offer to copy, made where the retyping is about to happen — and
           only while there is nothing to lose. `isDraftUntouched` is false the
@@ -98,24 +95,24 @@ export function BasicsStep({
 
       {organizations.length > 1 ? (
         <AccordionCard title="Organisation">
-        <SelectField
-          id="event-organization"
-          label="Organisation"
-          value={draft.organizationId}
-          onChange={(organizationId) => update({ organizationId })}
-          options={organizations.map((organization) => ({
-            value: organization.id,
-            label: organization.name,
-          }))}
-          placeholder="Choose an organisation"
-          disabled={Boolean(draft.eventId)}
-          error={errorFor(issues, 'organizationId')}
-          hint={
-            draft.eventId
-              ? 'Fixed once the draft exists — the event belongs to this organisation now.'
-              : 'It receives the payouts and its verification is what lets the event go live.'
-          }
-        />
+          <SelectField
+            id="event-organization"
+            label="Organisation"
+            value={draft.organizationId}
+            onChange={(organizationId) => update({ organizationId })}
+            options={organizations.map((organization) => ({
+              value: organization.id,
+              label: organization.name,
+            }))}
+            placeholder="Choose an organisation"
+            disabled={Boolean(draft.eventId)}
+            error={errorFor(issues, 'organizationId')}
+            hint={
+              draft.eventId
+                ? 'Fixed once the draft exists — the event belongs to this organisation now.'
+                : 'It receives the payouts and its verification is what lets the event go live.'
+            }
+          />
         </AccordionCard>
       ) : null}
 
@@ -164,9 +161,7 @@ export function BasicsStep({
         />
       </AccordionCard>
 
-      <Section
-        title="Category"
-      >
+      <Section title="Category">
         <CategoryPicker
           value={draft.category}
           onChange={(category) => update({ category })}
@@ -187,13 +182,9 @@ export function BasicsStep({
             drawn as artwork would out-shout the eight that decide which
             landing page the event lives on. */}
         <div className="mt-stack">
-          <EventTypeField
-            value={draft.eventType}
-            onChange={(eventType) => update({ eventType })}
-          />
+          <EventTypeField value={draft.eventType} onChange={(eventType) => update({ eventType })} />
         </div>
       </Section>
-
     </div>
   );
 }
@@ -222,13 +213,7 @@ const ADD_ANYTHING = '__add_anything__';
  * draft has to show the typed text, not silently fall back to "Not sure yet"
  * and lose it on the next save.
  */
-function EventTypeField({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (next: string) => void;
-}) {
+function EventTypeField({ value, onChange }: { value: string; onChange: (next: string) => void }) {
   const isBuiltIn = EVENT_TYPES.some((type) => type.value === value);
   const [custom, setCustom] = React.useState(Boolean(value) && !isBuiltIn);
 
@@ -274,6 +259,74 @@ function EventTypeField({
 }
 
 /* ──────────────────────────────── venue ─────────────────────────────── */
+
+/**
+ * "Use my current location" — for an organiser standing at the venue.
+ *
+ * The browser asks for permission only when this is PRESSED, never on load, and
+ * a refusal is reported in words: the form is complete without it. The position
+ * is written as a hand-placed pin (`placeId` cleared — a non-empty place id
+ * means the coordinates are Google's for that place), and the address, city and
+ * postcode are filled from a reverse geocode only where the field is still
+ * empty, so it never overwrites what somebody typed. If the geocoder is not
+ * configured the pin is still saved and the address is left for them.
+ */
+function UseCurrentLocation({ draft, update }: Pick<StepProps, 'draft' | 'update'>) {
+  const [state, setState] = React.useState<'idle' | 'locating' | 'denied' | 'failed' | 'done'>(
+    'idle',
+  );
+
+  const locate = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setState('failed');
+      return;
+    }
+    setState('locating');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        update({ latitude, longitude, placeId: '' });
+        void reverseGeocode(latitude, longitude)
+          .then((found) =>
+            update({
+              address: draft.address || found.formatted_address.slice(0, 255),
+              city: draft.city || found.city,
+              postalCode: draft.postalCode || (found.postal_code ?? '').slice(0, 12),
+            }),
+          )
+          .catch(() => undefined)
+          .finally(() => setState('done'));
+      },
+      (error) => setState(error.code === error.PERMISSION_DENIED ? 'denied' : 'failed'),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={locate}
+        disabled={state === 'locating'}
+        className="w-fit"
+      >
+        <MapPin className="size-3.5" aria-hidden />
+        {state === 'locating' ? 'Finding you…' : 'Use my current location'}
+      </Button>
+      <p className="text-caption text-muted-foreground" role="status">
+        {state === 'denied'
+          ? 'Location is switched off for this site. Search for the venue instead.'
+          : state === 'failed'
+            ? 'Could not get your position. Search for the venue instead.'
+            : state === 'done'
+              ? 'Pin set from your position. Check the address below.'
+              : 'Optional. Your browser will ask before sharing your position.'}
+      </p>
+    </div>
+  );
+}
 
 /**
  * Where it happens — a search, a city, and a pin.
@@ -328,10 +381,7 @@ export function VenueStep({ draft, update, issues }: StepProps) {
 
   return (
     <div className="flex flex-col gap-block">
-      <StepHeader
-        title="Venue"
-        step={2}
-      />
+      <StepHeader title="Venue" step={2} />
 
       {/* WHERE IT HAPPENS: the venue and the city are one question asked in
           two fields, so they share a card. There is no Physical/Virtual toggle
@@ -383,6 +433,47 @@ export function VenueStep({ draft, update, issues }: StepProps) {
             ))}
           </ul>
         </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="event-address" className="text-body-sm font-medium">
+            Full address <span className="font-normal text-muted-foreground">(optional)</span>
+          </label>
+          <Input
+            id="event-address"
+            value={draft.address}
+            onChange={(event) => update({ address: event.target.value.slice(0, 255) })}
+            placeholder="Street, area, landmark"
+            autoComplete="street-address"
+          />
+        </div>
+
+        <div className="grid gap-stack sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="event-state" className="text-body-sm font-medium">
+              State <span className="font-normal text-muted-foreground">(optional)</span>
+            </label>
+            <Input
+              id="event-state"
+              value={draft.state}
+              onChange={(event) => update({ state: event.target.value.slice(0, 120) })}
+              autoComplete="address-level1"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="event-postal" className="text-body-sm font-medium">
+              ZIP / postal code{' '}
+              <span className="font-normal text-muted-foreground">(optional)</span>
+            </label>
+            <Input
+              id="event-postal"
+              value={draft.postalCode}
+              onChange={(event) => update({ postalCode: event.target.value.slice(0, 12) })}
+              autoComplete="postal-code"
+              inputMode="text"
+            />
+          </div>
+        </div>
+
+        <UseCurrentLocation draft={draft} update={update} />
       </Section>
 
       {/* ── ONE LOCATION, TWO WAYS TO GIVE IT ──────────────────────────
@@ -391,10 +482,7 @@ export function VenueStep({ draft, update, issues }: StepProps) {
           genuinely exclusive rather than two half-answers to reconcile: the
           event page, the directions link and the JSON-LD all read those two
           numbers and there is nowhere for a second answer to live. */}
-      <LocationMethod
-        draft={draft}
-        update={update}
-      />
+      <LocationMethod draft={draft} update={update} />
 
       {/* The outbound link stays, next to a map rather than instead of one. It
           answers a different question — it opens in the organizer's own Maps,
@@ -425,7 +513,6 @@ export function VenueStep({ draft, update, issues }: StepProps) {
           </a>
         </Button>
       ) : null}
-
     </div>
   );
 }
@@ -527,7 +614,7 @@ function CategoryPicker({
                 'transition-colors duration-fast',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 selected
-                  ? 'border-primary bg-primary-subtle'
+                  ? 'bg-primary-subtle border-primary'
                   : 'border-border hover:border-border-strong',
               )}
             >
@@ -554,7 +641,7 @@ function CategoryPicker({
             'inline-flex h-control items-center rounded-full border px-4 text-body-sm transition-colors',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             choosingOwn
-              ? 'border-primary bg-primary-subtle text-primary-subtle-foreground'
+              ? 'bg-primary-subtle text-primary-subtle-foreground border-primary'
               : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
           )}
         >
@@ -670,12 +757,10 @@ function LocationMethod({
           aria-label="How to give the exact location"
           className="flex flex-col gap-2"
         >
-          {(
-            [
-              { value: 'pin' as const, label: 'Pin the exact spot on the map' },
-              { value: 'link' as const, label: 'Paste a Google Maps link' },
-            ]
-          ).map((option) => (
+          {[
+            { value: 'pin' as const, label: 'Pin the exact spot on the map' },
+            { value: 'link' as const, label: 'Paste a Google Maps link' },
+          ].map((option) => (
             <button
               key={option.value}
               type="button"
@@ -777,10 +862,7 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
 
   return (
     <div className="flex flex-col gap-block">
-      <StepHeader
-        title="Schedule"
-        step={3}
-      />
+      <StepHeader title="Schedule" step={3} />
 
       {/* ── ONE DAY OR SEVERAL ────────────────────────────────────────────
           DERIVED, never stored. There is no `multi_day` column and there must
@@ -836,65 +918,65 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
           />
         }
       >
-      {multiDay ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <DateField
-            id="event-starts"
-            label="Starts"
-            value={draft.startsAt}
-            onChange={(startsAt) => update({ startsAt })}
-            min={nowLocal}
-            error={errorFor(issues, 'startsAt')}
-            hint="Has to be in the future."
-          />
-          <DateField
-            id="event-ends"
-            label="Ends"
-            value={draft.endsAt}
-            onChange={(endsAt) => update({ endsAt })}
-            min={draft.startsAt || nowLocal}
-            error={errorFor(issues, 'endsAt')}
-            hint="Optional. Drives the check-in window and the payout date."
-          />
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <DateTimeField
-            id="event-starts"
-            label="Starts"
-            day={dayPart(draft.startsAt)}
-            time={timePart(draft.startsAt)}
-            onChange={({ day, time }) => {
-              const startsAt = joinDateTime(day, time);
-              // The end follows the start's DATE while they are on one day —
-              // otherwise moving the event to next week leaves the end behind
-              // on the old date and the event finishes before it begins.
-              const endsAt = draft.endsAt
-                ? joinDateTime(day || dayPart(draft.endsAt), timePart(draft.endsAt))
-                : draft.endsAt;
-              update({ startsAt, endsAt });
-            }}
-            min={nowLocal}
-            error={errorFor(issues, 'startsAt')}
-            hint="Has to be in the future."
-            timeLabel="start time"
-          />
-          <TimeOnlyField
-            id="event-ends"
-            label="Ends"
-            /* The DATE is the start's, always, in this mode. Only the time is
+        {multiDay ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <DateField
+              id="event-starts"
+              label="Starts"
+              value={draft.startsAt}
+              onChange={(startsAt) => update({ startsAt })}
+              min={nowLocal}
+              error={errorFor(issues, 'startsAt')}
+              hint="Has to be in the future."
+            />
+            <DateField
+              id="event-ends"
+              label="Ends"
+              value={draft.endsAt}
+              onChange={(endsAt) => update({ endsAt })}
+              min={draft.startsAt || nowLocal}
+              error={errorFor(issues, 'endsAt')}
+              hint="Optional. Drives the check-in window and the payout date."
+            />
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <DateTimeField
+              id="event-starts"
+              label="Starts"
+              day={dayPart(draft.startsAt)}
+              time={timePart(draft.startsAt)}
+              onChange={({ day, time }) => {
+                const startsAt = joinDateTime(day, time);
+                // The end follows the start's DATE while they are on one day —
+                // otherwise moving the event to next week leaves the end behind
+                // on the old date and the event finishes before it begins.
+                const endsAt = draft.endsAt
+                  ? joinDateTime(day || dayPart(draft.endsAt), timePart(draft.endsAt))
+                  : draft.endsAt;
+                update({ startsAt, endsAt });
+              }}
+              min={nowLocal}
+              error={errorFor(issues, 'startsAt')}
+              hint="Has to be in the future."
+              timeLabel="start time"
+            />
+            <TimeOnlyField
+              id="event-ends"
+              label="Ends"
+              /* The DATE is the start's, always, in this mode. Only the time is
                the organiser's to set — which is the whole point of the split. */
-            value={timePart(draft.endsAt)}
-            onChange={(time) =>
-              update({
-                endsAt: time ? joinDateTime(dayPart(draft.startsAt), time) : '',
-              })
-            }
-            error={errorFor(issues, 'endsAt')}
-            hint="Optional. Drives the check-in window and the payout date."
-          />
-        </div>
-      )}
+              value={timePart(draft.endsAt)}
+              onChange={(time) =>
+                update({
+                  endsAt: time ? joinDateTime(dayPart(draft.startsAt), time) : '',
+                })
+              }
+              error={errorFor(issues, 'endsAt')}
+              hint="Optional. Drives the check-in window and the payout date."
+            />
+          </div>
+        )}
       </FieldGroup>
 
       {valid ? (
@@ -938,9 +1020,7 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
           flushed by the save engine the moment it is created. They ride the
           local-first autosave, so a reload keeps them. See `PendingSlot` in
           `model.ts` and the flush in `use-wizard.ts`. */}
-      <Section
-        title="Sessions"
-      >
+      <Section title="Sessions">
         <SessionsEditor
           eventId={draft.eventId || null}
           startsAtLocal={draft.startsAt}
@@ -949,9 +1029,7 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
         />
       </Section>
 
-      <Section
-        title="Running order"
-      >
+      <Section title="Running order">
         <RunningOrder
           organizationId={draft.organizationId}
           eventId={draft.eventId || null}
@@ -979,7 +1057,6 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
           onStaged={(crewIds) => update({ crewIds })}
         />
       </Section>
-
     </div>
   );
 }

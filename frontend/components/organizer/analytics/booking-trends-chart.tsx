@@ -245,7 +245,9 @@ function useWidth<T extends HTMLElement>(): [React.RefObject<T>, number] {
 /** Five gridlines, evenly spaced up to the tallest day: 0, ¼, ½, ¾, max. */
 export function yTicks(max: number): number[] {
   const top = Math.max(1, max);
-  return [0, 0.25, 0.5, 0.75, 1].map((fraction) => Math.round(top * fraction));
+  // De-duplicated: on a small maximum (one booking) the rounded quarters collide
+  // — 0, 0, 1, 1, 1 — which draws four stacked labels and repeats a React key.
+  return [...new Set([0, 0.25, 0.5, 0.75, 1].map((fraction) => Math.round(top * fraction)))];
 }
 
 function WindowChart({

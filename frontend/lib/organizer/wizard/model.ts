@@ -171,6 +171,11 @@ export type Draft = {
   description: string;
   venue: string;
   city: string;
+  /** The full street address, beside `venue` (the place's name). Optional. */
+  address: string;
+  state: string;
+  /** Optional; free text because postcodes differ by country. */
+  postalCode: string;
   /**
    * Which browse tile this event appears under. `''` means uncategorised,
    * which is a real state — an organiser who has not chosen yet, and an event
@@ -427,6 +432,9 @@ export function emptyDraft(organizationId = ''): Draft {
     description: '',
     venue: '',
     city: '',
+    address: '',
+    state: '',
+    postalCode: '',
     category: '',
     customCategoryId: '',
     customCategoryLabel: '',
@@ -610,6 +618,11 @@ export function restoreDraft(
     // A draft written before questions could be staged has no array here, and
     // `.map` on `undefined` is the white screen the band rows already caused
     // once. Normalised for the same reason `tiers` and `tags` are.
+    // Drafts saved before these fields existed hold `undefined`, and `.trim()` on
+    // it is a white screen over somebody's work.
+    address: typeof stored.address === 'string' ? stored.address : '',
+    state: typeof stored.state === 'string' ? stored.state : '',
+    postalCode: typeof stored.postalCode === 'string' ? stored.postalCode : '',
     pendingQuestions: Array.isArray(stored.pendingQuestions) ? stored.pendingQuestions : [],
     pendingFaqs: Array.isArray(stored.pendingFaqs) ? stored.pendingFaqs : [],
     pendingSlots: Array.isArray(stored.pendingSlots) ? stored.pendingSlots : [],
@@ -1586,6 +1599,9 @@ export function draftFromEvent(
     description: event.description ?? '',
     venue: event.venue,
     city: event.city,
+    address: event.address ?? '',
+    state: event.state ?? '',
+    postalCode: event.postal_code ?? '',
     category: event.category ?? '',
     // BLANK on purpose, and this is the one field that cannot round-trip.
     // `custom_category` is accepted by both event WRITE serializers and is
@@ -1719,6 +1735,9 @@ export function toPatchInput(draft: Draft): UpdateEventInput {
     description: draft.description,
     venue: draft.venue.trim(),
     city: draft.city.trim(),
+    address: draft.address.trim(),
+    state: draft.state.trim(),
+    postal_code: draft.postalCode.trim(),
     place_id: draft.placeId,
     ...coordinates(draft),
     starts_at: toIso(draft.startsAt),
@@ -1911,6 +1930,9 @@ export function patchFingerprint(draft: Draft): string {
     draft.description,
     draft.venue,
     draft.city,
+    draft.address,
+    draft.state,
+    draft.postalCode,
     // The pin is part of the PATCH, so it has to be part of the fingerprint —
     // without it, dragging the marker changes nothing the save engine can see
     // and the pin is never sent at all.

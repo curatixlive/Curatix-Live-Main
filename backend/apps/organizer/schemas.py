@@ -129,6 +129,9 @@ class AttendeeRowSerializer(serializers.Serializer):
     status = serializers.CharField()
     used_at = serializers.DateTimeField(allow_null=True)
     gate = serializers.CharField(allow_blank=True)
+    #: Assigned seating: blank for general admission.
+    seat_label = serializers.CharField(allow_blank=True)
+    seat_section = serializers.CharField(allow_blank=True)
     booking_id = serializers.UUIDField()
     created_at = serializers.DateTimeField()
 

@@ -46,9 +46,7 @@ const COMPLETE_DRAFT = {
 };
 
 function mount() {
-  return renderHook(() =>
-    useWizard({ userId: 'user-1', organizationIds: ['org-1'], ready: true }),
-  );
+  return renderHook(() => useWizard({ userId: 'user-1', organizationIds: ['org-1'], ready: true }));
 }
 
 describe('useWizard save engine', () => {

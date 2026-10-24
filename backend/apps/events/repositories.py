@@ -119,6 +119,9 @@ _DETAIL_FIELDS = (
     "duration_minutes",
     "language",
     "age_restriction",
+    "address",
+    "state",
+    "postal_code",
     "accessibility_notes",
     # Read by `EventDetailSerializer`, so it has to be here — a field the
     # serializer touches but `.only()` omits is a DEFERRED load, one extra

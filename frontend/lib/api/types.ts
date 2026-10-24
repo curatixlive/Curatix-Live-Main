@@ -79,6 +79,10 @@ export type EventDetail = EventCard & {
   duration_minutes: number | null;
   language: string;
   age_restriction: string;
+  /** Full street address, state and postcode — blank unless the organiser gave them. */
+  address?: string;
+  state?: string;
+  postal_code?: string;
   accessibility_notes: string;
   /**
    * The ORGANISER's own rules — entry conditions, prohibited items, their

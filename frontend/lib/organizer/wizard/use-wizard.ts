@@ -2,7 +2,13 @@
 
 import * as React from 'react';
 import { ApiError } from '@/lib/api/errors';
-import { addFaq, addQuestion, addSlot, addTimelineEntry, type TimelineKind } from '@/lib/api/event-content';
+import {
+  addFaq,
+  addQuestion,
+  addSlot,
+  addTimelineEntry,
+  type TimelineKind,
+} from '@/lib/api/event-content';
 import { setEventCrew } from '@/lib/api/crew';
 import {
   createEvent,

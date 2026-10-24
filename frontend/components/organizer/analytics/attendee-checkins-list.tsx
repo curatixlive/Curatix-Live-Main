@@ -339,6 +339,12 @@ function AttendeeRowView({ row }: { row: AttendeeRow }) {
             <Ticket className="size-3.5 shrink-0" aria-hidden />
             <span className="truncate">{row.ticket_type}</span>
           </span>
+          {row.seat_label ? (
+            <span className="font-semibold text-foreground">
+              Seat {row.seat_label}
+              {row.seat_section ? ` · ${row.seat_section}` : ''}
+            </span>
+          ) : null}
           {admitted && row.used_at ? (
             <span className="inline-flex items-center gap-1.5">
               <Check className="size-3.5 shrink-0" aria-hidden />
@@ -406,6 +412,8 @@ const EXPORT_COLUMNS: ColumnDef<AttendeeRow>[] = [
   { key: 'holder_email', header: 'Email', width: 220, render: (row) => row.holder_email },
   { key: 'phone', header: 'Phone', width: 140, render: (row) => row.phone },
   { key: 'ticket_type', header: 'Ticket type', width: 140, render: (row) => row.ticket_type },
+  { key: 'seat_label', header: 'Seat', width: 100, render: (row) => row.seat_label ?? '' },
+  { key: 'seat_section', header: 'Section', width: 120, render: (row) => row.seat_section ?? '' },
   {
     key: 'status',
     header: 'Status',
