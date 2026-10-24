@@ -25,6 +25,7 @@ import {
   parseSeatIds,
   parseSelection,
   serialiseSeatIds,
+  standingSeatIds,
   serialiseSelection,
   setQuantity as setQuantityIn,
   totalsFor,
@@ -219,12 +220,14 @@ export function BookingProvider({
 
   const seatParam = searchParams?.get(SEATS_PARAM);
   const seatIds = React.useMemo(() => {
-    const ids = parseSeatIds(seatParam);
-    if (!seatMap) return ids;
-    // Drop seats that are gone or taken since the link was made.
-    const open = new Set(seatMap.seats.filter((s) => s.status === 'available').map((s) => s.id));
-    return ids.filter((id) => open.has(id));
-  }, [seatParam, seatMap]);
+    // Seats gone or taken since the link was made are dropped on the PICKER
+    // only — on review they read as held (by this very booking).
+    return standingSeatIds(
+      parseSeatIds(seatParam),
+      seatMap?.seats ?? null,
+      currentStep(pathname) === 'booking',
+    );
+  }, [seatParam, seatMap, pathname]);
 
   const tierQuery = searchParams?.get(SELECTION_PARAM);
   const selection = React.useMemo<Selection>(() => {

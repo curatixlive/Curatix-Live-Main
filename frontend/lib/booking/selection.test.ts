@@ -7,6 +7,7 @@ import {
   parseSeatIds,
   parseSelection,
   selectionSignature,
+  standingSeatIds,
   tierSignature,
   toSeatIds,
   totalsFor,
@@ -159,5 +160,22 @@ describe('seats in the selection', () => {
   it('tierSignature ignores seats so a booking’s own lines compare equal', () => {
     const sel = [{ tierId: 't', quantity: 1, seatIds: [id(1)] }];
     expect(tierSignature(sel)).toBe('t:1');
+  });
+});
+
+describe('standingSeatIds', () => {
+  const seats = [
+    { id: 'a', status: 'available' },
+    { id: 'b', status: 'held' },
+    { id: 'c', status: 'sold' },
+  ];
+  it('drops taken seats on the picker', () => {
+    expect(standingSeatIds(['a', 'b', 'c'], seats, true)).toEqual(['a']);
+  });
+  it('keeps held seats on review, or the hold is cancelled under a payment', () => {
+    expect(standingSeatIds(['a', 'b'], seats, false)).toEqual(['a', 'b']);
+  });
+  it('keeps everything until the seat map has loaded', () => {
+    expect(standingSeatIds(['a', 'b'], null, true)).toEqual(['a', 'b']);
   });
 });

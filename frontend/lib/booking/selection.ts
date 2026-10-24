@@ -358,3 +358,24 @@ export function bookingItemsSignature(
     .map((item) => `${item.ticket_type_id}:${item.quantity}`)
     .join(',');
 }
+
+/**
+ * Which of the chosen seats still stand.
+ *
+ * Only the PICKER may drop seats that are no longer available. Once a hold
+ * exists those very seats read as `held` — by us — so applying the same filter
+ * on the review screen empties the basket the moment the seat map refreshes,
+ * the screen's empty-basket guard bounces back to the picker, and the picker
+ * cancels the hold underneath a payment in progress. Money captured against a
+ * cancelled hold is refunded automatically, which is exactly what customers
+ * saw: pay, then "refund received".
+ */
+export function standingSeatIds(
+  ids: readonly string[],
+  seats: ReadonlyArray<{ id: string; status: string }> | null,
+  onPicker: boolean,
+): string[] {
+  if (!seats || !onPicker) return [...ids];
+  const open = new Set(seats.filter((seat) => seat.status === 'available').map((seat) => seat.id));
+  return ids.filter((id) => open.has(id));
+}
