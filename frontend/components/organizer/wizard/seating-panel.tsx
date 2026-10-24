@@ -137,7 +137,7 @@ export function SeatingPanel({
       ) : null}
 
       {error ? (
-        <p role="alert" className="text-body-sm text-destructive">
+        <p role="alert" className="text-body-sm text-muted-foreground">
           {error}
         </p>
       ) : null}
@@ -350,7 +350,7 @@ function Pricing({
         ))}
       </ul>
       {error ? (
-        <p role="alert" className="text-body-sm text-destructive">
+        <p role="alert" className="text-body-sm text-muted-foreground">
           {error}
         </p>
       ) : null}
@@ -572,7 +572,7 @@ function Designer({
       </div>
 
       {error ? (
-        <p role="alert" className="text-body-sm text-destructive">
+        <p role="alert" className="text-body-sm text-muted-foreground">
           {error}
         </p>
       ) : null}

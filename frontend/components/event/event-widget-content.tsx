@@ -10,6 +10,7 @@ import type { EventCard as EventCardData, EventDetail } from '@/lib/api/types';
 import { formatEventDateTime, formatEventTime } from '@/lib/discovery/format';
 import { selectSimilarEvents, isOrganiserRail } from '@/lib/discovery/similar-events';
 import { eventPath } from '@/lib/events/ref';
+import { DistanceLabel } from '@/components/location/distance-label';
 import { cn } from '@/lib/utils/cn';
 import type { TicketTier } from '@/lib/api/types';
 import { TrackEventView } from '@/components/analytics/track-event-view';
@@ -120,7 +121,12 @@ export function EventWidgetSummary({
             <span className="truncate text-body-sm font-semibold text-foreground">
               {event.venue}
             </span>
-            <span className="truncate text-caption text-muted-foreground">{event.city}</span>
+            <span className="truncate text-caption text-muted-foreground">
+              {event.city}
+              {detail ? (
+                <DistanceLabel venue={detail} prefix=" · " className="text-primary" />
+              ) : null}
+            </span>
           </button>
           <DirectionsButton
             event={{

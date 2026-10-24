@@ -29,6 +29,7 @@ import { categoryBySlug, inferCategory } from '@/lib/discovery/categories';
 import { formatEventDateTime, formatFromPrice, machineDate } from '@/lib/discovery/format';
 import { EventPosterArt } from '@/components/illustrations/poster';
 import { eventPath } from '@/lib/events/ref';
+import { DistanceLabel } from '@/components/location/distance-label';
 import { cn } from '@/lib/utils/cn';
 import { AvailabilityBadge } from './availability-badge';
 import { categoryTint } from './category-tint';
@@ -164,7 +165,7 @@ export function EventCard({
       >
         <div
           data-event-poster={event.id}
-          className="relative aspect-portrait w-24 shrink-0 overflow-hidden rounded-xl bg-muted m-2 sm:m-0 sm:aspect-[4/3] sm:w-full sm:rounded-none"
+          className="relative m-2 aspect-portrait w-24 shrink-0 overflow-hidden rounded-xl bg-muted sm:m-0 sm:aspect-[4/3] sm:w-full sm:rounded-none"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-muted to-border" aria-hidden />
           {event.poster_url ? (
@@ -215,7 +216,7 @@ export function EventCard({
             {/* Desktop link navigation */}
             <Link
               href={eventPath(event)}
-              className="hidden sm:inline after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-offset-2 focus-visible:after:ring-offset-background"
+              className="hidden after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-offset-2 focus-visible:after:ring-offset-background sm:inline"
             >
               {event.title}
             </Link>
@@ -223,7 +224,7 @@ export function EventCard({
             <button
               type="button"
               onClick={handleMobileTap}
-              className="sm:hidden text-left after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none"
+              className="text-left after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none sm:hidden"
             >
               {event.title}
             </button>
@@ -241,6 +242,7 @@ export function EventCard({
             <span className="truncate">
               {event.venue}, {event.city}
             </span>
+            <DistanceLabel venue={event} className="shrink-0 text-primary" />
           </p>
 
           <p className="hidden items-center gap-1.5 text-caption text-foreground-subtle sm:flex">

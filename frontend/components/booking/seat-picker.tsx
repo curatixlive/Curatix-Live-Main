@@ -110,7 +110,7 @@ export function SeatPicker({ className }: { className?: string }) {
                             ),
                     )}
                   >
-                    {seat.label.replace(/^\D+/, '') || seat.label}
+                    {seat.label}
                   </button>
                 );
               }),

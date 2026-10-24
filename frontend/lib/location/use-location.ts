@@ -16,8 +16,11 @@ import { type FixFailure, resolveCityFromFix } from './resolve-city';
  * 2. **The city comes from a geocoder when one will answer us**, and from the
  *    bundled nearest-match otherwise — and the two are kept distinguishable all
  *    the way to the UI via `precision`. See lib/location/resolve-city.ts.
- * 3. **Coordinates are dropped immediately.** Only the city NAME is stored, and
- *    only on this device.
+ * 3. **Coordinates are never persisted.** Only the city NAME is stored, and only
+ *    on this device. The fix itself is held IN MEMORY for the life of the tab so
+ *    event distances can be shown — and only while the browser's permission is
+ *    granted. It is re-read after a reload when (and only when) the Permissions
+ *    API says the grant already exists, so no prompt can appear.
  * 4. **Stored client-side, not in a cookie.** A cookie would be readable during
  *    the server render, which would opt the home page out of static rendering
  *    and kill its edge cacheability. Instead the ISR'd page ships a global
@@ -60,6 +63,8 @@ export type LocationState = {
   precision: LocationPrecision;
   /** Why we fell back to a nearest-match, when we did. */
   fallbackReason: FixFailure | null;
+  /** The device's position, in memory only; null until permission is granted and a fix lands. */
+  coords: { latitude: number; longitude: number } | null;
   /** True once the stored value has been read — avoids a hydration mismatch. */
   ready: boolean;
   dismissed: boolean;
@@ -104,6 +109,7 @@ export function useLocation(): LocationState {
   const [status, setStatus] = React.useState<LocationStatus>('idle');
   const [precision, setPrecision] = React.useState<LocationPrecision>(null);
   const [fallbackReason, setFallbackReason] = React.useState<FixFailure | null>(null);
+  const [coords, setCoords] = React.useState<{ latitude: number; longitude: number } | null>(null);
   const [ready, setReady] = React.useState(false);
   const [dismissed, setDismissed] = React.useState(false);
   /** Guards against a second detect landing after the component unmounted. */
@@ -154,6 +160,9 @@ export function useLocation(): LocationState {
     window.navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
+        if (liveRef.current && Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          setCoords({ latitude, longitude });
+        }
         void resolveCityFromFix(latitude, longitude).then((fix) => {
           if (!liveRef.current) return;
           if (fix.kind === 'unknown') {
@@ -196,6 +205,31 @@ export function useLocation(): LocationState {
     setDismissed(readFlag(DISMISS_KEY));
     setReady(true);
 
+    // A grant that already exists lets us read the position again after a
+    // reload without a prompt — for distances only; the chosen city is untouched.
+    const known = window.navigator.permissions;
+    if (known?.query && window.navigator.geolocation) {
+      void known
+        .query({ name: 'geolocation' as PermissionName })
+        .then((result) => {
+          if (result.state !== 'granted' || !liveRef.current) return;
+          window.navigator.geolocation.getCurrentPosition(
+            ({ coords: fix }) => {
+              if (
+                liveRef.current &&
+                Number.isFinite(fix.latitude) &&
+                Number.isFinite(fix.longitude)
+              ) {
+                setCoords({ latitude: fix.latitude, longitude: fix.longitude });
+              }
+            },
+            () => undefined,
+            GEO_OPTIONS,
+          );
+        })
+        .catch(() => undefined);
+    }
+
     if (stored || readFlag(DISMISS_KEY) || readFlag(AUTO_KEY)) return;
 
     /**
@@ -223,5 +257,16 @@ export function useLocation(): LocationState {
       });
   }, [run]);
 
-  return { city, status, precision, fallbackReason, ready, dismissed, detect, setCity, dismiss };
+  return {
+    city,
+    status,
+    precision,
+    fallbackReason,
+    coords,
+    ready,
+    dismissed,
+    detect,
+    setCity,
+    dismiss,
+  };
 }

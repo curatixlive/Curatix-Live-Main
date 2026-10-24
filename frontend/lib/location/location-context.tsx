@@ -17,3 +17,8 @@ export function useLocationContext(): LocationState {
   if (!ctx) throw new Error('useLocationContext must be used within a LocationProvider');
   return ctx;
 }
+
+/** Like `useLocationContext`, but null outside a provider (cards render in tests and isolation). */
+export function useOptionalLocation(): LocationState | null {
+  return React.useContext(LocationContext);
+}
