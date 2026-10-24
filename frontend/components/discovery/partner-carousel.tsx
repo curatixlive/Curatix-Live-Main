@@ -11,6 +11,7 @@ import {
   Ticket,
 } from 'lucide-react';
 import { Container } from '@/components/shell/container';
+import { PartnerArt } from './partner-art';
 import {
   PARTNER_CARDS,
   PARTNER_ROTATION_MS,
@@ -227,11 +228,24 @@ function ActiveCard({ id }: { id: PartnerCardId }) {
   return (
     <article
       aria-roledescription="slide"
-      className="relative isolate flex min-h-[19rem] animate-fade-rise flex-col justify-between gap-8 overflow-hidden rounded-3xl bg-ink-900 p-6 text-white motion-reduce:animate-none sm:min-h-[22rem] sm:p-10"
+      className="relative isolate flex min-h-[19rem] animate-fade-rise flex-col justify-between gap-8 overflow-hidden rounded-3xl bg-gradient-to-br from-ink-900 to-ink-950 p-6 text-white motion-reduce:animate-none sm:min-h-[22rem] sm:p-10"
     >
+      {/* The artwork: a drawn concept scene per card (see partner-art.tsx), kept to
+          the right so the words keep a calm field. Faint on a phone, where the
+          text spans the whole card. */}
+      <div
+        aria-hidden
+        className="absolute inset-y-0 right-0 -z-20 w-full opacity-40 sm:w-[68%] sm:opacity-100"
+      >
+        <PartnerArt id={id} />
+      </div>
       <span
         aria-hidden
-        className="pointer-events-none absolute -right-10 -top-10 -z-10 size-56 rounded-full bg-white/10 blur-2xl"
+        className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-ink-950 via-ink-950/50 to-transparent sm:via-ink-950/20"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-1/2 bg-gradient-to-t from-ink-950/70 to-transparent sm:hidden"
       />
       <div className="flex flex-col gap-4">
         <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/85">
