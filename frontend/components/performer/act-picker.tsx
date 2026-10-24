@@ -126,7 +126,7 @@ export function ActPicker() {
                 <li key={act.id}>
                   <Link
                     href={`/studio/${act.id}`}
-                    className="group flex h-full items-center gap-4 rounded-xl border border-border bg-surface p-card shadow-sm transition-colors duration-fast hover:bg-muted motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="group flex h-full items-center gap-4 rounded-xl border border-border bg-surface p-card shadow-sm transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
                   >
                     {act.photos[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element -- storage-adapter URL

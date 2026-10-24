@@ -95,7 +95,7 @@ export function EventsFilterBar({
       >
         <div
           className={cn(
-            'flex items-center gap-2 overflow-x-auto px-card py-2.5 touch-manipulation',
+            'flex touch-manipulation items-center gap-2 overflow-x-auto px-card py-2.5',
             '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
           )}
         >
@@ -199,7 +199,9 @@ export function EventFiltersSheet({
 
   const changed = JSON.stringify(draft) !== JSON.stringify(applied);
   const count =
-    (draft.status ? 1 : 0) + (draft.city ? 1 : 0) + (draft.preset || draft.from || draft.to ? 1 : 0);
+    (draft.status ? 1 : 0) +
+    (draft.city ? 1 : 0) +
+    (draft.preset || draft.from || draft.to ? 1 : 0);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -238,7 +240,9 @@ export function EventFiltersSheet({
                 id={`${cityListId}-input`}
                 list={cityOptions.length ? cityListId : undefined}
                 value={draft.city}
-                onChange={(event) => setDraft((current) => ({ ...current, city: event.target.value }))}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, city: event.target.value }))
+                }
                 placeholder="Any city"
                 className={cn(
                   'h-control w-full rounded-full border border-input bg-surface px-4 text-body-sm text-foreground outline-none',
@@ -265,7 +269,12 @@ export function EventFiltersSheet({
                         : !draft.preset && !draft.from && !draft.to
                     }
                     onClick={() =>
-                      setDraft((current) => ({ ...current, preset: option.value, from: '', to: '' }))
+                      setDraft((current) => ({
+                        ...current,
+                        preset: option.value,
+                        from: '',
+                        to: '',
+                      }))
                     }
                   >
                     {option.label}

@@ -229,7 +229,7 @@ function OnboardingDialog({ onClose }: { onClose: () => void }) {
               </div>
             </Body>
           ) : step === 'about' ? (
-            <Body title="A little about you" blurb="Both optional, and both easy to change later.">
+            <Body title="A little about you" blurb="All optional, and easy to change later.">
               <Field
                 label="Date of birth"
                 id="onb-dob"
@@ -243,6 +243,15 @@ function OnboardingDialog({ onClose }: { onClose: () => void }) {
                   max={new Date().toISOString().slice(0, 10)}
                   yearRange={{ from: new Date().getFullYear() - 100, to: new Date().getFullYear() }}
                   placeholder="Pick your date of birth"
+                />
+              </Field>
+              <Field label="City" id="onb-city" hint="Helps us show what is near you.">
+                <Input
+                  id="onb-city"
+                  value={form.city}
+                  onChange={(event) => patch({ city: event.target.value.slice(0, 120) })}
+                  placeholder="e.g. Hyderabad"
+                  autoComplete="address-level2"
                 />
               </Field>
               <GenderField

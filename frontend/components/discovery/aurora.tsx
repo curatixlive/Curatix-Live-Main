@@ -32,7 +32,10 @@ import { cn } from '@/lib/utils/cn';
  */
 export function Aurora({ className }: { className?: string }) {
   return (
-    <div className={cn('pointer-events-none absolute inset-0 -z-10 overflow-hidden', className)} aria-hidden>
+    <div
+      className={cn('pointer-events-none absolute inset-0 -z-10 overflow-hidden', className)}
+      aria-hidden
+    >
       <span className="aurora-field aurora-field--one" />
       <span className="aurora-field aurora-field--two" />
       <span className="aurora-field aurora-field--three" />

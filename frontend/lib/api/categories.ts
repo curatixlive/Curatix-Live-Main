@@ -68,9 +68,9 @@ export const fetchOrganizerCategories = (
   options?: { activeOnly?: boolean },
 ) =>
   api
-    .get<{ data: OrganizerCategory[] }>(
-      `${base(organizationId)}${options?.activeOnly ? '?active_only=true' : ''}`,
-    )
+    .get<{
+      data: OrganizerCategory[];
+    }>(`${base(organizationId)}${options?.activeOnly ? '?active_only=true' : ''}`)
     .then((page) => page.data);
 
 /**
@@ -93,7 +93,11 @@ export const updateOrganizerCategory = (
   organizationId: string,
   categoryId: string,
   changes: { label?: string; is_active?: boolean },
-) => api.patch<OrganizerCategory>(`${base(organizationId)}/${encodeURIComponent(categoryId)}`, changes);
+) =>
+  api.patch<OrganizerCategory>(
+    `${base(organizationId)}/${encodeURIComponent(categoryId)}`,
+    changes,
+  );
 
 /**
  * Retire a category.

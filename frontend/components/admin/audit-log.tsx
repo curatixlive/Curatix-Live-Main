@@ -147,7 +147,6 @@ export function AuditLog() {
 const USER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUserId = (actorId: string) => USER_ID.test(actorId.trim());
 
-
 function Row({ entry }: { entry: AuditEntry }) {
   const note = typeof entry.metadata?.note === 'string' ? entry.metadata.note : '';
   return (

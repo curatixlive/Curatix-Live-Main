@@ -32,6 +32,7 @@ const harness = vi.hoisted(() => ({
     { id: 'evt-2', title: 'Sunburn Jazz' },
   ],
   verify: vi.fn(),
+  tiers: [{ id: 'a' }, { id: 'b' }] as { id: string }[],
 }));
 
 vi.mock('@/lib/organizer/scanner', () => ({
@@ -57,6 +58,10 @@ vi.mock('@/lib/organizer/queries', () => ({
 vi.mock('@/lib/api/organizer-writes', () => ({
   verifyTicket: (input: unknown) => harness.verify(input),
   fetchAttendance: () => Promise.resolve({ event_id: 'evt-1', admitted: 3, capacity: 10 }),
+}));
+
+vi.mock('@/lib/api/organizer', () => ({
+  fetchOwnerEventTiers: () => Promise.resolve(harness.tiers),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -107,6 +112,55 @@ beforeEach(() => {
   }
 });
 
+async function scanOnce() {
+  mount();
+  fireEvent.click(screen.getByRole('button', { name: /Enter code manually/ }));
+  fireEvent.change(screen.getByLabelText('Ticket code'), { target: { value: 'v1.abc.def' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Verify' }));
+  await waitFor(() => expect(harness.verify).toHaveBeenCalled());
+}
+
+describe('what an admitted scan says', () => {
+  it('a plain one-tier event shows just Allowed', async () => {
+    harness.tiers = [{ id: 'a' }];
+    await scanOnce();
+    expect((await screen.findAllByText('Allowed')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Gold')).toBeNull();
+  });
+
+  it('several tiers show the tier name', async () => {
+    harness.tiers = [{ id: 'a' }, { id: 'b' }];
+    await scanOnce();
+    expect(await screen.findByText('Gold')).toBeTruthy();
+  });
+
+  it('assigned seating shows the section and the seat', async () => {
+    harness.verify = vi
+      .fn()
+      .mockResolvedValue({ ...ALLOWED, seat_label: 'A4', seat_section: 'Platinum' });
+    await scanOnce();
+    expect(await screen.findByText('Platinum')).toBeTruthy();
+    expect(screen.getByText('Seat A4')).toBeTruthy();
+  });
+
+  it('a gender-priced ticket shows the gender the buyer chose', async () => {
+    harness.tiers = [{ id: 'a' }];
+    harness.verify = vi.fn().mockResolvedValue({ ...ALLOWED, gender: 'female' });
+    await scanOnce();
+    expect(await screen.findByText('Female')).toBeTruthy();
+    expect(screen.getByText('Gold')).toBeTruthy();
+  });
+
+  it('a denied scan stays red with its reason and no extra lines', async () => {
+    harness.verify = vi
+      .fn()
+      .mockResolvedValue({ ...ALLOWED, allowed: false, reason: 'denied_already_used' });
+    await scanOnce();
+    expect(await screen.findByText('Do not admit')).toBeTruthy();
+    expect(screen.queryByText('Gold')).toBeNull();
+  });
+});
+
 describe('the layout is camera first', () => {
   it('puts the scanner above the results', () => {
     mount();
@@ -136,9 +190,9 @@ describe('manual entry', () => {
     const toggle = screen.getByRole('button', { name: /Enter code manually/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(toggle);
-    expect(screen.getByRole('button', { name: /Hide manual entry/ }).getAttribute('aria-expanded')).toBe(
-      'true',
-    );
+    expect(
+      screen.getByRole('button', { name: /Hide manual entry/ }).getAttribute('aria-expanded'),
+    ).toBe('true');
   });
 
   it('verifies against the selected event, and sends no gate', async () => {
@@ -150,7 +204,7 @@ describe('manual entry', () => {
     await waitFor(() => expect(harness.verify).toHaveBeenCalled());
     // EXACT: the absence of a `gate` key is the point.
     expect(harness.verify).toHaveBeenCalledWith({ event_id: 'evt-1', qr_token: 'v1.abc.def' });
-    expect(await screen.findByText('Let them in')).toBeTruthy();
+    expect((await screen.findAllByText('Allowed')).length).toBeGreaterThan(0);
   });
 
   it('opens by itself where no camera can', () => {
@@ -168,7 +222,10 @@ describe('the verdict', () => {
     mount();
     harness.onDecode?.('v1.from.camera');
     await waitFor(() =>
-      expect(harness.verify).toHaveBeenCalledWith({ event_id: 'evt-1', qr_token: 'v1.from.camera' }),
+      expect(harness.verify).toHaveBeenCalledWith({
+        event_id: 'evt-1',
+        qr_token: 'v1.from.camera',
+      }),
     );
   });
 

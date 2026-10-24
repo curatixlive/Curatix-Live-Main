@@ -39,7 +39,10 @@ vi.mock('@/lib/organizer/queries', () => ({
   useEventAttendees: () => ({
     data: {
       pages: [
-        { data: harness.attendees, meta: { next: null, previous: null, count: harness.attendeeCount } },
+        {
+          data: harness.attendees,
+          meta: { next: null, previous: null, count: harness.attendeeCount },
+        },
       ],
     },
     isPending: false,
@@ -423,7 +426,9 @@ describe('booking insights and the window', () => {
   it('opens on the peak day, with orders and spots both named', () => {
     mount();
     const chart = section('Booking Window Trend');
-    const readout = within(chart).getByText(/^Date:/).closest('p') as HTMLElement;
+    const readout = within(chart)
+      .getByText(/^Date:/)
+      .closest('p') as HTMLElement;
     expect(readout.textContent).toMatch(/5 Sep/);
     expect(readout.textContent).toMatch(/Orders:\s*15/);
     expect(readout.textContent).toMatch(/Spots:\s*26/);
@@ -529,7 +534,9 @@ describe('audience and feedback', () => {
     mount();
     const feedback = section('Event Outcome & Feedback');
     expect(within(feedback).getByText('Based on 1 review')).toBeTruthy();
-    expect(within(feedback).getByRole('list', { name: 'Ratings by stars' }).children).toHaveLength(5);
+    expect(within(feedback).getByRole('list', { name: 'Ratings by stars' }).children).toHaveLength(
+      5,
+    );
   });
 });
 
@@ -557,9 +564,9 @@ describe('the attendee list at the foot of the page', () => {
     mount();
     const list = section('Attendee Check-ins');
     expect(within(list).getByText('Showing 1 of 52 attendees')).toBeTruthy();
-    expect(within(list).getByRole('link', { name: 'pravalika@example.com' }).getAttribute('href')).toBe(
-      'mailto:pravalika@example.com',
-    );
+    expect(
+      within(list).getByRole('link', { name: 'pravalika@example.com' }).getAttribute('href'),
+    ).toBe('mailto:pravalika@example.com');
   });
 });
 

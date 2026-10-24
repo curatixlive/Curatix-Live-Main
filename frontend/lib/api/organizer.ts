@@ -257,10 +257,20 @@ export type FeaturePeriod = {
   status: 'enabled' | 'disabled';
 };
 
-export type GroupBand = { min_quantity: number; orders: number; seats: number; revenue_minor: number };
+export type GroupBand = {
+  min_quantity: number;
+  orders: number;
+  seats: number;
+  revenue_minor: number;
+};
 
 export type EventAnalytics = {
   event_id: string;
+  /**
+   * True when the viewer is a co-host without the finance permission: every money
+   * figure in this payload is zero and the page must not draw a money section.
+   */
+  finance_hidden?: boolean;
   /** Null only if the event was soft-deleted between the two reads. */
   event: EventAnalyticsHeader | null;
   revenue_minor: number;
@@ -503,6 +513,7 @@ export type AttendeeRow = {
   /** Assigned seating: blank for general admission. */
   seat_label?: string;
   seat_section?: string;
+  gender?: string;
   booking_id: string;
   created_at: string;
 };
@@ -710,7 +721,5 @@ export const fetchOwnerEventDetail = (eventId: string) =>
 
 export const fetchOwnerEventTiers = (eventId: string) =>
   api
-    .get<{ data: TicketTier[] }>(
-      `/organizer/events/${encodeURIComponent(eventId)}/ticket-types`,
-    )
+    .get<{ data: TicketTier[] }>(`/organizer/events/${encodeURIComponent(eventId)}/ticket-types`)
     .then((response) => response.data);

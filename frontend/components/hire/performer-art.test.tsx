@@ -48,7 +48,11 @@ describe('performer artwork', () => {
 
   it('renders the photo when there is one, and the artwork when there is not', () => {
     const withPhoto = render(
-      <PerformerFrame type="dj" photoUrl="https://example.test/a.jpg" photoAlt="Live at Antisocial" />,
+      <PerformerFrame
+        type="dj"
+        photoUrl="https://example.test/a.jpg"
+        photoAlt="Live at Antisocial"
+      />,
     );
     expect(withPhoto.container.querySelector('img')?.getAttribute('alt')).toBe(
       'Live at Antisocial',

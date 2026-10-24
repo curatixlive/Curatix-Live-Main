@@ -150,9 +150,7 @@ export function useIsSaved(eventId: string) {
       // flight, and blindly inverting would clobber that.
       const current = read();
       write(
-        wasSaved
-          ? [...new Set([...current, eventId])]
-          : current.filter((id) => id !== eventId),
+        wasSaved ? [...new Set([...current, eventId])] : current.filter((id) => id !== eventId),
       );
     });
   }, [eventId]);

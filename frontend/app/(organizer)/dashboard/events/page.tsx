@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { Metadata } from 'next';
+import { CoHostedEvents } from '@/components/organizer/cohosted-events';
 import { EventsTable } from '@/components/organizer/events-table';
 import { Skeleton } from '@/components/organizer/primitives';
 
@@ -12,9 +13,12 @@ export const metadata: Metadata = { title: 'Events' };
  */
 export default function OrganizerEventsPage() {
   return (
-    <React.Suspense fallback={<TableFallback />}>
-      <EventsTable />
-    </React.Suspense>
+    <>
+      <CoHostedEvents />
+      <React.Suspense fallback={<TableFallback />}>
+        <EventsTable />
+      </React.Suspense>
+    </>
   );
 }
 

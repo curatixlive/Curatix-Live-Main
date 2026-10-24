@@ -150,6 +150,17 @@ export type DraftTier = {
   saleStart: string;
   saleEnd: string;
   /**
+   * PRE-SALE: early access from this moment until `saleStart`, for people with
+   * the event's access code, followers and past attendees. `''` means none.
+   */
+  presaleStart: string;
+  /**
+   * SELF-DECLARED GENDER PRICES, MAJOR units while editing. `''` means no price
+   * for that gender (the buyer who picks it pays the normal price).
+   */
+  genderMale: string;
+  genderFemale: string;
+  /**
    * GROUP PRICES, smallest group first. Empty means "one price whatever the
    * order size", which is nearly every tier.
    *
@@ -174,6 +185,10 @@ export type Draft = {
   /** The full street address, beside `venue` (the place's name). Optional. */
   address: string;
   state: string;
+  /** Booking needs the access code, or following / having attended the organiser. */
+  inviteOnly: boolean;
+  /** Shared with invitees and unlocks pre-sale tiers; `''` means none. */
+  accessCode: string;
   /** Optional; free text because postcodes differ by country. */
   postalCode: string;
   /**
@@ -434,6 +449,8 @@ export function emptyDraft(organizationId = ''): Draft {
     city: '',
     address: '',
     state: '',
+    inviteOnly: false,
+    accessCode: '',
     postalCode: '',
     category: '',
     customCategoryId: '',
@@ -594,6 +611,9 @@ export function restoreDraft(
     tiers: Array.isArray(stored.tiers)
       ? stored.tiers.map((tier) => ({
           ...tier,
+          presaleStart: typeof tier.presaleStart === 'string' ? tier.presaleStart : '',
+          genderMale: typeof tier.genderMale === 'string' ? tier.genderMale : '',
+          genderFemale: typeof tier.genderFemale === 'string' ? tier.genderFemale : '',
           phases: Array.isArray(tier.phases) ? tier.phases : [],
           // A draft written before group bands existed has no array here, and
           // `tier.groupBands.map(...)` on `undefined` is a white screen over
@@ -620,6 +640,8 @@ export function restoreDraft(
     // once. Normalised for the same reason `tiers` and `tags` are.
     // Drafts saved before these fields existed hold `undefined`, and `.trim()` on
     // it is a white screen over somebody's work.
+    inviteOnly: stored.inviteOnly === true,
+    accessCode: typeof stored.accessCode === 'string' ? stored.accessCode : '',
     address: typeof stored.address === 'string' ? stored.address : '',
     state: typeof stored.state === 'string' ? stored.state : '',
     postalCode: typeof stored.postalCode === 'string' ? stored.postalCode : '',
@@ -690,6 +712,9 @@ export function newTier(index: number): DraftTier {
     maxPerOrder: '10',
     saleStart: '',
     saleEnd: '',
+    presaleStart: '',
+    genderMale: '',
+    genderFemale: '',
     phases: [],
     groupBands: [],
   };
@@ -1130,6 +1155,33 @@ export function validate(draft: Draft, now = new Date()): Issue[] {
         message: `${where} needs a quantity of at least 1.`,
       });
     }
+    if (tier.presaleStart) {
+      if (!tier.saleStart) {
+        issues.push({
+          step: 'tickets',
+          field: tier.key,
+          message: `${where}: set when general sales open before adding a pre-sale.`,
+        });
+      } else if (new Date(tier.presaleStart) >= new Date(tier.saleStart)) {
+        issues.push({
+          step: 'tickets',
+          field: tier.key,
+          message: `${where}: the pre-sale must start before general sales open.`,
+        });
+      }
+    }
+    for (const [label, value] of [
+      ['male', tier.genderMale],
+      ['female', tier.genderFemale],
+    ] as const) {
+      if (value.trim() !== '' && !(Number(value) >= 0)) {
+        issues.push({
+          step: 'tickets',
+          field: tier.key,
+          message: `${where}: the ${label} price must be a number.`,
+        });
+      }
+    }
     if (tier.saleStart && tier.saleEnd && new Date(tier.saleEnd) <= new Date(tier.saleStart)) {
       issues.push({
         step: 'tickets',
@@ -1501,6 +1553,21 @@ export function joinDateTime(day: string, time: string): string {
  * `"2499.50"`) because `Number("2499.5") * 100` is the same paise either way
  * and a field pre-filled with a trailing zero invites somebody to delete it.
  */
+/** `{male?, female?}` in minor units from the two rupee fields; `{}` when neither is set. */
+export function genderPricesInput(tier: Pick<DraftTier, 'genderMale' | 'genderFemale'>): {
+  male?: number;
+  female?: number;
+} {
+  const out: { male?: number; female?: number } = {};
+  if (tier.genderMale.trim() !== '' && Number(tier.genderMale) >= 0) {
+    out.male = Math.round(Number(tier.genderMale) * 100);
+  }
+  if (tier.genderFemale.trim() !== '' && Number(tier.genderFemale) >= 0) {
+    out.female = Math.round(Number(tier.genderFemale) * 100);
+  }
+  return out;
+}
+
 function toMajorInput(minor: number | null | undefined): string {
   if (minor === null || minor === undefined || Number.isNaN(minor)) return '';
   return String(minor / 100);
@@ -1534,6 +1601,9 @@ export function tiersToDraft(tiers: readonly TicketTier[]): DraftTier[] {
     maxPerOrder: String(tier.max_per_order),
     saleStart: toLocalInput(tier.sale_start),
     saleEnd: toLocalInput(tier.sale_end),
+    presaleStart: toLocalInput(tier.presale_starts_at),
+    genderMale: toMajorInput(tier.gender_prices?.male),
+    genderFemale: toMajorInput(tier.gender_prices?.female),
     // `?? []` is load-bearing: a backend that predates the column sends
     // nothing, and `undefined.map` in the ticket builder is a white screen
     // over a real event.
@@ -1601,6 +1671,8 @@ export function draftFromEvent(
     city: event.city,
     address: event.address ?? '',
     state: event.state ?? '',
+    inviteOnly: Boolean(event.invite_only),
+    accessCode: event.access_code ?? '',
     postalCode: event.postal_code ?? '',
     category: event.category ?? '',
     // BLANK on purpose, and this is the one field that cannot round-trip.
@@ -1738,6 +1810,8 @@ export function toPatchInput(draft: Draft): UpdateEventInput {
     address: draft.address.trim(),
     state: draft.state.trim(),
     postal_code: draft.postalCode.trim(),
+    invite_only: draft.inviteOnly,
+    access_code: draft.accessCode.trim(),
     place_id: draft.placeId,
     ...coordinates(draft),
     starts_at: toIso(draft.startsAt),
@@ -1846,6 +1920,10 @@ export function toTierInput(tier: DraftTier, position: number): CreateTicketType
     perks: tier.perks.map((perk) => perk.trim()).filter(Boolean),
     sale_start: tier.saleStart ? toIso(tier.saleStart) : null,
     sale_end: tier.saleEnd ? toIso(tier.saleEnd) : null,
+    presale_starts_at: tier.presaleStart ? toIso(tier.presaleStart) : null,
+    // Always sent, `{}` included: on an edit an empty object is how gender
+    // pricing is switched off, and omitting it would leave the old prices live.
+    gender_prices: genderPricesInput(tier),
     // Omitted rather than sent as null when unset, for the same reason
     // `phases` is: an absent key is "this event runs once", which is the
     // common case and must not read as an instruction.
@@ -1933,6 +2011,8 @@ export function patchFingerprint(draft: Draft): string {
     draft.address,
     draft.state,
     draft.postalCode,
+    draft.inviteOnly,
+    draft.accessCode,
     // The pin is part of the PATCH, so it has to be part of the fingerprint —
     // without it, dragging the marker changes nothing the save engine can see
     // and the pin is never sent at all.
@@ -1980,6 +2060,9 @@ export function tierFingerprint(tier: DraftTier, position: number): string {
     tier.maxPerOrder,
     tier.saleStart,
     tier.saleEnd,
+    tier.presaleStart,
+    tier.genderMale,
+    tier.genderFemale,
     // ── EVERYTHING THE WRITE CARRIES, OR THE WRITE NEVER HAPPENS ─────────
     // These three are in `toTierInput` and in the server's
     // `_EDITABLE_TIER_FIELDS`, and were missing here — so editing a SAVED

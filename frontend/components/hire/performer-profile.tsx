@@ -12,11 +12,7 @@ import {
   Sparkles,
   Youtube,
 } from 'lucide-react';
-import {
-  OCCASION_LABELS,
-  PERFORMER_TYPE_LABELS,
-  type PerformerDetail,
-} from '@/lib/api/performers';
+import { OCCASION_LABELS, PERFORMER_TYPE_LABELS, type PerformerDetail } from '@/lib/api/performers';
 import { formatMoney } from '@/lib/discovery/format';
 import { PerformerFrame } from './performer-art';
 import { PhotoGallery } from './photo-gallery';

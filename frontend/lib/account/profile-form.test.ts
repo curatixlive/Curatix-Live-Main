@@ -15,6 +15,7 @@ const EMPTY: ProfileForm = {
   dateOfBirth: '',
   gender: '',
   genderSelfDescribed: '',
+  city: '',
 };
 
 const form = (over: Partial<ProfileForm> = {}): ProfileForm => ({ ...EMPTY, ...over });
@@ -189,5 +190,15 @@ describe('completeness', () => {
   it('does not count a whitespace-only name', () => {
     const { missing } = profileCompleteness({ ...full, full_name: '   ' });
     expect(missing.map((entry) => entry.key)).toEqual(['full_name']);
+  });
+});
+
+describe('city', () => {
+  it('is sent when it changes, trimmed, and not otherwise', () => {
+    expect(changedFields(form(), form({ city: '  Hyderabad ' }))).toEqual({ city: 'Hyderabad' });
+    expect(changedFields(form({ city: 'Pune' }), form({ city: 'Pune' }))).toBeNull();
+  });
+  it('can be cleared', () => {
+    expect(changedFields(form({ city: 'Pune' }), form({ city: '' }))).toEqual({ city: '' });
   });
 });

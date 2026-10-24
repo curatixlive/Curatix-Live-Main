@@ -21,7 +21,12 @@ function card(overrides: Partial<EventCard> & { id: string }): EventCard {
   };
 }
 
-const current = card({ id: 'current', organization_id: 'org-a', category: 'music', city: 'Hyderabad' });
+const current = card({
+  id: 'current',
+  organization_id: 'org-a',
+  category: 'music',
+  city: 'Hyderabad',
+});
 
 describe('selectSimilarEvents', () => {
   it('never includes the event you are already looking at', () => {
@@ -38,7 +43,9 @@ describe('selectSimilarEvents', () => {
       city: 'Mumbai',
       starts_at: inDays(30),
     });
-    const result = selectSimilarEvents(current, [sameCityDifferentOrg, sameOrganiser], { now: NOW });
+    const result = selectSimilarEvents(current, [sameCityDifferentOrg, sameOrganiser], {
+      now: NOW,
+    });
     expect(result[0].id).toBe('org');
   });
 
@@ -85,18 +92,37 @@ describe('selectSimilarEvents', () => {
   });
 
   it('respects the limit', () => {
-    const pool = Array.from({ length: 20 }, (_, i) => card({ id: `e${i}`, starts_at: inDays(i + 1) }));
+    const pool = Array.from({ length: 20 }, (_, i) =>
+      card({ id: `e${i}`, starts_at: inDays(i + 1) }),
+    );
     expect(selectSimilarEvents(current, pool, { now: NOW, limit: 3 })).toHaveLength(3);
   });
 
   it('matches city case-insensitively — organisers type it freehand', () => {
-    const shouty = card({ id: 'shouty', organization_id: 'org-b', category: 'other', city: 'HYDERABAD' });
-    expect(selectSimilarEvents(current, [shouty], { now: NOW }).map((e) => e.id)).toEqual(['shouty']);
+    const shouty = card({
+      id: 'shouty',
+      organization_id: 'org-b',
+      category: 'other',
+      city: 'HYDERABAD',
+    });
+    expect(selectSimilarEvents(current, [shouty], { now: NOW }).map((e) => e.id)).toEqual([
+      'shouty',
+    ]);
   });
 
   it('does not treat two uncategorised events as sharing a category', () => {
-    const blankCurrent = card({ id: 'blank-current', category: '', city: 'Delhi', organization_id: 'org-a' });
-    const blankOther = card({ id: 'blank-other', category: '', city: 'Mumbai', organization_id: 'org-b' });
+    const blankCurrent = card({
+      id: 'blank-current',
+      category: '',
+      city: 'Delhi',
+      organization_id: 'org-a',
+    });
+    const blankOther = card({
+      id: 'blank-other',
+      category: '',
+      city: 'Mumbai',
+      organization_id: 'org-b',
+    });
     // "" means NOT CATEGORISED, which is a fact rather than a shared trait.
     expect(selectSimilarEvents(blankCurrent, [blankOther], { now: NOW })).toEqual([]);
   });

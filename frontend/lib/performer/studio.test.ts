@@ -135,8 +135,7 @@ describe('deriveStats', () => {
   it('reports an unknown win rate as null, not 0%', () => {
     expect(deriveStats(empty).winRate).toBeNull();
     expect(
-      deriveStats(classifyPipeline([], [quote('q-1', 'r-1', 'pending', FUTURE)], TODAY))
-        .winRate,
+      deriveStats(classifyPipeline([], [quote('q-1', 'r-1', 'pending', FUTURE)], TODAY)).winRate,
     ).toBeNull();
   });
 
@@ -161,9 +160,7 @@ describe('deriveStats', () => {
   });
 
   it('counts a performed gig as a win, not a loss', () => {
-    const stats = deriveStats(
-      classifyPipeline([], [quote('q-1', 'r-1', 'accepted', PAST)], TODAY),
-    );
+    const stats = deriveStats(classifyPipeline([], [quote('q-1', 'r-1', 'accepted', PAST)], TODAY));
     expect(stats.winRate).toBe(100);
   });
 
@@ -256,7 +253,9 @@ describe('profileState', () => {
 describe('toPublicShape', () => {
   it('carries every field the public card and profile read', () => {
     const shape = toPublicShape(
-      act({ photos: [{ id: 'p1', url: '/a.jpg', alt_text: 'On stage', caption: '', position: 1 }] }),
+      act({
+        photos: [{ id: 'p1', url: '/a.jpg', alt_text: 'On stage', caption: '', position: 1 }],
+      }),
     );
 
     // The exact key set the marketplace components destructure. If the public

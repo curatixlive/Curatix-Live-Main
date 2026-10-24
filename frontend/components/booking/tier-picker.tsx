@@ -4,6 +4,13 @@ import * as React from 'react';
 import { Check, ChevronUp, Minus, Plus } from 'lucide-react';
 import { PhaseBadge, PhaseNotes } from '@/components/pricing/sale-phase';
 import type { TicketTier } from '@/lib/api/types';
+import { presaleState, tierBuyable } from '@/lib/booking/access';
+import {
+  genderUnitPrice,
+  type Gender,
+  quantityFor,
+  tierQuantityFor,
+} from '@/lib/booking/selection';
 import { formatFromPrice } from '@/lib/discovery/format';
 import { groupBandAt, nextGroupBand, unitPriceAt, unitPriceFor } from '@/lib/discovery/tiers';
 import { cn } from '@/lib/utils/cn';
@@ -65,7 +72,8 @@ export function TierPicker({ className }: { className?: string }) {
   // list; for a multi-session one, `tiers` holds every showtime's rows at once,
   // so "Gold" at 18:00 and "Gold" at 21:00 would render as two identical lines
   // distinguished only by whatever the organiser typed into `name`.
-  const { sessionTiers: tiers, sessionDays, selection, setQuantity } = useBooking();
+  const { sessionTiers: tiers, sessionDays, selection, setQuantity, access } = useBooking();
+  const hasAccess = Boolean(access?.granted);
 
   const buyable = tiers.filter((tier) => tier.is_on_sale && tier.available > 0);
   // Compared on what a buyer would actually PAY, not on the face price — with a
@@ -98,8 +106,11 @@ export function TierPicker({ className }: { className?: string }) {
           <TierRow
             tier={tier}
             bestValue={tier.id === bestValueId}
-            quantity={selection.find((line) => line.tierId === tier.id)?.quantity ?? 0}
+            quantity={tierQuantityFor(selection, tier.id)}
+            hasAccess={hasAccess}
             onChange={(update) => setQuantity(tier.id, update)}
+            onGenderChange={(gender, update) => setQuantity(tier.id, update, gender)}
+            genderQuantity={(gender) => quantityFor(selection, tier.id, gender)}
           />
         </li>
       ))}
@@ -111,15 +122,25 @@ function TierRow({
   tier,
   bestValue,
   quantity,
+  hasAccess,
   onChange,
+  onGenderChange,
+  genderQuantity,
 }: {
   tier: TicketTier;
   bestValue: boolean;
   quantity: number;
+  hasAccess: boolean;
   onChange: (next: (current: number) => number) => void;
+  onGenderChange: (gender: Gender | undefined, next: (current: number) => number) => void;
+  genderQuantity: (gender: Gender | undefined) => number;
 }) {
   const soldOut = tier.available <= 0;
-  const disabled = soldOut || !tier.is_on_sale;
+  const buyable = tierBuyable(tier, hasAccess);
+  const disabled = soldOut || !buyable;
+  const pre = presaleState(tier);
+  const genderPriced =
+    tier.gender_prices?.male !== undefined || tier.gender_prices?.female !== undefined;
   const selected = quantity > 0;
   const max = Math.max(Math.min(tier.max_per_order, tier.available), 0);
   const sellingFast = !soldOut && tier.available <= SELLING_FAST_AT;
@@ -197,7 +218,7 @@ function TierRow({
           {/* Only once there is arithmetic worth showing. At quantity 1 the
               subtotal IS the price already on this line, so printing it again
               is a row that repeats itself. */}
-          {quantity > 1 ? (
+          {quantity > 1 && !genderPriced ? (
             <span className="text-caption tabular-nums text-muted-foreground">
               × {quantity} = {formatFromPrice(unitPrice * quantity)}
             </span>
@@ -232,8 +253,12 @@ function TierRow({
           <p className="text-caption text-muted-foreground">
             {soldOut
               ? 'No tickets left in this tier'
-              : !tier.is_on_sale
-                ? 'Not on sale yet'
+              : !buyable
+                ? pre === 'open'
+                  ? 'Pre-sale is open — enter your access code to buy'
+                  : pre === 'upcoming'
+                    ? `Pre-sale opens ${formatPresale(tier.presale_starts_at)} for people with a code`
+                    : 'Not on sale yet'
                 : tier.available <= SELLING_FAST_AT
                   ? `Only ${tier.available} left · up to ${tier.max_per_order} per order`
                   : `Up to ${tier.max_per_order} per order`}
@@ -272,10 +297,21 @@ function TierRow({
             ) : null}
           </TierDetails>
         ) : null}
+
+        {genderPriced ? (
+          <GenderChoices
+            tier={tier}
+            disabled={disabled}
+            max={max}
+            total={quantity}
+            quantityOf={genderQuantity}
+            onChange={onGenderChange}
+          />
+        ) : null}
       </div>
 
       <div className="shrink-0 pt-0.5">
-        {selected ? (
+        {genderPriced ? null : selected ? (
           <Stepper
             label={tier.name}
             value={quantity}
@@ -413,4 +449,96 @@ function TierDetails({ children }: { children: React.ReactNode }) {
       ) : null}
     </div>
   );
+}
+
+const GENDER_OPTIONS: ReadonlyArray<{ gender: Gender | undefined; label: string }> = [
+  { gender: 'male', label: 'Male' },
+  { gender: 'female', label: 'Female' },
+  { gender: undefined, label: 'Standard' },
+];
+
+/**
+ * One tier, priced by who is coming — chosen per person, not per tier.
+ *
+ * Self-declared and optional: "Standard" is the price for anybody who does not
+ * pick, so nobody is forced to state a gender to buy. The prices shown are the
+ * estimate; the charge is decided by the server under the tier's lock, and the
+ * door sees the gender that was chosen.
+ */
+function GenderChoices({
+  tier,
+  disabled,
+  max,
+  total,
+  quantityOf,
+  onChange,
+}: {
+  tier: TicketTier;
+  disabled: boolean;
+  max: number;
+  total: number;
+  quantityOf: (gender: Gender | undefined) => number;
+  onChange: (gender: Gender | undefined, next: (current: number) => number) => void;
+}) {
+  return (
+    <ul aria-label={`${tier.name} prices by gender`} className="mt-2 flex flex-col gap-2">
+      {GENDER_OPTIONS.filter(
+        (option) =>
+          option.gender === undefined || tier.gender_prices?.[option.gender] !== undefined,
+      ).map((option) => {
+        const quantity = quantityOf(option.gender);
+        const room = Math.max(max - (total - quantity), 0);
+        const price = genderUnitPrice(tier, Math.max(quantity, 1), option.gender);
+        const name = `${tier.name} — ${option.label}`;
+        return (
+          <li
+            key={option.label}
+            className="flex items-center justify-between gap-3 rounded-2xl border border-border px-3 py-2"
+          >
+            <span className="flex flex-col">
+              <span className="text-body-sm font-semibold text-foreground">{option.label}</span>
+              <span className="text-caption tabular-nums text-muted-foreground">
+                {formatFromPrice(price)}
+              </span>
+            </span>
+            {quantity > 0 ? (
+              <Stepper
+                label={name}
+                value={quantity}
+                max={room}
+                disabled={disabled}
+                onChange={(update) => onChange(option.gender, update)}
+              />
+            ) : (
+              <button
+                type="button"
+                disabled={disabled || room < 1}
+                onClick={() => onChange(option.gender, () => 1)}
+                aria-label={`Add ${name}`}
+                className={cn(
+                  'inline-flex h-10 min-w-20 items-center justify-center rounded-xl border border-border-strong px-4',
+                  'text-body-sm font-semibold text-foreground transition-colors duration-fast',
+                  'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent',
+                )}
+              >
+                Add
+              </button>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function formatPresale(iso: string | null | undefined): string {
+  if (!iso) return 'soon';
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(iso));
 }

@@ -112,6 +112,8 @@ export function ReviewStep() {
     setAvailableProviders,
     seatMapLoading,
     seatIds,
+    accessCode,
+    seatGender,
   } = useBooking();
   const { status, user } = useAuth();
   const router = useRouter();
@@ -157,6 +159,10 @@ export function ReviewStep() {
   const [reserveNonce, setReserveNonce] = React.useState(0);
   /** One re-reserve, ever. See the note in the effect: an ungated retry here
    *  would take inventory as fast as the network allows. */
+  // Read at reserve time rather than listed as effect dependencies: the reserve
+  // effect must never re-fire (a second run is a second hold on real inventory).
+  const extraRef = React.useRef({ seatGender, accessCode });
+  extraRef.current = { seatGender, accessCode };
   const retried = React.useRef(false);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
 
@@ -365,6 +371,7 @@ export function ReviewStep() {
           answersFor(event.id),
           undefined,
           toSeatIds(selection),
+          extraRef.current,
         );
 
         // ── PREVIOUS PURCHASE DETECTED ──────────────────────────────────
@@ -738,6 +745,7 @@ export function ReviewStep() {
         quantity: line.quantity,
         unit_price: line.unitPrice,
         phase_name: line.phaseName,
+        gender: line.gender ?? '',
       }));
   const total = booking?.total_amount ?? totals.grandTotal;
   const fee = booking?.platform_fee ?? totals.platformFee;
@@ -947,12 +955,13 @@ export function ReviewStep() {
             <ul className="flex flex-col px-card pb-card pt-2">
               {lines.map((line) => (
                 <li
-                  key={line.ticket_type_id}
+                  key={`${line.ticket_type_id}:${line.gender ?? ''}`}
                   className="flex items-start justify-between gap-4 py-2"
                 >
                   <div className="flex min-w-0 flex-col items-start gap-0.5">
                     <span className="text-body text-foreground">
                       {line.quantity} x {line.ticket_type_name}
+                      {line.gender ? ` · ${line.gender === 'male' ? 'Male' : 'Female'}` : ''}
                     </span>
                     {/* "Change", not "Remove". Dropping one line of a LIVE hold
                         means cancelling the reservation and re-reserving the

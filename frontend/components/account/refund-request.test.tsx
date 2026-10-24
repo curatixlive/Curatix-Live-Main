@@ -77,7 +77,9 @@ describe('RefundRequestDialog', () => {
     await user.type(screen.getByLabelText(/why are you asking/i), '  I cannot make the date  ');
     await user.click(screen.getByRole('button', { name: /send request/i }));
 
-    await waitFor(() => expect(requestRefund).toHaveBeenCalledWith('b-1', 'I cannot make the date'));
+    await waitFor(() =>
+      expect(requestRefund).toHaveBeenCalledWith('b-1', 'I cannot make the date'),
+    );
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
@@ -96,9 +98,7 @@ describe('RefundRequestDialog', () => {
 
   it('explains an uncharged booking', async () => {
     const user = userEvent.setup();
-    requestRefund.mockRejectedValue(
-      new ApiError(409, 'booking_not_refundable', 'Not refundable.'),
-    );
+    requestRefund.mockRejectedValue(new ApiError(409, 'booking_not_refundable', 'Not refundable.'));
     mount(<RefundRequestDialog target={TARGET} onClose={() => {}} />);
 
     await user.type(screen.getByLabelText(/why are you asking/i), 'Plans changed entirely');

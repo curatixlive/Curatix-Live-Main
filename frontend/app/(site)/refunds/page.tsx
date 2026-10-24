@@ -171,8 +171,8 @@ const SECTIONS: readonly DocSection[] = [
       <>
         <p>
           Open <Link href="/account/tickets">your tickets</Link>, find the one you want to cancel
-          and press <strong>Request refund</strong>. Tell us why in a sentence — the organizer
-          reads it and decides.
+          and press <strong>Request refund</strong>. Tell us why in a sentence — the organizer reads
+          it and decides.
         </p>
         <p>
           The status appears on the same ticket, so you can see whether it is awaiting a decision,

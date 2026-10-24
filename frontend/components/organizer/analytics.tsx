@@ -169,7 +169,7 @@ export function Analytics() {
               setRange({ from: range.from, to });
             }}
             disabled={!range?.from}
-            className="h-control rounded-full border border-border bg-surface px-3 text-body-sm text-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-control rounded-full border border-border bg-surface px-3 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           />
           {range ? (
             <Button

@@ -35,9 +35,9 @@ const roster = (organizationId: string) =>
  */
 export const fetchCrew = (organizationId: string, options?: { activeOnly?: boolean }) =>
   api
-    .get<{ data: CrewMember[] }>(
-      `${roster(organizationId)}${options?.activeOnly ? '?active_only=true' : ''}`,
-    )
+    .get<{
+      data: CrewMember[];
+    }>(`${roster(organizationId)}${options?.activeOnly ? '?active_only=true' : ''}`)
     .then((page) => page.data);
 
 export const createCrewMember = (

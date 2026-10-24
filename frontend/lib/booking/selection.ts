@@ -1,5 +1,6 @@
 import type { TicketTier } from '@/lib/api/types';
 import { unitPriceAt } from '@/lib/discovery/tiers';
+import { presaleState } from './access';
 
 /**
  * What the user has chosen, and what it costs.
@@ -18,7 +19,20 @@ import { unitPriceAt } from '@/lib/discovery/tiers';
  * Nothing here ever divides by 100 — only the formatter does, once, at render.
  */
 
-export type Selection = { tierId: string; quantity: number; seatIds?: string[] }[];
+/** A self-declared gender, used only where a tier prices by it. */
+export type Gender = 'male' | 'female';
+
+export type Selection = {
+  tierId: string;
+  quantity: number;
+  seatIds?: string[];
+  /** Absent for the standard price. One line per (tier, gender). */
+  gender?: Gender;
+}[];
+
+const GENDER_CODES: Record<string, Gender> = { m: 'male', f: 'female' };
+const genderCode = (gender: Gender | undefined): string =>
+  gender === 'male' ? 'm' : gender === 'female' ? 'f' : '';
 
 export const SELECTION_PARAM = 'tickets';
 
@@ -62,32 +76,49 @@ export const serialiseSeatIds = (ids: readonly string[]): string => ids.join(','
 export function parseSelection(value: string | null | undefined): Selection {
   if (!value) return [];
   const seen = new Set<string>();
-  return value
-    .split(',')
-    .map((part) => {
-      const [tierId, rawQuantity] = part.split(':');
-      const quantity = Number(rawQuantity);
-      if (!tierId || !Number.isInteger(quantity) || quantity < 1) return null;
-      if (seen.has(tierId)) return null;
-      seen.add(tierId);
-      return { tierId, quantity };
-    })
-    .filter((entry): entry is { tierId: string; quantity: number } => entry !== null);
+  const lines: Selection = [];
+  for (const part of value.split(',')) {
+    const [tierId, rawQuantity, rawGender] = part.split(':');
+    const quantity = Number(rawQuantity);
+    if (!tierId || !Number.isInteger(quantity) || quantity < 1) continue;
+    // An unknown gender code is dropped to the standard price rather than
+    // trusted: the server re-checks it, but a hand-edited link should degrade.
+    const gender = rawGender ? GENDER_CODES[rawGender] : undefined;
+    const key = `${tierId}:${genderCode(gender)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    lines.push(gender ? { tierId, quantity, gender } : { tierId, quantity });
+  }
+  return lines;
 }
 
 export const serialiseSelection = (selection: Selection): string =>
   selection
     .filter((line) => line.quantity > 0)
-    .map((line) => `${line.tierId}:${line.quantity}`)
+    .map((line) =>
+      line.gender
+        ? `${line.tierId}:${line.quantity}:${genderCode(line.gender)}`
+        : `${line.tierId}:${line.quantity}`,
+    )
     .join(',');
 
-export function setQuantity(selection: Selection, tierId: string, quantity: number): Selection {
-  const without = selection.filter((line) => line.tierId !== tierId);
-  return quantity > 0 ? [...without, { tierId, quantity }] : without;
+export function setQuantity(
+  selection: Selection,
+  tierId: string,
+  quantity: number,
+  gender?: Gender,
+): Selection {
+  const without = selection.filter((line) => !(line.tierId === tierId && line.gender === gender));
+  if (quantity <= 0) return without;
+  return [...without, gender ? { tierId, quantity, gender } : { tierId, quantity }];
 }
 
-export const quantityFor = (selection: Selection, tierId: string): number =>
-  selection.find((line) => line.tierId === tierId)?.quantity ?? 0;
+export const quantityFor = (selection: Selection, tierId: string, gender?: Gender): number =>
+  selection.find((line) => line.tierId === tierId && line.gender === gender)?.quantity ?? 0;
+
+/** Every ticket of this tier in the basket, whatever price each was chosen at. */
+export const tierQuantityFor = (selection: Selection, tierId: string): number =>
+  selection.filter((line) => line.tierId === tierId).reduce((sum, line) => sum + line.quantity, 0);
 
 export type SelectionLine = {
   tier: TicketTier;
@@ -106,6 +137,8 @@ export type SelectionLine = {
    * recorded `phase_name` is authoritative.
    */
   phaseName: string | null;
+  /** The gender this line is priced at, when the tier prices by gender. */
+  gender?: Gender;
 };
 
 export type SelectionTotals = {
@@ -201,7 +234,11 @@ export const DONATION_MAX_MINOR = 100_000;
  * the booking's own `total_amount` and each item's recorded `unit_price` —
  * which is what every screen after the picker already does.
  */
-export function totalsFor(selection: Selection, tiers: TicketTier[]): SelectionTotals {
+export function totalsFor(
+  selection: Selection,
+  tiers: TicketTier[],
+  options: { hasAccess?: boolean } = {},
+): SelectionTotals {
   const lines: SelectionLine[] = [];
   for (const line of selection) {
     const tier = tiers.find((candidate) => candidate.id === line.tierId);
@@ -212,13 +249,19 @@ export function totalsFor(selection: Selection, tiers: TicketTier[]): SelectionT
     // and then be corrected downward by the reserve — an estimate that is
     // wrong in the buyer's favour is still an estimate that does not match the
     // screen after it.
-    const unitPrice = unitPriceAt(tier, line.quantity);
+    const unitPrice = genderUnitPrice(tier, line.quantity, line.gender);
     lines.push({
       tier,
       quantity: line.quantity,
       subtotal: unitPrice * line.quantity,
       unitPrice,
       phaseName: tier.current_phase?.name ?? null,
+      // Only a gender the tier actually has a price for is carried: the server
+      // stores nothing for one that earned no discount, and the screen must not
+      // claim otherwise.
+      ...(line.gender && tier.gender_prices?.[line.gender] !== undefined
+        ? { gender: line.gender }
+        : {}),
     });
   }
   const ticketCount = lines.reduce((sum, line) => sum + line.quantity, 0);
@@ -234,9 +277,17 @@ export function totalsFor(selection: Selection, tiers: TicketTier[]): SelectionT
     // adds it to this number, and the BOOKING's own `total_amount` supersedes
     // all of it the moment one exists.
     grandTotal: total + platformFee,
-    overAvailable: lines.some((line) => line.quantity > line.tier.available),
+    // Per TIER, not per line: two lines of one tier draw on the same stock.
+    overAvailable: lines.some(
+      (line) =>
+        lines
+          .filter((other) => other.tier.id === line.tier.id)
+          .reduce((s, o) => s + o.quantity, 0) > line.tier.available,
+    ),
     crossSession: spansTwoSessions(lines),
-    notOnSale: lines.some((line) => !line.tier.is_on_sale),
+    notOnSale: lines.some(
+      (line) => !line.tier.is_on_sale && !(options.hasAccess && presaleState(line.tier) === 'open'),
+    ),
   };
 }
 
@@ -267,9 +318,28 @@ function spansTwoSessions(lines: SelectionLine[]): boolean {
   return slots.size > 1;
 }
 
+/**
+ * What one ticket of this tier costs for a buyer who picked this gender — the
+ * ESTIMATE the picker shows. The server decides the charge under the tier's lock.
+ *
+ * A gender price replaces the face price; a live phase or group band can still
+ * lower it, exactly as they lower the face price (`decide_unit_price`).
+ */
+export function genderUnitPrice(tier: TicketTier, quantity: number, gender?: Gender): number {
+  const own = gender ? tier.gender_prices?.[gender] : undefined;
+  const base = unitPriceAt(tier, quantity);
+  if (own === undefined) return base;
+  const discounted = base < tier.price;
+  return discounted ? Math.min(own, base) : own;
+}
+
 /** The API shape `POST /bookings` expects. */
 export const toBookingItems = (selection: Selection) =>
-  selection.map((line) => ({ ticket_type_id: line.tierId, quantity: line.quantity }));
+  selection.map((line) => ({
+    ticket_type_id: line.tierId,
+    quantity: line.quantity,
+    ...(line.gender ? { gender: line.gender } : {}),
+  }));
 
 /** The seats a basket names, in a stable order — empty for general admission. */
 export const toSeatIds = (selection: Selection): string[] =>
@@ -327,36 +397,50 @@ export function selectionSignature(selection: Selection): string {
   return (
     [...selection]
       .filter((line) => line.quantity > 0)
-      .sort((a, b) => a.tierId.localeCompare(b.tierId))
+      .sort(
+        (a, b) =>
+          a.tierId.localeCompare(b.tierId) || (a.gender ?? '').localeCompare(b.gender ?? ''),
+      )
       // The SEATS are part of the identity: two baskets with one VIP seat each are
       // different purchases, and sharing a signature would share an idempotency key
-      // and replay the first buyer's choice of seat.
-      .map((line) =>
-        line.seatIds?.length
-          ? `${line.tierId}:${line.quantity}[${[...line.seatIds].sort().join('+')}]`
-          : `${line.tierId}:${line.quantity}`,
-      )
+      // and replay the first buyer's choice of seat. The GENDER is too: the same
+      // tickets at a different price are a different order.
+      .map((line) => {
+        const base = `${line.tierId}:${line.quantity}${line.gender ? `:${genderCode(line.gender)}` : ''}`;
+        return line.seatIds?.length ? `${base}[${[...line.seatIds].sort().join('+')}]` : base;
+      })
       .join(',')
   );
 }
 
 /** The tier counts alone — what a booking's own line items can be compared with. */
 export function tierSignature(selection: Selection): string {
-  return [...selection]
-    .filter((line) => line.quantity > 0)
-    .sort((a, b) => a.tierId.localeCompare(b.tierId))
-    .map((line) => `${line.tierId}:${line.quantity}`)
+  return perTierSignature(selection.map((line) => ({ id: line.tierId, quantity: line.quantity })));
+}
+
+/**
+ * Totals per TIER — never per line. A booking's own items split by gender only
+ * where a gender price applied, while the basket splits by whatever the buyer
+ * picked, so comparing lines would call a perfectly matching hold "stale" and
+ * cancel it. Per tier, the two always agree.
+ */
+function perTierSignature(rows: ReadonlyArray<{ id: string; quantity: number }>): string {
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    if (row.quantity > 0) totals.set(row.id, (totals.get(row.id) ?? 0) + row.quantity);
+  }
+  return [...totals.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, quantity]) => `${id}:${quantity}`)
     .join(',');
 }
 
 export function bookingItemsSignature(
   items: ReadonlyArray<{ ticket_type_id: string; quantity: number }>,
 ): string {
-  return [...items]
-    .filter((item) => item.quantity > 0)
-    .sort((a, b) => a.ticket_type_id.localeCompare(b.ticket_type_id))
-    .map((item) => `${item.ticket_type_id}:${item.quantity}`)
-    .join(',');
+  return perTierSignature(
+    items.map((item) => ({ id: item.ticket_type_id, quantity: item.quantity })),
+  );
 }
 
 /**

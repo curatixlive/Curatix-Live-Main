@@ -16,11 +16,7 @@ import { Skeleton } from '@/components/organizer/primitives';
  */
 export const metadata: Metadata = { title: 'Attendees' };
 
-export default function OrganizerEventAttendeesPage({
-  params,
-}: {
-  params: { eventId: string };
-}) {
+export default function OrganizerEventAttendeesPage({ params }: { params: { eventId: string } }) {
   return (
     <React.Suspense fallback={<Fallback />}>
       <EventAttendees eventId={params.eventId} />

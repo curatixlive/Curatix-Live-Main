@@ -99,7 +99,9 @@ export function TagMatrix({
                     onClick={() => toggle(tag.value)}
                     disabled={locked}
                     aria-pressed={active}
-                    title={locked ? `You have picked ${MAX_TAGS} tags. Remove one first.` : undefined}
+                    title={
+                      locked ? `You have picked ${MAX_TAGS} tags. Remove one first.` : undefined
+                    }
                     className={cn(
                       'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-body-sm transition-colors duration-fast',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',

@@ -165,9 +165,7 @@ function CrewPanel({ organizationId }: { organizationId: string }) {
                   {member.name}
                 </span>
                 {member.role ? (
-                  <span className="truncate text-caption text-muted-foreground">
-                    {member.role}
-                  </span>
+                  <span className="truncate text-caption text-muted-foreground">{member.role}</span>
                 ) : null}
               </div>
               {!member.is_active ? (
@@ -176,9 +174,7 @@ function CrewPanel({ organizationId }: { organizationId: string }) {
                 </span>
               ) : null}
               <span className="shrink-0 text-caption tabular-nums text-muted-foreground">
-                {member.appearance_count === 1
-                  ? '1 event'
-                  : `${member.appearance_count} events`}
+                {member.appearance_count === 1 ? '1 event' : `${member.appearance_count} events`}
               </span>
             </li>
           ))}

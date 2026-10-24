@@ -74,7 +74,13 @@ const SEGMENTS: { id: SegmentId; label: string; hint: string }[] = [
  * spreadsheet summing lifetime value is not out by a factor of a hundred.
  */
 const EXPORT_COLUMNS: ColumnDef<CustomerRow>[] = [
-  { key: 'name', header: 'Name', width: 0, exportValue: (row) => row.full_name, render: () => null },
+  {
+    key: 'name',
+    header: 'Name',
+    width: 0,
+    exportValue: (row) => row.full_name,
+    render: () => null,
+  },
   { key: 'email', header: 'Email', width: 0, exportValue: (row) => row.email, render: () => null },
   {
     key: 'bookings',
@@ -511,7 +517,7 @@ function CustomerInspector({
                   All their bookings
                 </Link>
               </Button>
-      {/* A footnote here explained that `User.phone` was not on the payload
+              {/* A footnote here explained that `User.phone` was not on the payload
           and that there was no notes table, citing a backlog item. It is now
           also wrong — a phone number is on the account. Engineering copy on a
           customer list ages badly and helps nobody who reads it. */}

@@ -102,7 +102,16 @@ function Solid({
 /** A sun or moon behind the landmark — the one element every scene shares, so
  *  ten different buildings still read as one set. */
 function Sky({ body, className }: { body: string; className?: string }) {
-  return <circle className={cn('illo-r-glow', className)} cx="122" cy="30" r="16" fill={body} opacity="0.2" />;
+  return (
+    <circle
+      className={cn('illo-r-glow', className)}
+      cx="122"
+      cy="30"
+      r="16"
+      fill={body}
+      opacity="0.2"
+    />
+  );
 }
 
 /* ── Mumbai — the Gateway of India ────────────────────────────────────── */
@@ -211,7 +220,16 @@ export function SceneBengaluru({ className }: SceneProps) {
           <rect x="78" y="22" width="4" height="8" rx="2" fill={body} opacity="0.8" />
           {/* A colonnade, which is what the building actually reads as. */}
           {[34, 46, 58, 102, 114, 126].map((x) => (
-            <rect key={x} x={x} y="66" width="5" height="30" rx="2" fill="rgb(var(--overlay))" opacity="0.3" />
+            <rect
+              key={x}
+              x={x}
+              y="66"
+              width="5"
+              height="30"
+              rx="2"
+              fill="rgb(var(--overlay))"
+              opacity="0.3"
+            />
           ))}
           <rect x="24" y="54" width="112" height="6" rx="2" fill={body} opacity="0.9" />
         </>

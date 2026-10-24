@@ -151,7 +151,8 @@ export function RefundDetail({ requestId }: { requestId: string }) {
   // record. `booking_total_minor` includes the donation, which an ordinary
   // refund withholds — so using it here would overstate the refund on exactly
   // the screen where being wrong about a number is worst.
-  const amount = request.refund_amount_minor ?? request.booking_total_minor - (booking?.donation ?? 0);
+  const amount =
+    request.refund_amount_minor ?? request.booking_total_minor - (booking?.donation ?? 0);
   const steps = buildTrail(request);
   const label = REFUND_REQUEST_LABELS[request.status];
 
@@ -169,9 +170,7 @@ export function RefundDetail({ requestId }: { requestId: string }) {
         </StatusChip>
         <p className="text-h2 font-bold tabular-nums text-foreground">{formatMoney(amount)}</p>
         <p className="max-w-sm text-body-sm text-muted-foreground">
-          {settled
-            ? 'Credited to your original payment method.'
-            : label.customerHint}
+          {settled ? 'Credited to your original payment method.' : label.customerHint}
         </p>
       </div>
 
@@ -285,12 +284,12 @@ export function RefundDetail({ requestId }: { requestId: string }) {
                 number with nothing behind it on the screen where somebody is
                 already worried about money. */}
             <p>
-              Once the provider accepts a refund it is your bank that posts it. Cards typically
-              take 5–7 working days and UPI 1–3, counted from the date above.
+              Once the provider accepts a refund it is your bank that posts it. Cards typically take
+              5–7 working days and UPI 1–3, counted from the date above.
             </p>
             <p className="mt-2">
-              If it has been longer, quote the refund reference to your bank first — they can
-              trace it with that alone. We can help if they cannot find it.
+              If it has been longer, quote the refund reference to your bank first — they can trace
+              it with that alone. We can help if they cannot find it.
             </p>
           </div>
         ) : null}
@@ -392,7 +391,13 @@ function buildTrail(request: RefundRequest): TrailStep[] {
     {
       title: 'Sent to your payment provider',
       at: request.refunded_at,
-      state: settled ? 'done' : request.status === 'failed' ? 'unknowable' : approved ? 'active' : 'waiting',
+      state: settled
+        ? 'done'
+        : request.status === 'failed'
+          ? 'unknowable'
+          : approved
+            ? 'active'
+            : 'waiting',
       body:
         request.status === 'failed'
           ? 'The transfer did not go through. Contact support and we will re-run it.'
@@ -434,7 +439,11 @@ function CopyButton({ value }: { value: string }) {
       }}
       className="inline-flex h-control-sm shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 text-label text-primary shadow-sm transition-colors duration-fast hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
     >
-      {copied ? <Check className="size-3.5" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
+      {copied ? (
+        <Check className="size-3.5" aria-hidden />
+      ) : (
+        <Copy className="size-3.5" aria-hidden />
+      )}
       {copied ? 'Copied' : 'Copy'}
     </button>
   );

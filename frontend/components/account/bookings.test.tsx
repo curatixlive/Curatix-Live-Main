@@ -104,7 +104,15 @@ function bookingRow(overrides: Record<string, unknown> = {}) {
     ticket_count: 2,
     active_ticket_count: 2,
     used_ticket_count: 0,
-    items: [{ ticket_type_id: 't1', ticket_type_name: 'Gold', quantity: 2, unit_price: 50000, phase_name: null }],
+    items: [
+      {
+        ticket_type_id: 't1',
+        ticket_type_name: 'Gold',
+        quantity: 2,
+        unit_price: 50000,
+        phase_name: null,
+      },
+    ],
     ...overrides,
   };
 }
@@ -226,9 +234,7 @@ describe('MyBookings', () => {
   });
 
   it('gives an unpaid card two buttons of exactly equal share', async () => {
-    harness.bookings = [
-      bookingRow({ status: 'expired', ticket_count: 0, active_ticket_count: 0 }),
-    ];
+    harness.bookings = [bookingRow({ status: 'expired', ticket_count: 0, active_ticket_count: 0 })];
     view();
     await screen.findByRole('radio', { name: 'Unpaid' });
     openTab('Unpaid');

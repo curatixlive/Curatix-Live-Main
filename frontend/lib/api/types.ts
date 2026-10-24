@@ -64,6 +64,10 @@ export type EventDetail = EventCard & {
   description: string;
   /** True when the event sells assigned seats; the checkout draws a seat map. */
   seating_enabled?: boolean;
+  /** Booking needs the access code, or following / having attended the organiser. */
+  invite_only?: boolean;
+  /** Only on the organiser's own read — never on the public event. */
+  access_code?: string;
   ends_at: string | null;
   status: string;
   version: number;
@@ -212,6 +216,17 @@ export type TicketTier = {
   sold: number;
   available: number;
   sale_start: string | null;
+  /**
+   * Early access: from here until `sale_start`, buyers with access (the event's
+   * code, a follow, or a past ticket) may buy. Null when the tier has no pre-sale.
+   */
+  presale_starts_at?: string | null;
+  /**
+   * Self-declared GENDER prices, minor units per ticket — either key may be
+   * absent. A buyer who picks a gender pays that gender's price; picking none
+   * pays `price`. Display only: the charge is decided under the row lock.
+   */
+  gender_prices?: { male?: number; female?: number };
   sale_end: string | null;
   /**
    * GROUP PRICING — a cheaper per-ticket price once the order reaches a size.
@@ -279,6 +294,8 @@ export type User = {
   gender: Gender | '';
   /** Only meaningful with `gender === 'self_described'`. */
   gender_self_described: string;
+  /** Where they say they live. Optional free text; blank means they did not say. */
+  city?: string;
   /**
    * What to SHOW, resolved once on the server. A client that has to know the
    * `self_described` pairing is a client that will get it wrong on one of the
@@ -293,12 +310,7 @@ export type User = {
   date_joined: string;
 };
 
-export type Gender =
-  | 'woman'
-  | 'man'
-  | 'non_binary'
-  | 'self_described'
-  | 'prefer_not_to_say';
+export type Gender = 'woman' | 'man' | 'non_binary' | 'self_described' | 'prefer_not_to_say';
 
 export type AuthResponse = {
   user: User;
@@ -332,6 +344,8 @@ export type BookingItem = {
   quantity: number;
   unit_price: number;
   phase_name: string | null;
+  /** The gender this line was priced at, blank when no gender price applied. */
+  gender?: string;
 };
 
 /**

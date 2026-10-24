@@ -219,7 +219,7 @@ export function HeroGallery({
         ) : null}
 
         {images.length > 0 && (hideMainImage || images.length > 1) ? (
-          <ul className="flex flex-wrap gap-2 overflow-x-auto touch-manipulation pb-1">
+          <ul className="flex touch-manipulation flex-wrap gap-2 overflow-x-auto pb-1">
             {images.map((image, position) => (
               // Keyed by POSITION as well as url. Two `EventMedia` rows may
               // legitimately point at the same stored object — an organiser
@@ -238,7 +238,7 @@ export function HeroGallery({
                   aria-current={position === safeIndex}
                   className={cn(
                     // 16:9 like the frame it drives. Clear, unblurred thumbnail cards.
-                    'relative block aspect-video w-24 overflow-hidden rounded-lg border transition sm:w-28 opacity-100 hover:scale-105',
+                    'relative block aspect-video w-24 overflow-hidden rounded-lg border opacity-100 transition hover:scale-105 sm:w-28',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     position === safeIndex
                       ? 'border-primary ring-2 ring-primary/30'

@@ -107,14 +107,20 @@ function Feedback({ data, eventId }: { data: EventAnalytics; eventId: string }) 
           clipping — sitting in the off-screen second card, they widened the
           whole page to 552px at a 390px viewport and a phone zoomed out to
           fit it. Measured, then fixed here. */}
-      <div className="relative -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 touch-manipulation [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
-        <div className={cn(CARD, CARD_PAD, 'flex w-[75%] shrink-0 snap-start flex-col gap-3 sm:w-auto')}>
+      <div className="relative -mx-4 flex touch-manipulation snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+        <div
+          className={cn(
+            CARD,
+            CARD_PAD,
+            'flex w-[75%] shrink-0 snap-start flex-col gap-3 sm:w-auto',
+          )}
+        >
           <span className="flex items-center gap-2 text-body-sm text-muted-foreground">
             <Star className="size-5 shrink-0 text-warning" aria-hidden />
             Average Rating
           </span>
           <span className="flex items-baseline gap-2">
-            <span className="text-h1 font-bold leading-none tabular-nums text-foreground">
+            <span className="text-h1 font-bold tabular-nums leading-none text-foreground">
               {feedback.average === null ? '—' : feedback.average}
             </span>
             <span className="text-h4 text-muted-foreground">/5.0</span>
@@ -126,7 +132,13 @@ function Feedback({ data, eventId }: { data: EventAnalytics; eventId: string }) 
           </span>
         </div>
 
-        <div className={cn(CARD, CARD_PAD, 'flex w-[75%] shrink-0 snap-start flex-col gap-3 sm:w-auto')}>
+        <div
+          className={cn(
+            CARD,
+            CARD_PAD,
+            'flex w-[75%] shrink-0 snap-start flex-col gap-3 sm:w-auto',
+          )}
+        >
           <span className="text-body-sm text-muted-foreground">Rating Breakdown</span>
           {/* Always all five: "no 1-stars" is a fact about the event, and a
               breakdown that dropped empty buckets would hide it. */}
@@ -137,10 +149,15 @@ function Feedback({ data, eventId }: { data: EventAnalytics; eventId: string }) 
                   {bucket.rating}
                   <Star className="size-3.5 fill-warning text-warning" aria-hidden />
                 </span>
-                <span className="block h-2 flex-1 overflow-hidden rounded-full bg-muted" aria-hidden>
+                <span
+                  className="block h-2 flex-1 overflow-hidden rounded-full bg-muted"
+                  aria-hidden
+                >
                   <span
                     className="block h-full rounded-full bg-warning"
-                    style={{ width: `${bucket.count ? Math.max((bucket.count / top) * 100, 4) : 0}%` }}
+                    style={{
+                      width: `${bucket.count ? Math.max((bucket.count / top) * 100, 4) : 0}%`,
+                    }}
                   />
                 </span>
                 <span className="w-7 shrink-0 text-right text-caption tabular-nums text-muted-foreground">

@@ -170,7 +170,7 @@ export function EventPicker({
                         setOpen(false);
                       }}
                       className={cn(
-                        'flex w-full min-h-control items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors',
+                        'flex min-h-control w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors',
                         selected ? 'bg-nav-active' : 'hover:bg-muted',
                       )}
                     >

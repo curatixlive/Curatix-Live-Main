@@ -120,7 +120,9 @@ export function RunningOrder({
       const raw = window.localStorage.getItem(vocabularyKey);
       const parsed: unknown = raw ? JSON.parse(raw) : [];
       setRemembered(
-        Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [],
+        Array.isArray(parsed)
+          ? parsed.filter((item): item is string => typeof item === 'string')
+          : [],
       );
     } catch {
       setRemembered([]);
@@ -149,7 +151,8 @@ export function RunningOrder({
 
   const rememberKind = (text: string) => {
     const value = text.trim();
-    if (!value || KINDS.some((option) => option.label.toLowerCase() === value.toLowerCase())) return;
+    if (!value || KINDS.some((option) => option.label.toLowerCase() === value.toLowerCase()))
+      return;
     const next = [...new Set([value, ...remembered])].slice(0, 24);
     setRemembered(next);
     try {
@@ -265,10 +268,7 @@ export function RunningOrder({
           <Skeleton className="h-12 w-full" />
         </div>
       ) : entries.length === 0 ? (
-        <EmptyState
-          icon={Clock}
-          title="No running order yet"
-        />
+        <EmptyState icon={Clock} title="No running order yet" />
       ) : (
         <ol className="flex flex-col">
           {entries.map((entry, index) => (

@@ -67,7 +67,6 @@ function quickFilters(): ReadonlyArray<{ label: string; href: string }> {
   ];
 }
 
-
 export async function AllEvents() {
   // Never throws: the front page's main content must not depend on an upstream
   // being healthy, and an empty grid is a state this renders honestly below.
@@ -138,10 +137,7 @@ export async function AllEvents() {
                 rail always shows a partial card and reads as scrollable. */}
             <AutoRail label="All events">
               {events.map((event, index) => (
-                <li
-                  key={event.id}
-                  className="w-[46%] shrink-0 snap-start sm:w-[31%] lg:w-[23%]"
-                >
+                <li key={event.id} className="w-[46%] shrink-0 snap-start sm:w-[31%] lg:w-[23%]">
                   <PosterCard
                     event={event}
                     // ── THE WHOLE GRID, NOT JUST THIS CARD ─────────────────

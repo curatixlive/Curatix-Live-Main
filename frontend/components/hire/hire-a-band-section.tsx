@@ -52,8 +52,6 @@ import { Container } from '@/components/shell/container';
  * category tiles carry.
  */
 
-
-
 export function HireABandSection() {
   return (
     // The tinted band. Alternating a subtle tint against the page's surface is

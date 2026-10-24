@@ -48,9 +48,7 @@ describe('when the welcome flow opens', () => {
   });
 
   it('does NOT open again once it has been answered', () => {
-    expect(needsOnboarding(user({ onboarding_completed_at: '2026-08-02T09:00:00Z' }))).toBe(
-      false,
-    );
+    expect(needsOnboarding(user({ onboarding_completed_at: '2026-08-02T09:00:00Z' }))).toBe(false);
   });
 
   it('treats a SKIP as answered', () => {

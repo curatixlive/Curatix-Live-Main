@@ -123,10 +123,7 @@ export function TodayPanel() {
 
         <div className="min-w-0">
           {series.isError ? (
-            <ErrorState
-              message="Could not load the trend."
-              onRetry={() => void series.refetch()}
-            />
+            <ErrorState message="Could not load the trend." onRetry={() => void series.refetch()} />
           ) : series.isPending ? (
             <Skeleton className="h-40 w-full" />
           ) : (
@@ -233,8 +230,7 @@ function Delta({ change }: { change: number | null }) {
       ) : (
         <Icon className="size-3.5" aria-hidden />
       )}
-      {Math.abs(change)}%
-      <span className="text-muted-foreground">vs yesterday</span>
+      {Math.abs(change)}%<span className="text-muted-foreground">vs yesterday</span>
     </p>
   );
 }

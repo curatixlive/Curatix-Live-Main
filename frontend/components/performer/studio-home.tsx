@@ -202,9 +202,7 @@ export function StudioHome({ performerId }: { performerId: string }) {
                       <span className="text-caption uppercase text-muted-foreground">
                         {date.toLocaleDateString('en-IN', { month: 'short' })}
                       </span>
-                      <span className="text-body font-semibold tabular-nums">
-                        {date.getDate()}
-                      </span>
+                      <span className="text-body font-semibold tabular-nums">{date.getDate()}</span>
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-body-sm font-medium capitalize">
@@ -249,8 +247,14 @@ function NeedsYou({
   leads: number;
   isError: boolean;
 }) {
-  const items: { key: string; tone: 'critical' | 'warning' | 'info'; title: string; detail: string; href: string; action: string }[] =
-    [];
+  const items: {
+    key: string;
+    tone: 'critical' | 'warning' | 'info';
+    title: string;
+    detail: string;
+    href: string;
+    action: string;
+  }[] = [];
 
   if (state.label === 'Changes needed') {
     items.push({
@@ -325,8 +329,8 @@ function NeedsYou({
           aria-hidden
         />
         <p className="text-body-sm text-destructive-subtle-foreground">
-          Could not check your leads and quotes. This is a failed request, not an all-clear —
-          reload to try again.
+          Could not check your leads and quotes. This is a failed request, not an all-clear — reload
+          to try again.
         </p>
       </section>
     );
@@ -367,7 +371,7 @@ function NeedsYou({
               href={item.href}
               className={cn(
                 'group flex items-start gap-3 rounded-xl border p-card transition-colors duration-fast',
-                'motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
                 TONES[item.tone],
                 item.tone === 'info' && 'hover:bg-muted',
               )}
@@ -443,7 +447,7 @@ function Stat({
   return (
     <Link
       href={href}
-      className="group flex flex-col gap-1 rounded-xl border border-border bg-surface p-card shadow-sm transition-colors duration-fast hover:bg-muted motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex flex-col gap-1 rounded-xl border border-border bg-surface p-card shadow-sm transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
     >
       <dt className="flex items-center gap-2 text-caption uppercase tracking-wide text-muted-foreground">
         {/* The leading icon is where the violet accent earns its keep now. */}

@@ -3,16 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useMutation } from '@tanstack/react-query';
-import {
-  AlertTriangle,
-  Check,
-  CloudOff,
-  Eye,
-  Loader2,
-  Pause,
-  Play,
-  Send,
-} from 'lucide-react';
+import { AlertTriangle, Check, CloudOff, Eye, Loader2, Pause, Play, Send } from 'lucide-react';
 import {
   OCCASION_LABELS,
   PERFORMER_TYPE_LABELS,
@@ -25,12 +16,7 @@ import {
 } from '@/lib/api/performers';
 import { ApiError } from '@/lib/api/errors';
 import { POPULAR_CITIES } from '@/lib/discovery/cities';
-import {
-  profileState,
-  useAct,
-  useInvalidatePerformer,
-  useReadiness,
-} from '@/lib/performer/studio';
+import { profileState, useAct, useInvalidatePerformer, useReadiness } from '@/lib/performer/studio';
 import { ErrorState, Skeleton, StatusPill } from '@/components/organizer/primitives';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils/cn';
@@ -314,8 +300,8 @@ export function ProfileEditor({ performerId }: { performerId: string }) {
           className="flex flex-wrap items-center gap-3 rounded-xl border border-warning-subtle bg-warning-subtle p-card text-body-sm text-warning-subtle-foreground"
         >
           <AlertTriangle className="size-4 shrink-0" aria-hidden />
-          This profile changed somewhere else since you opened it. Reload to get the newer version
-          — saving now would overwrite it.
+          This profile changed somewhere else since you opened it. Reload to get the newer version —
+          saving now would overwrite it.
           <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
             Reload
           </Button>
@@ -487,9 +473,9 @@ export function ProfileEditor({ performerId }: { performerId: string }) {
 
         {/* Named rather than rendered as inputs that discard what is typed. */}
         <p className="rounded-xl border border-dashed border-border p-card text-caption text-muted-foreground">
-          A separate profile photo and cover image, an FAQ, and contact preferences are not
-          editable here because there is nowhere to store them: photos are one flat gallery with no
-          cover slot, and there is no FAQ or preferences model. They are written up as backend
+          A separate profile photo and cover image, an FAQ, and contact preferences are not editable
+          here because there is nowhere to store them: photos are one flat gallery with no cover
+          slot, and there is no FAQ or preferences model. They are written up as backend
           dependencies rather than offered as fields that would drop what you typed —{' '}
           <code>frontend/BACKLOG.md</code> items 70 to 72.
         </p>
@@ -531,7 +517,10 @@ function StatusBanner({
           </p>
           <ul className="flex flex-col gap-1.5">
             {problems.map((problem) => (
-              <li key={problem} className="flex items-start gap-2 text-body-sm text-muted-foreground">
+              <li
+                key={problem}
+                className="flex items-start gap-2 text-body-sm text-muted-foreground"
+              >
                 <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-warning" aria-hidden />
                 {problem}
               </li>
@@ -809,7 +798,7 @@ function Chip({
       aria-pressed={active}
       className={cn(
         'inline-flex h-control-sm items-center rounded-full border px-3 text-caption transition-colors duration-fast',
-        'motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
         active
           ? 'border-nav-active bg-nav-active text-nav-active-foreground hover:bg-nav-active-hover'
           : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',

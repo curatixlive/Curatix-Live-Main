@@ -41,6 +41,8 @@ import {
  */
 
 export function RevenueAndAttendance({ data, eventId }: { data: EventAnalytics; eventId: string }) {
+  // A co-host the host has not allowed to see money gets the attendance half only.
+  if (data.finance_hidden) return <Attendance data={data} />;
   return (
     <>
       <Section icon={IndianRupee} title="Revenue Performance">
@@ -93,7 +95,15 @@ export function RevenueAndAttendance({ data, eventId }: { data: EventAnalytics; 
   );
 }
 
-function Split({ label, slice, className }: { label: string; slice: OrderSlice; className?: string }) {
+function Split({
+  label,
+  slice,
+  className,
+}: {
+  label: string;
+  slice: OrderSlice;
+  className?: string;
+}) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-1', className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -156,7 +166,13 @@ function Attendance({ data }: { data: EventAnalytics }) {
 
       {/* The gate's own audit trail, and only when it has something to say. */}
       {refused > 0 ? (
-        <p className={cn(CARD, CARD_PAD, 'flex items-start gap-2 text-body-sm text-muted-foreground')}>
+        <p
+          className={cn(
+            CARD,
+            CARD_PAD,
+            'flex items-start gap-2 text-body-sm text-muted-foreground',
+          )}
+        >
           <ScanLine className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
           <span>
             {plural(refused, 'scan')} refused at the gate —{' '}
@@ -220,7 +236,8 @@ function Payout({ eventId }: { eventId: string }) {
 }
 
 function settlementState(row: OrganizerSettlement): string {
-  if (row.status === 'paid') return row.payout_at ? `Paid out on ${formatDate(row.payout_at)}` : 'Paid out';
+  if (row.status === 'paid')
+    return row.payout_at ? `Paid out on ${formatDate(row.payout_at)}` : 'Paid out';
   // NOT "lost": a failed transfer leaves the money owed.
   if (row.status === 'failed') return 'Transfer failed — still owed';
   if (row.status === 'zero') return 'Nothing to pay';

@@ -46,18 +46,21 @@ export type ProfileForm = {
   dateOfBirth: string;
   gender: Gender | '';
   genderSelfDescribed: string;
+  /** Optional free text. */
+  city: string;
 };
 
-export function formFromUser(user: Pick<
-  User,
-  'full_name' | 'phone' | 'date_of_birth' | 'gender' | 'gender_self_described'
->): ProfileForm {
+export function formFromUser(
+  user: Pick<User, 'full_name' | 'phone' | 'date_of_birth' | 'gender' | 'gender_self_described'> &
+    Partial<Pick<User, 'city'>>,
+): ProfileForm {
   return {
     fullName: user.full_name ?? '',
     phone: user.phone ?? '',
     dateOfBirth: user.date_of_birth ?? '',
     gender: user.gender ?? '',
     genderSelfDescribed: user.gender_self_described ?? '',
+    city: user.city ?? '',
   };
 }
 
@@ -146,6 +149,7 @@ export function changedFields(before: ProfileForm, after: ProfileForm): ProfileU
     changes.full_name = after.fullName.trim();
   }
   if (after.phone.trim() !== before.phone.trim()) changes.phone = after.phone.trim();
+  if (after.city.trim() !== before.city.trim()) changes.city = after.city.trim();
   if (after.dateOfBirth !== before.dateOfBirth) {
     // `null`, not `''`. This is the one field whose empty value is null,
     // because it is a date — an empty string would be a 400.
@@ -229,6 +233,8 @@ export function profileCompleteness(
     ratio: done / checks.length,
     done,
     total: checks.length,
-    missing: checks.filter((check) => !check.done).map(({ key, label, why }) => ({ key, label, why })),
+    missing: checks
+      .filter((check) => !check.done)
+      .map(({ key, label, why }) => ({ key, label, why })),
   };
 }

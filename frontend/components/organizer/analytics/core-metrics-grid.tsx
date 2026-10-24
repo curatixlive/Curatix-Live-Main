@@ -180,13 +180,25 @@ export function CoreMetricsGrid({ data }: { data: EventAnalytics }) {
           icon={Eye}
           label="Total Event Views"
           value={formatCount(engagement.views)}
-          caption={recorded ? (partial ? `Page views since ${since}` : 'Total page views') : notRecordedCaption}
+          caption={
+            recorded
+              ? partial
+                ? `Page views since ${since}`
+                : 'Total page views'
+              : notRecordedCaption
+          }
         />
         <StatCard
           icon={Target}
           label="Bookings"
-          value={data.capacity ? `${formatCount(data.sold)}/${formatCount(data.capacity)}` : formatCount(data.sold)}
-          caption={data.capacity ? `${formatPct(data.sell_through_pct)} filled` : 'No ticket types yet'}
+          value={
+            data.capacity
+              ? `${formatCount(data.sold)}/${formatCount(data.capacity)}`
+              : formatCount(data.sold)
+          }
+          caption={
+            data.capacity ? `${formatPct(data.sell_through_pct)} filled` : 'No ticket types yet'
+          }
         >
           {typeof data.sell_through_pct === 'number' ? (
             <Meter value={data.sell_through_pct / 100} />

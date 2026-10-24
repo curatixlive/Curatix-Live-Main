@@ -52,7 +52,6 @@ export type TagDimension = {
  * leaving somebody unable to clear a choice they made by accident.
  */
 export const EVENT_TYPES: readonly TaxonomyOption[] = [
-
   { value: 'music-jam', label: 'Music jam' },
   { value: 'concert', label: 'Concert' },
   { value: 'gig', label: 'Gig' },
@@ -103,10 +102,8 @@ export const EVENT_TYPES: readonly TaxonomyOption[] = [
   { value: 'kids-workshop', label: 'Kids workshop' },
 ] as const;
 
-
 /** The seven axes, in the order the picker draws them. */
 export const TAG_DIMENSIONS: readonly TagDimension[] = [
-
   {
     key: 'social',
     label: 'Who it suits',
@@ -200,7 +197,6 @@ export const TAG_DIMENSIONS: readonly TagDimension[] = [
   },
 ] as const;
 
-
 /**
  * A hard ceiling, refused by the API. Ten tags is already more than a card can
  * show; past that they stop narrowing anything.
@@ -223,9 +219,7 @@ export const ALL_TAGS: ReadonlySet<string> = new Set(
 );
 
 /** Every legal event-type slug. */
-export const ALL_EVENT_TYPES: ReadonlySet<string> = new Set(
-  EVENT_TYPES.map((type) => type.value),
-);
+export const ALL_EVENT_TYPES: ReadonlySet<string> = new Set(EVENT_TYPES.map((type) => type.value));
 
 const TAG_LABELS = new Map(
   TAG_DIMENSIONS.flatMap((dimension) => dimension.tags.map((tag) => [tag.value, tag.label])),

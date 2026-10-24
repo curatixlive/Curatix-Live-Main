@@ -75,8 +75,7 @@ export const fetchReviewSummary = (eventId: string) =>
 export const fetchEligibility = (eventId: string) =>
   api.get<Eligibility>(`${base(eventId)}/eligibility`);
 
-export const fetchMyReview = (eventId: string) =>
-  api.get<Review | null>(`${base(eventId)}/mine`);
+export const fetchMyReview = (eventId: string) => api.get<Review | null>(`${base(eventId)}/mine`);
 
 export const submitReview = (eventId: string, rating: number, body: string) =>
   api.post<Review>(base(eventId), { rating, body });
@@ -84,8 +83,7 @@ export const submitReview = (eventId: string, rating: number, body: string) =>
 export const updateMyReview = (eventId: string, rating: number, body: string) =>
   api.patch<Review>(`${base(eventId)}/mine`, { rating, body });
 
-export const fetchPendingReviews = () =>
-  api.get<{ data: PendingReview[] }>('/me/pending-reviews');
+export const fetchPendingReviews = () => api.get<{ data: PendingReview[] }>('/me/pending-reviews');
 
 /** What each star means, said out loud. Used as the accessible name of each
  *  star and as the live hint under the row — a bare "3 of 5" tells somebody

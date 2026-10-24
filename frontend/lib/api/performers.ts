@@ -476,7 +476,6 @@ export const OCCASION_LABELS: Record<Occasion, string> = {
 
 /* ------------------------------------------------------- photo upload */
 
-
 /**
  * Upload a photo, with real progress and a real cancel.
  *
@@ -490,12 +489,7 @@ export const OCCASION_LABELS: Record<Occasion, string> = {
  * client cannot do.
  */
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
-export const ACCEPTED_PHOTO_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-];
+export const ACCEPTED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 /**
  * A performer photo.

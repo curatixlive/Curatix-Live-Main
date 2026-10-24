@@ -55,6 +55,12 @@ export function AnalyticsDashboard({ eventId }: { eventId: string }) {
         onRefresh={() => void analytics.refetch()}
         refreshing={analytics.isFetching}
       />
+      {data.finance_hidden ? (
+        <p className="rounded-xl border border-border bg-surface px-card py-3 text-body-sm text-muted-foreground">
+          You are helping run this event as a co-host. Revenue, refunds and payouts are hidden — the
+          host can share them with you.
+        </p>
+      ) : null}
       <CoreMetricsGrid data={data} />
       <RevenueAndAttendance data={data} eventId={eventId} />
       <BookingTrendsChart data={data} />

@@ -77,8 +77,8 @@ export function Promotions() {
     return (
       <Panel title="Promotions">
         <p className="text-body-sm text-muted-foreground">
-          Create an organisation first — a promo code belongs to the organisation whose
-          tickets it discounts, so it can be reused across every event you run.
+          Create an organisation first — a promo code belongs to the organisation whose tickets it
+          discounts, so it can be reused across every event you run.
         </p>
       </Panel>
     );
@@ -88,8 +88,8 @@ export function Promotions() {
     return (
       <Panel title="Promotions">
         <p className="text-body-sm text-muted-foreground">
-          You run more than one organisation. Choose whose codes you are managing — this also
-          sets the organisation for the rest of the dashboard.
+          You run more than one organisation. Choose whose codes you are managing — this also sets
+          the organisation for the rest of the dashboard.
         </p>
         <ul className="mt-stack flex flex-col gap-2">
           {organizations.map((candidate) => (
@@ -116,8 +116,8 @@ export function Promotions() {
         <div className="flex flex-col gap-1">
           <h1 className="text-h3 md:text-h2">Promotions</h1>
           <p className="max-w-prose text-body text-muted-foreground">
-            Discount codes for your own events. You fund the discount, so our fee is charged on
-            what the customer actually pays and your payout moves with it.
+            Discount codes for your own events. You fund the discount, so our fee is charged on what
+            the customer actually pays and your payout moves with it.
           </p>
         </div>
         <Button onClick={() => setAdding(true)} className="shrink-0 gap-1.5">
@@ -159,8 +159,8 @@ function EmptyPromotions({ onAdd }: { onAdd: () => void }) {
       <div className="flex max-w-sm flex-col gap-1">
         <p className="text-body font-medium text-foreground">No codes yet</p>
         <p className="text-body-sm text-muted-foreground">
-          Make one for an influencer, a partner or an early-bird push. A code is private by
-          default — only somebody who has it can use it, which is usually the point.
+          Make one for an influencer, a partner or an early-bird push. A code is private by default
+          — only somebody who has it can use it, which is usually the point.
         </p>
       </div>
       <Button onClick={onAdd} className="gap-1.5">
@@ -313,9 +313,7 @@ function CouponSheet({
     setKind(coupon?.kind ?? 'percent');
     // Rupees in the box, paise on the wire — the same split the donation card
     // makes, and the only place in this codebase a person types a major unit.
-    setValue(
-      coupon ? String(coupon.kind === 'percent' ? coupon.value : coupon.value / 100) : '',
-    );
+    setValue(coupon ? String(coupon.kind === 'percent' ? coupon.value : coupon.value / 100) : '');
     setCap(coupon?.max_discount_minor ? String(coupon.max_discount_minor / 100) : '');
     setEndsAt(coupon?.ends_at ? coupon.ends_at.slice(0, 10) : '');
     setMaxRedemptions(coupon?.max_redemptions ? String(coupon.max_redemptions) : '');
@@ -402,8 +400,8 @@ function CouponSheet({
           <header className="flex shrink-0 flex-col gap-stack border-b border-border px-6 pb-card pt-card-lg">
             <DrawerTitle>{coupon ? 'Edit code' : 'New code'}</DrawerTitle>
             <DrawerDescription>
-              You fund the discount. Our fee is charged on what the customer pays after it, and
-              your payout is the discounted ticket revenue.
+              You fund the discount. Our fee is charged on what the customer pays after it, and your
+              payout is the discounted ticket revenue.
             </DrawerDescription>
           </header>
 
@@ -467,8 +465,8 @@ function CouponSheet({
                       placeholder="500"
                     />
                     <p className="text-caption text-muted-foreground">
-                      20% is ₹40 on a ₹200 ticket and ₹4,000 on a ₹20,000 table. This is where
-                      you say which one you meant.
+                      20% is ₹40 on a ₹200 ticket and ₹4,000 on a ₹20,000 table. This is where you
+                      say which one you meant.
                     </p>
                   </div>
                 ) : null}
@@ -535,8 +533,8 @@ function CouponSheet({
                   Show this code on the checkout
                 </span>
                 <span className="text-caption text-muted-foreground">
-                  Off by default. A code given to one partner stops being worth anything the
-                  moment everybody can see it — turn this on only for a public offer.
+                  Off by default. A code given to one partner stops being worth anything the moment
+                  everybody can see it — turn this on only for a public offer.
                 </span>
               </span>
             </label>

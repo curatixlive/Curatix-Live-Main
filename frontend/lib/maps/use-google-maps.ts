@@ -65,9 +65,7 @@ function loadScript(libraries: string): Promise<void> {
     script.async = true;
     script.defer = true;
     script.addEventListener('load', () => resolve());
-    script.addEventListener('error', () =>
-      reject(new Error('Google Maps failed to load')),
-    );
+    script.addEventListener('error', () => reject(new Error('Google Maps failed to load')));
     document.head.appendChild(script);
   }).catch((error) => {
     // Reset so a later mount can retry. A permanently rejected shared promise
@@ -80,9 +78,7 @@ function loadScript(libraries: string): Promise<void> {
 }
 
 export function useGoogleMaps(libraries = 'places'): MapsLoadState {
-  const [state, setState] = React.useState<MapsLoadState>(
-    API_KEY ? 'loading' : 'unavailable',
-  );
+  const [state, setState] = React.useState<MapsLoadState>(API_KEY ? 'loading' : 'unavailable');
 
   React.useEffect(() => {
     if (!API_KEY) return;

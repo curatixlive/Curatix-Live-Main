@@ -187,7 +187,11 @@ function BookingWindow({ series }: { series: BookingWindowDay[] }) {
       <WindowChart series={visible} metric={metric} peak={peak} />
 
       <div className="flex flex-col gap-2">
-        <p className={cn('rounded-xl border border-border bg-sunken px-4 py-3 text-body-sm text-foreground')}>
+        <p
+          className={cn(
+            'rounded-xl border border-border bg-sunken px-4 py-3 text-body-sm text-foreground',
+          )}
+        >
           Peak Booking Date:{' '}
           {peak ? (
             <>
@@ -292,11 +296,16 @@ function WindowChart({
   const y = (value: number) => PAD_TOP + plotHeight - (value / Math.max(top, 1)) * plotHeight;
 
   const line = values
-    .map((value, index) => `${index === 0 ? 'M' : 'L'}${x(index).toFixed(1)},${y(value).toFixed(1)}`)
+    .map(
+      (value, index) => `${index === 0 ? 'M' : 'L'}${x(index).toFixed(1)},${y(value).toFixed(1)}`,
+    )
     .join(' ');
   const baseline = PAD_TOP + plotHeight;
   const area = `${line} L${x(values.length - 1).toFixed(1)},${baseline} L${x(0).toFixed(1)},${baseline} Z`;
-  const labelStep = Math.max(1, Math.ceil(series.length / Math.max(1, Math.floor(plotWidth / X_LABEL_SPACING))));
+  const labelStep = Math.max(
+    1,
+    Math.ceil(series.length / Math.max(1, Math.floor(plotWidth / X_LABEL_SPACING))),
+  );
   const unit = metric === 'seats' ? 'spots' : 'orders';
   const chosen = active !== null ? series[active] : undefined;
 
@@ -464,10 +473,16 @@ function WindowChart({
           </span>
           <span className="flex gap-4">
             <span>
-              Orders: <span className="font-semibold tabular-nums text-foreground">{formatCount(chosen.orders)}</span>
+              Orders:{' '}
+              <span className="font-semibold tabular-nums text-foreground">
+                {formatCount(chosen.orders)}
+              </span>
             </span>
             <span>
-              Spots: <span className="font-semibold tabular-nums text-foreground">{formatCount(chosen.seats)}</span>
+              Spots:{' '}
+              <span className="font-semibold tabular-nums text-foreground">
+                {formatCount(chosen.seats)}
+              </span>
             </span>
           </span>
         </p>

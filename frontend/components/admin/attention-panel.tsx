@@ -38,29 +38,27 @@ import { Skeleton } from '@/components/organizer/primitives';
  * the row it sits in.
  */
 
-const TONE: Record<
-  AttentionSeverity,
-  { icon: typeof AlertTriangle; wrap: string; chip: string }
-> = {
-  critical: {
-    icon: AlertTriangle,
-    wrap: 'border-destructive-subtle bg-destructive-subtle',
-    chip: 'text-destructive-subtle-foreground',
-  },
-  warning: {
-    icon: TriangleAlert,
-    wrap: 'border-warning-subtle bg-warning-subtle',
-    chip: 'text-warning-subtle-foreground',
-  },
-  // Neutral, and it is the only rung that needs the light theme's card recipe
-  // (hairline + soft shadow): the other two separate from the page with their
-  // own tint, this one is the same white as the canvas behind it.
-  info: {
-    icon: Info,
-    wrap: 'border-border bg-surface shadow-sm',
-    chip: 'text-muted-foreground',
-  },
-};
+const TONE: Record<AttentionSeverity, { icon: typeof AlertTriangle; wrap: string; chip: string }> =
+  {
+    critical: {
+      icon: AlertTriangle,
+      wrap: 'border-destructive-subtle bg-destructive-subtle',
+      chip: 'text-destructive-subtle-foreground',
+    },
+    warning: {
+      icon: TriangleAlert,
+      wrap: 'border-warning-subtle bg-warning-subtle',
+      chip: 'text-warning-subtle-foreground',
+    },
+    // Neutral, and it is the only rung that needs the light theme's card recipe
+    // (hairline + soft shadow): the other two separate from the page with their
+    // own tint, this one is the same white as the canvas behind it.
+    info: {
+      icon: Info,
+      wrap: 'border-border bg-surface shadow-sm',
+      chip: 'text-muted-foreground',
+    },
+  };
 
 export function AdminAttentionPanel({ limit }: { limit?: number }) {
   const { items, isPending, isError, counts } = useAdminAttention();
@@ -156,7 +154,7 @@ function AttentionCard({ item }: { item: AdminAttentionItem }) {
       href={item.href}
       className={cn(
         'group flex items-start gap-3 rounded-xl border px-card py-stack transition-colors duration-fast',
-        'motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none',
         tone.wrap,
         item.severity === 'info' && 'hover:bg-muted',
       )}

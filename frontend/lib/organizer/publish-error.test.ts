@@ -18,9 +18,13 @@ describe('describePublishFailure', () => {
 
   it('treats an already-submitted event as done, not as a failure', () => {
     const failure = describePublishFailure(
-      api('invalid_event_state', "Only draft or rejected events can be submitted (this one is 'pending_review').", {
-        status: 'pending_review',
-      }),
+      api(
+        'invalid_event_state',
+        "Only draft or rejected events can be submitted (this one is 'pending_review').",
+        {
+          status: 'pending_review',
+        },
+      ),
     );
 
     expect(failure.alreadyDone).toBe(true);
@@ -41,7 +45,9 @@ describe('describePublishFailure', () => {
 
   it('keeps a genuinely wrong transition an error, with the server sentence', () => {
     const sentence = "A 'archived' event cannot be archived. Take it off sale first.";
-    const failure = describePublishFailure(api('invalid_event_state', sentence, { status: 'archived' }));
+    const failure = describePublishFailure(
+      api('invalid_event_state', sentence, { status: 'archived' }),
+    );
 
     expect(failure.alreadyDone).toBeUndefined();
     expect(failure.tone).toBe('error');

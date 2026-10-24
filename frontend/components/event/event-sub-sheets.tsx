@@ -57,14 +57,7 @@ import {
  * navigates by would report two unrelated headings.
  */
 
-export type SubSheetType =
-  | 'venue'
-  | 'schedule'
-  | 'about'
-  | 'organiser'
-  | 'faq'
-  | 'terms'
-  | null;
+export type SubSheetType = 'venue' | 'schedule' | 'about' | 'organiser' | 'faq' | 'terms' | null;
 
 const SHEET_TITLES: Record<NonNullable<SubSheetType>, string> = {
   // NOT "Restaurant details". That was the reference design's word — that
@@ -304,13 +297,7 @@ function AboutSheet({ event, detail }: { event: EventCardData; detail: EventDeta
 /* Organiser                                                                  */
 /* -------------------------------------------------------------------------- */
 
-function OrganiserSheet({
-  event,
-  pool,
-}: {
-  event: EventCardData;
-  pool: readonly EventCardData[];
-}) {
+function OrganiserSheet({ event, pool }: { event: EventCardData; pool: readonly EventCardData[] }) {
   const initial = (event.organization_name || '?').trim().charAt(0).toUpperCase();
   const { openEvent } = useEventDeck();
 
@@ -401,7 +388,13 @@ function OrganiserSheet({
                 >
                   <span className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {other.poster_url ? (
-                      <Image src={other.poster_url} alt="" fill sizes="56px" className="object-cover" />
+                      <Image
+                        src={other.poster_url}
+                        alt=""
+                        fill
+                        sizes="56px"
+                        className="object-cover"
+                      />
                     ) : null}
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">

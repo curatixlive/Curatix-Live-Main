@@ -14,11 +14,7 @@ import {
   type PerformerType,
 } from '@/lib/api/performers';
 import { cursorFromNextLink } from '@/lib/api/events';
-import {
-  SceneNoResults,
-  SceneNothingYet,
-  SceneOffline,
-} from '@/components/illustrations/scenes';
+import { SceneNoResults, SceneNothingYet, SceneOffline } from '@/components/illustrations/scenes';
 import { PerformerCard } from './performer-card';
 import { cn } from '@/lib/utils/cn';
 
@@ -397,7 +393,7 @@ export function Marketplace() {
                 type="button"
                 onClick={() => void query.fetchNextPage()}
                 disabled={query.isFetchingNextPage}
-                className="inline-flex h-control items-center rounded-full border border-border px-6 text-label transition-colors hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex h-control items-center rounded-full border border-border px-6 text-label transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
               >
                 {query.isFetchingNextPage ? 'Loading…' : 'Show more acts'}
               </button>

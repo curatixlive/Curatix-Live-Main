@@ -28,7 +28,10 @@ import {
 } from 'lucide-react';
 import { fetchAttendance, verifyTicket, type VerifyResult } from '@/lib/api/organizer-writes';
 import { ApiError } from '@/lib/api/errors';
+import { fetchOwnerEventTiers } from '@/lib/api/organizer';
+import { fetchCoHostedEvents } from '@/lib/api/event-access-admin';
 import { useEventRows } from '@/lib/organizer/queries';
+import { scanLines } from '@/lib/organizer/scan-display';
 import { ScanSound, useCameraScanner } from '@/lib/organizer/scanner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -112,10 +115,20 @@ export function ScanDesk() {
   const events = useEventRows({ status: 'live' });
   // Memoised because the effect below depends on it; a fresh array identity
   // every render would re-run the "pick a default event" effect constantly.
-  const rows = React.useMemo(
-    () => events.data?.pages.flatMap((page) => page.data) ?? [],
-    [events.data],
-  );
+  // Events the host has let this person scan for are offered beside their own.
+  const cohosted = useQuery({
+    queryKey: ['organizer', 'cohosted-events'],
+    queryFn: fetchCoHostedEvents,
+    staleTime: 60_000,
+  });
+  const rows = React.useMemo(() => {
+    const own = events.data?.pages.flatMap((page) => page.data) ?? [];
+    const known = new Set(own.map((row) => row.id));
+    const shared = (cohosted.data ?? [])
+      .filter((row) => row.permissions.checkin && row.status === 'live' && !known.has(row.event_id))
+      .map((row) => ({ id: row.event_id, title: `${row.title} (co-host)` }));
+    return [...own, ...shared];
+  }, [events.data, cohosted.data]);
 
   /**
    * THE DESK CAN BE DEEP-LINKED, AND IT VERIFIES THE LINK.
@@ -203,6 +216,15 @@ export function ScanDesk() {
     const timer = window.setTimeout(() => setFlash(null), FLASH_MS);
     return () => window.clearTimeout(timer);
   }, [flash]);
+
+  // How many tiers the event has decides whether a tier name is worth showing.
+  const tierList = useQuery({
+    queryKey: ['organizer', 'event-tiers', eventId],
+    queryFn: () => fetchOwnerEventTiers(eventId),
+    enabled: Boolean(eventId),
+    staleTime: 60_000,
+  });
+  const tierCount = tierList.data?.length ?? 0;
 
   const attendance = useQuery({
     queryKey: ['organizer', 'attendance', eventId],
@@ -401,7 +423,7 @@ export function ScanDesk() {
           aria-label="Results"
           className={cn(GLASS_PANEL, 'flex flex-col gap-stack-lg rounded-3xl p-card shadow-sm')}
         >
-          <Verdict scan={latest} />
+          <Verdict scan={latest} tierCount={tierCount} />
 
           <Attendance
             eventId={eventId}
@@ -411,7 +433,7 @@ export function ScanDesk() {
             capacity={attendance.data?.capacity ?? 0}
           />
 
-          <RecentScans scans={scans} admitted={admitted} denied={denied} />
+          <RecentScans scans={scans} admitted={admitted} denied={denied} tierCount={tierCount} />
         </section>
       </div>
     </LazyMotion>
@@ -466,8 +488,8 @@ function EventPicker({
           role="alert"
           className="rounded-xl bg-warning-subtle px-3 py-2 text-caption text-warning-subtle-foreground"
         >
-          That event is not on sale, so its desk is not open. Showing the first live event instead
-          — check this is the right one before scanning.
+          That event is not on sale, so its desk is not open. Showing the first live event instead —
+          check this is the right one before scanning.
         </p>
       ) : null}
     </div>
@@ -558,7 +580,10 @@ function Viewport({
  */
 function Reticle() {
   return (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
+    <div
+      className="pointer-events-none absolute inset-0 flex items-center justify-center"
+      aria-hidden
+    >
       <div className="relative aspect-square w-[68%]">
         <div
           className="absolute inset-0 rounded-3xl"
@@ -897,7 +922,7 @@ function ManualEntry({
         ref={regionRef}
         className={cn(
           'grid w-full transition-[grid-template-rows,opacity] duration-slow ease-out motion-reduce:transition-none',
-          open ? '[grid-template-rows:1fr] opacity-100' : '[grid-template-rows:0fr] opacity-0',
+          open ? 'opacity-100 [grid-template-rows:1fr]' : 'opacity-0 [grid-template-rows:0fr]',
         )}
       >
         <div className="overflow-hidden">
@@ -921,7 +946,12 @@ function ManualEntry({
               placeholder="Paste a code, or scan with a reader"
               className="h-control-lg min-w-0 flex-1 rounded-full font-mono text-body-sm placeholder:font-sans"
             />
-            <Button type="submit" size="lg" className="rounded-full" disabled={busy || !token.trim()}>
+            <Button
+              type="submit"
+              size="lg"
+              className="rounded-full"
+              disabled={busy || !token.trim()}
+            >
               Verify
             </Button>
           </form>
@@ -943,7 +973,7 @@ function ManualEntry({
  * is the one thing on the page a screen-reader user must hear immediately,
  * because the queue is already moving.
  */
-function Verdict({ scan }: { scan: Scan | undefined }) {
+function Verdict({ scan, tierCount }: { scan: Scan | undefined; tierCount: number }) {
   if (!scan) {
     return (
       <div
@@ -970,18 +1000,18 @@ function Verdict({ scan }: { scan: Scan | undefined }) {
   if (scan.error) return <VerdictBand tone="error" title="Not recorded" detail={scan.error} />;
 
   if (!scan.result) {
-    return <VerdictBand tone="pending" title="Checking…" detail="Waiting for the gate to decide." />;
+    return (
+      <VerdictBand tone="pending" title="Checking…" detail="Waiting for the gate to decide." />
+    );
   }
 
   if (scan.result.allowed) {
     return (
       <VerdictBand
         tone="allowed"
-        title="Let them in"
-        detail={
-          [scan.result.ticket_type, scan.result.gate].filter(Boolean).join(' · ') || 'Admitted'
-        }
-        seat={seatText(scan.result)}
+        title="Allowed"
+        detail=""
+        lines={scanLines(scan.result, tierCount)}
       />
     );
   }
@@ -1022,13 +1052,13 @@ function VerdictBand({
   tone,
   title,
   detail,
-  seat,
+  lines = [],
 }: {
   tone: keyof typeof BANDS;
   title: string;
   detail: string;
-  /** "Seat A4 · Gold" — shown large so a steward can point the guest to it. */
-  seat?: string;
+  /** Tier, seat and gender — only those that apply, each large enough to read at arm's length. */
+  lines?: string[];
 }) {
   const band = BANDS[tone];
   const Icon = band.icon;
@@ -1050,17 +1080,16 @@ function VerdictBand({
       </span>
       <span className="min-w-0">
         <span className="block text-h4">{title}</span>
-        {seat ? <span className="block text-h4">{seat}</span> : null}
-        <span className="block text-body-sm">{detail}</span>
+        {lines.map((line) => (
+          <span key={line} className="block text-h4">
+            {line}
+          </span>
+        ))}
+        {detail ? <span className="block text-body-sm">{detail}</span> : null}
       </span>
     </div>
   );
 }
-
-const seatText = (result: VerifyResult): string | undefined =>
-  result.seat_label
-    ? `Seat ${result.seat_label}${result.seat_section ? ` · ${result.seat_section}` : ''}`
-    : undefined;
 
 /**
  * Admitted against capacity, from the endpoint that owns the number.
@@ -1121,7 +1150,9 @@ function RecentScans({
   scans,
   admitted,
   denied,
+  tierCount,
 }: {
+  tierCount: number;
   scans: Scan[];
   admitted: number;
   denied: number;
@@ -1152,9 +1183,7 @@ function RecentScans({
                 <span className="block truncate text-caption text-foreground">
                   {scan.result
                     ? scan.result.allowed
-                      ? [scan.result.ticket_type ?? 'Admitted', seatText(scan.result)]
-                          .filter(Boolean)
-                          .join(' · ')
+                      ? ['Allowed', ...scanLines(scan.result, tierCount)].join(' · ')
                       : (DENIAL_COPY[scan.result.reason] ?? scan.result.reason)
                     : scan.queued
                       ? 'Queued — waiting for the connection'

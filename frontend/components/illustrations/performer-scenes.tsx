@@ -146,7 +146,15 @@ export function SceneBand({ className }: SceneProps) {
           <Solid d="M104 96V70a10 10 0 0 1 20 0v26Z" body={body} ids={ids} />
           <rect x="96" y="74" width="34" height="7" rx="2.5" fill={body} opacity="0.9" />
           {[100, 106, 112, 118, 124].map((x) => (
-            <rect key={x} x={x} y="74" width="2" height="7" fill="rgb(var(--overlay))" opacity="0.3" />
+            <rect
+              key={x}
+              x={x}
+              y="74"
+              width="2"
+              height="7"
+              fill="rgb(var(--overlay))"
+              opacity="0.3"
+            />
           ))}
         </>
       )}
@@ -234,7 +242,15 @@ export function SceneDj({ className }: SceneProps) {
           <Solid d="M28 96V64h104v32Z" body={body} ids={ids} />
           {/* The deck surface, catching the light. */}
           <rect x="26" y="58" width="108" height="8" rx="3" fill={body} opacity="0.95" />
-          <rect x="26" y="58" width="108" height="3" rx="1.5" fill="rgb(var(--on-gradient))" opacity="0.3" />
+          <rect
+            x="26"
+            y="58"
+            width="108"
+            height="3"
+            rx="1.5"
+            fill="rgb(var(--on-gradient))"
+            opacity="0.3"
+          />
 
           {/* Platters. */}
           {[52, 108].map((cx) => (
@@ -344,7 +360,15 @@ export function SceneAnchor({ className }: SceneProps) {
           {/* The lectern: a tapered body with a lit top surface. */}
           <Solid d="M62 96V76h36v20Z" body={body} ids={ids} />
           <path d="M56 76h48l-4-8H60Z" fill={body} opacity="0.95" />
-          <rect x="56" y="68" width="48" height="3" rx="1.5" fill="rgb(var(--on-gradient))" opacity="0.3" />
+          <rect
+            x="56"
+            y="68"
+            width="48"
+            height="3"
+            rx="1.5"
+            fill="rgb(var(--on-gradient))"
+            opacity="0.3"
+          />
 
           {/* The handheld, and the sound coming out of it. */}
           <g className="illo-r-lift">
@@ -358,7 +382,14 @@ export function SceneAnchor({ className }: SceneProps) {
               transform="rotate(24 108 55)"
             />
           </g>
-          <g className="illo-r-glow" fill="none" stroke={body} strokeWidth="2.5" strokeLinecap="round" opacity="0.4">
+          <g
+            className="illo-r-glow"
+            fill="none"
+            stroke={body}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            opacity="0.4"
+          >
             <path d="M120 44a12 12 0 0 1 0 16" />
             <path d="M128 38a22 22 0 0 1 0 28" />
           </g>
@@ -405,7 +436,14 @@ export function SceneComedian({ className }: SceneProps) {
           <ContactShadow cx={50} cy={97} rx={18} ry={4} ground={ids.ground} />
           <ellipse cx="50" cy="66" rx="15" ry="5" fill={body} opacity="0.9" />
           <rect x="48" y="66" width="4" height="28" rx="2" fill={body} opacity="0.8" />
-          <path d="M38 94l10-28M62 94L52 66" stroke={body} strokeWidth="3" strokeLinecap="round" opacity="0.7" fill="none" />
+          <path
+            d="M38 94l10-28M62 94L52 66"
+            stroke={body}
+            strokeWidth="3"
+            strokeLinecap="round"
+            opacity="0.7"
+            fill="none"
+          />
           <ellipse cx="50" cy="82" rx="11" ry="3" fill={body} opacity="0.45" />
 
           {/* The mic stand, empty — the comic is holding it. */}
@@ -524,7 +562,15 @@ export function SceneMagician({ className }: SceneProps) {
           <ContactShadow cx={80} cy={97} rx={40} ry={5} ground={ids.ground} />
           {/* The table. */}
           <rect x="24" y="86" width="112" height="7" rx="3" fill={body} opacity="0.85" />
-          <rect x="24" y="86" width="112" height="2.5" rx="1.25" fill="rgb(var(--on-gradient))" opacity="0.28" />
+          <rect
+            x="24"
+            y="86"
+            width="112"
+            height="2.5"
+            rx="1.25"
+            fill="rgb(var(--on-gradient))"
+            opacity="0.28"
+          />
 
           {/* Cards, fanned to the right. Behind the hat, so the hat overlaps
               them — overlap is what builds the depth an icon cannot have. */}

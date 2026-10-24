@@ -362,7 +362,46 @@ export function TicketBuilder({
                       onChange={(value) => patch(tier.key, { saleEnd: value })}
                       type="datetime-local"
                     />
+                    <Field
+                      label="Pre-sale starts"
+                      id={`${tier.key}-presale`}
+                      value={tier.presaleStart}
+                      onChange={(value) => patch(tier.key, { presaleStart: value })}
+                      type="datetime-local"
+                      hint="Optional. Early access before general sales open, for people with your event's access code, followers and past attendees. Needs a Sales start date."
+                    />
                   </div>
+
+                  <AccordionCard
+                    title="Price by gender"
+                    toggle
+                    count={tier.genderMale.trim() || tier.genderFemale.trim() ? 'On' : undefined}
+                  >
+                    <p className="text-caption text-muted-foreground">
+                      Optional. Buyers choose a gender at booking and pay that price; anyone who
+                      does not choose pays the ticket price above. The door sees which they chose.
+                    </p>
+                    <div className="grid gap-stack sm:grid-cols-2">
+                      <Field
+                        label="Male price (₹)"
+                        id={`${tier.key}-gender-male`}
+                        value={tier.genderMale}
+                        onChange={(value) => patch(tier.key, { genderMale: value })}
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 1499"
+                      />
+                      <Field
+                        label="Female price (₹)"
+                        id={`${tier.key}-gender-female`}
+                        value={tier.genderFemale}
+                        onChange={(value) => patch(tier.key, { genderFemale: value })}
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 1299"
+                      />
+                    </div>
+                  </AccordionCard>
 
                   <PhaseEditor tier={tier} onChange={(phases) => patch(tier.key, { phases })} />
                   <GroupBandEditor
@@ -456,7 +495,7 @@ function GroupBandEditor({
   // collapsing a section that holds real values and saying nothing about them
   // is how an organizer forgets a band exists.
   return (
-    <AccordionCard title="Group prices" count={bands.length ? `${bands.length}` : undefined}>
+    <AccordionCard toggle title="Group prices" count={bands.length ? `${bands.length}` : undefined}>
       <div className="flex flex-wrap items-start justify-between gap-stack">
         <div className="flex min-w-0 flex-col gap-1" />
         <Button
@@ -477,70 +516,70 @@ function GroupBandEditor({
             const perTicket =
               people >= 2 && band.totalPrice !== '' ? bandUnitPriceMinor(band) : null;
             return (
-            <li
-              key={band.key}
-              className="flex flex-col gap-stack rounded-lg border border-border bg-surface p-stack"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-caption font-medium text-muted-foreground">
-                  {/* The GROUP SIZE, not the row number: unlike a phase, a
+              <li
+                key={band.key}
+                className="flex flex-col gap-stack rounded-lg border border-border bg-surface p-stack"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-caption font-medium text-muted-foreground">
+                    {/* The GROUP SIZE, not the row number: unlike a phase, a
                       band's identity is the threshold itself, and it is what
                       the buyer sees on the picker. */}
-                  {(band.description ?? '').trim() ||
-                    (band.minQuantity
-                      ? `${band.minQuantity} people`
-                      : `Group price ${index + 1}`)}
-                </span>
-                <IconButton
-                  label="Remove this group price"
-                  onClick={() => onChange(bands.filter((row) => row.key !== band.key))}
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                </IconButton>
-              </div>
+                    {(band.description ?? '').trim() ||
+                      (band.minQuantity
+                        ? `${band.minQuantity} people`
+                        : `Group price ${index + 1}`)}
+                  </span>
+                  <IconButton
+                    label="Remove this group price"
+                    onClick={() => onChange(bands.filter((row) => row.key !== band.key))}
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                  </IconButton>
+                </div>
 
-              {/* PEOPLE, TOTAL, NAME — what the organizer is actually
+                {/* PEOPLE, TOTAL, NAME — what the organizer is actually
                   thinking, instead of the per-ticket figure they used to have
                   to divide out themselves. Every `hint` is gone at the owner's
                   instruction; the rules still hold and are reported on save.
                   `bandUnitPriceMinor` does the division at the boundary. */}
-              <div className="grid gap-stack sm:grid-cols-3">
-                <Field
-                  label="People"
-                  id={`${band.key}-min`}
-                  value={band.minQuantity ?? ''}
-                  onChange={(value) => update(band.key, { minQuantity: value })}
-                  type="number"
-                  min="2"
-                />
-                <Field
-                  label="Total price (₹)"
-                  id={`${band.key}-price`}
-                  value={band.totalPrice ?? ''}
-                  onChange={(value) => update(band.key, { totalPrice: value })}
-                  type="number"
-                  min="1"
-                />
-                <Field
-                  label="Description"
-                  id={`${band.key}-description`}
-                  value={band.description ?? ''}
-                  onChange={(value) => update(band.key, { description: value })}
-                  placeholder="e.g., Couples, Single, Family"
-                />
-              </div>
+                <div className="grid gap-stack sm:grid-cols-3">
+                  <Field
+                    label="People"
+                    id={`${band.key}-min`}
+                    value={band.minQuantity ?? ''}
+                    onChange={(value) => update(band.key, { minQuantity: value })}
+                    type="number"
+                    min="2"
+                  />
+                  <Field
+                    label="Total price (₹)"
+                    id={`${band.key}-price`}
+                    value={band.totalPrice ?? ''}
+                    onChange={(value) => update(band.key, { totalPrice: value })}
+                    type="number"
+                    min="1"
+                  />
+                  <Field
+                    label="Description"
+                    id={`${band.key}-description`}
+                    value={band.description ?? ''}
+                    onChange={(value) => update(band.key, { description: value })}
+                    placeholder="e.g., Couples, Single, Family"
+                  />
+                </div>
 
-              {/* THE ONE NUMBER THE FORM MUST STILL SHOW.
+                {/* THE ONE NUMBER THE FORM MUST STILL SHOW.
                   What is stored and charged is a PER-TICKET price, and the
                   total only holds at exactly this size — an order of five
                   pays five times this, not the total above. Saying so here is
                   what stops an organizer discovering it from a buyer. */}
-              {perTicket !== null ? (
-                <p className="text-caption text-muted-foreground">
-                  {formatMoney(perTicket)} per ticket
-                </p>
-              ) : null}
-            </li>
+                {perTicket !== null ? (
+                  <p className="text-caption text-muted-foreground">
+                    {formatMoney(perTicket)} per ticket
+                  </p>
+                ) : null}
+              </li>
             );
           })}
         </ul>
@@ -569,7 +608,11 @@ function PhaseEditor({
     onChange(phases.map((phase) => (phase.key === key ? { ...phase, ...changes } : phase)));
 
   return (
-    <AccordionCard title="Pricing phases" count={phases.length ? `${phases.length}` : undefined}>
+    <AccordionCard
+      toggle
+      title="Pricing phases"
+      count={phases.length ? `${phases.length}` : undefined}
+    >
       <div className="flex flex-wrap items-start justify-between gap-stack">
         <div className="flex min-w-0 flex-col gap-1" />
         <Button

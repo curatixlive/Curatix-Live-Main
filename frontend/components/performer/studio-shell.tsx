@@ -79,7 +79,12 @@ function sectionsFor(id: string): Section[] {
       icon: BarChart3,
       hint: 'Quotes, wins and booked value',
     },
-    { href: `/studio/${id}/preview`, label: 'Preview', icon: Eye, hint: 'Exactly what a customer sees' },
+    {
+      href: `/studio/${id}/preview`,
+      label: 'Preview',
+      icon: Eye,
+      hint: 'Exactly what a customer sees',
+    },
   ];
 }
 
@@ -112,8 +117,8 @@ export function StudioShell({
         <div className="flex max-w-md flex-col gap-stack-lg text-center">
           <h1 className="text-h3">Sign in to your studio</h1>
           <p className="text-body-sm text-muted-foreground">
-            This is where you manage your profile, your leads and your bookings, so it needs to
-            know who you are.
+            This is where you manage your profile, your leads and your bookings, so it needs to know
+            who you are.
           </p>
           <Button asChild className="mx-auto w-fit">
             <Link href={`/sign-in?next=${encodeURIComponent(pathname)}`}>Sign in</Link>
@@ -152,7 +157,7 @@ export function StudioShell({
                         // scrolls horizontally there); 36px in the desktop
                         // sidebar, where eight items should stay compact.
                         'flex h-control items-center gap-2.5 rounded-full px-3 text-label transition-colors duration-fast lg:h-control-sm',
-                        'motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
                         active
                           ? 'bg-nav-active text-nav-active-foreground hover:bg-nav-active-hover'
                           : 'text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -206,9 +211,7 @@ function ActSwitcher({ currentId }: { currentId: string }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="rounded-xl border border-border bg-surface p-card shadow-sm">
-        <p className="truncate text-body-sm font-semibold">
-          {current?.stage_name ?? 'This act'}
-        </p>
+        <p className="truncate text-body-sm font-semibold">{current?.stage_name ?? 'This act'}</p>
         <p className="truncate text-caption text-muted-foreground">
           {current ? PERFORMER_TYPE_LABELS[current.performer_type] : ''}
           {current?.city ? ` · ${current.city}` : ''}

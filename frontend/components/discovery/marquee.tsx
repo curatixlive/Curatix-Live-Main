@@ -110,9 +110,9 @@ export function Marquee({
   React.useEffect(() => {
     const track = trackRef.current;
     if (!track) return;
-    track.querySelectorAll<HTMLElement>('ul[aria-hidden] a, ul[aria-hidden] button').forEach(
-      (node) => node.setAttribute('tabindex', '-1'),
-    );
+    track
+      .querySelectorAll<HTMLElement>('ul[aria-hidden] a, ul[aria-hidden] button')
+      .forEach((node) => node.setAttribute('tabindex', '-1'));
   }, [children, copies]);
 
   // Measure once and derive both numbers from real widths: how many copies it
@@ -129,7 +129,10 @@ export function Marquee({
       // exactly 100% the trailing edge is on screen at the wrap, which is the
       // one frame where a seam would show. Capped, so a degenerate measurement
       // mid-layout cannot ask for thousands of nodes.
-      const needed = Math.min(MAX_COPIES, Math.max(2, Math.ceil(viewport.clientWidth / oneSet) + 1));
+      const needed = Math.min(
+        MAX_COPIES,
+        Math.max(2, Math.ceil(viewport.clientWidth / oneSet) + 1),
+      );
       setCopies((current) => (current === needed ? current : needed));
       setCanScroll(oneSet * needed > viewport.clientWidth + 8);
     };
@@ -210,7 +213,7 @@ export function Marquee({
         ref={viewportRef}
         // `scrollbar-none`: the rail is its own affordance (arrows, drag,
         // wheel) and a scrollbar under a row of posters is chrome nobody needs.
-        className="marquee-mask scrollbar-none w-full overflow-x-auto touch-manipulation overscroll-x-contain"
+        className="marquee-mask scrollbar-none w-full touch-manipulation overflow-x-auto overscroll-x-contain"
         onPointerDown={() => {
           manualUntil.current = performance.now() + RESUME_DELAY_MS;
         }}
@@ -262,7 +265,7 @@ function RailArrow({ side, onClick }: { side: 'left' | 'right'; onClick: () => v
         'border border-border bg-surface/95 text-foreground shadow-lg backdrop-blur',
         'transition duration-fast ease-out hover:bg-surface hover:shadow-xl active:scale-95',
         'motion-reduce:transition-none motion-reduce:active:scale-100',
-        'opacity-0 group-hover/rail:opacity-100 focus-visible:opacity-100',
+        'opacity-0 focus-visible:opacity-100 group-hover/rail:opacity-100',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         side === 'left' ? 'left-2' : 'right-2',
       )}

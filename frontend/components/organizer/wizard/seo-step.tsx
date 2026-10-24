@@ -50,12 +50,9 @@ export function SeoStep({ draft, update, issues }: Props) {
     if (!draft.title.trim()) return '';
     const where = [draft.venue.trim(), draft.city.trim()].filter(Boolean).join(', ');
     const when = draft.startsAt ? formatEventDateLong(new Date(draft.startsAt).toISOString()) : '';
-    return [
-      draft.title.trim(),
-      where ? ` at ${where}` : '',
-      when ? ` — ${when}` : '',
-      '.',
-    ].join('');
+    return [draft.title.trim(), where ? ` at ${where}` : '', when ? ` — ${when}` : '', '.'].join(
+      '',
+    );
   }, [draft.title, draft.venue, draft.city, draft.startsAt]);
 
   const title = draft.seoTitle.trim() || draft.title.trim();
@@ -78,9 +75,7 @@ export function SeoStep({ draft, update, issues }: Props) {
 
   return (
     <div className="flex flex-col gap-block">
-      <StepHeader
-        title="Search appearance"
-      />
+      <StepHeader title="Search appearance" />
 
       <TextField
         id="event-seo-title"
@@ -132,7 +127,6 @@ export function SeoStep({ draft, update, issues }: Props) {
           </p>
         </div>
       )}
-
     </div>
   );
 }

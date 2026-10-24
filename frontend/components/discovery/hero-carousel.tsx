@@ -250,13 +250,7 @@ function PriceLine({ event }: { event: EventCardModel }) {
 /** The featured card's share of the viewport. */
 const FEATURED_ITEM_VW = 68;
 
-function MobileFeaturedCarousel({
-  events,
-  label,
-}: {
-  events: EventCardModel[];
-  label: string;
-}) {
+function MobileFeaturedCarousel({ events, label }: { events: EventCardModel[]; label: string }) {
   /**
    * ── THE MOTION AND THE LAYOUT RULE BOTH LIVE ELSEWHERE ────────────────
    *

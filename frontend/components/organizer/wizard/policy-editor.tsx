@@ -54,17 +54,14 @@ export function PolicyEditor({
       { key: crypto.randomUUID(), title: '', body: '' },
     ]);
 
-  const publishable = policies.filter(
-    (policy) => policy.title.trim() && policy.body.trim(),
-  ).length;
+  const publishable = policies.filter((policy) => policy.title.trim() && policy.body.trim()).length;
   const atCap = policies.length >= MAX_POLICIES;
 
   return (
     <div className="flex flex-col gap-stack-lg">
       {policies.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border bg-sunken p-card text-body-sm text-muted-foreground">
-          Entry conditions, prohibited items, your own refund terms, what happens if it
-          rains.
+          Entry conditions, prohibited items, your own refund terms, what happens if it rains.
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
@@ -80,10 +77,7 @@ export function PolicyEditor({
               >
                 <div className="flex items-start gap-3">
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <label
-                      htmlFor={`${policy.key}-title`}
-                      className="text-body-sm font-medium"
-                    >
+                    <label htmlFor={`${policy.key}-title`} className="text-body-sm font-medium">
                       Rule {index + 1}
                     </label>
                     <Input

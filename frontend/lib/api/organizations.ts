@@ -65,7 +65,9 @@ export const submitVerification = (organizationId: string, notes: string) =>
  * is rethrown, because "we could not reach the server" and "you have not
  * applied yet" must not look the same on screen.
  */
-export async function fetchVerification(organizationId: string): Promise<VerificationRecord | null> {
+export async function fetchVerification(
+  organizationId: string,
+): Promise<VerificationRecord | null> {
   try {
     return await api.get<VerificationRecord>(
       `/organizations/${encodeURIComponent(organizationId)}/verification`,
@@ -87,7 +89,4 @@ export async function fetchVerification(organizationId: string): Promise<Verific
  * place.
  */
 export const linkPayoutAccount = (organizationId: string) =>
-  api.post<Organization>(
-    `/organizations/${encodeURIComponent(organizationId)}/payout-account`,
-    {},
-  );
+  api.post<Organization>(`/organizations/${encodeURIComponent(organizationId)}/payout-account`, {});

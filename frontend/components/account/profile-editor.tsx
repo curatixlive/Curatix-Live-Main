@@ -122,143 +122,131 @@ export function ProfileEditor() {
       <h2 className="sr-only">Profile</h2>
 
       <div className="grid gap-block lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-start lg:gap-block-lg">
-      <aside className="flex flex-col gap-block lg:sticky lg:top-sticky-top-lg">
-        <ProfileHeader />
-        <AvatarUpload />
-      </aside>
+        <aside className="flex flex-col gap-block lg:sticky lg:top-sticky-top-lg">
+          <ProfileHeader />
+          <AvatarUpload />
+        </aside>
 
-      <form
-        className="flex flex-col gap-block rounded-xl border border-border bg-surface p-card shadow-sm lg:p-card-lg"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-      >
-        <Group title="Your name">
-          <FieldRow label="Full name" id="profile-name" wide>
-            <Input
-              id="profile-name"
-              value={form.fullName}
-              maxLength={150}
-              onChange={(event) => patch({ fullName: event.target.value })}
-              placeholder="Asha Rao"
-            />
-          </FieldRow>
-        </Group>
-
-        <Group
-          title="How we reach you"
+        <form
+          className="flex flex-col gap-block rounded-xl border border-border bg-surface p-card shadow-sm lg:p-card-lg"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save();
+          }}
         >
-          <FieldRow label="Email address" id="profile-email" wide>
-            {/* Plain text, not a disabled input. The address is the sign-in
+          <Group title="Your name">
+            <FieldRow label="Full name" id="profile-name" wide>
+              <Input
+                id="profile-name"
+                value={form.fullName}
+                maxLength={150}
+                onChange={(event) => patch({ fullName: event.target.value })}
+                placeholder="Asha Rao"
+              />
+            </FieldRow>
+          </Group>
+
+          <Group title="How we reach you">
+            <FieldRow label="Email address" id="profile-email" wide>
+              {/* Plain text, not a disabled input. The address is the sign-in
                 identity and the ticket destination, so changing it is a
                 re-verification flow rather than a field — and a greyed-out box
                 holding somebody's real address reads as broken. */}
-            <div className="flex min-h-control flex-wrap items-center gap-2">
-              <span className="text-body text-foreground">{user?.email}</span>
-              <Badge variant={user?.email_verified ? 'success' : 'warning'}>
-                {user?.email_verified ? (
-                  <>
-                    <Check className="size-3.5" aria-hidden />
-                    Verified
-                  </>
-                ) : (
-                  'Not verified'
-                )}
-              </Badge>
-            </div>
-          </FieldRow>
+              <div className="flex min-h-control flex-wrap items-center gap-2">
+                <span className="text-body text-foreground">{user?.email}</span>
+                <Badge variant={user?.email_verified ? 'success' : 'warning'}>
+                  {user?.email_verified ? (
+                    <>
+                      <Check className="size-3.5" aria-hidden />
+                      Verified
+                    </>
+                  ) : (
+                    'Not verified'
+                  )}
+                </Badge>
+              </div>
+            </FieldRow>
 
-          <FieldRow
-            label="Phone number"
-            id="profile-phone"
-          >
-            <Input
-              id="profile-phone"
-              type="tel"
-              value={form.phone}
-              maxLength={20}
-              onChange={(event) => patch({ phone: event.target.value })}
-              placeholder="+91 98765 43210"
-            />
-          </FieldRow>
-        </Group>
+            <FieldRow label="Phone number" id="profile-phone">
+              <Input
+                id="profile-phone"
+                type="tel"
+                value={form.phone}
+                maxLength={20}
+                onChange={(event) => patch({ phone: event.target.value })}
+                placeholder="+91 98765 43210"
+              />
+            </FieldRow>
+          </Group>
 
-        <Group
-          title="About you"
-        >
-          <FieldRow
-            label="Date of birth"
-            id="profile-dob"
-            wide
-            error={errors.dateOfBirth}
-          >
-            {/* Not `<input type="date">`. Reaching 2003 in Chrome's native
+          <Group title="About you">
+            <FieldRow label="Date of birth" id="profile-dob" wide error={errors.dateOfBirth}>
+              {/* Not `<input type="date">`. Reaching 2003 in Chrome's native
                 popup meant scrolling a year column inside a postage stamp;
                 this one has a year dropdown, which is the difference between
                 usable and not for a birthday. */}
-            <DayPicker
-              id="profile-dob"
-              value={form.dateOfBirth || null}
-              onChange={(next) => patch({ dateOfBirth: next })}
-              max={new Date().toISOString().slice(0, 10)}
-              yearRange={{ from: new Date().getFullYear() - 100, to: new Date().getFullYear() }}
-              placeholder="Pick your date of birth"
-              className="sm:max-w-56"
+              <DayPicker
+                id="profile-dob"
+                value={form.dateOfBirth || null}
+                onChange={(next) => patch({ dateOfBirth: next })}
+                max={new Date().toISOString().slice(0, 10)}
+                yearRange={{ from: new Date().getFullYear() - 100, to: new Date().getFullYear() }}
+                placeholder="Pick your date of birth"
+                className="sm:max-w-56"
+              />
+            </FieldRow>
+
+            <GenderField
+              className="sm:col-span-2"
+              value={form.gender}
+              selfDescribed={form.genderSelfDescribed}
+              error={errors.genderSelfDescribed}
+              onChange={(gender) => patch({ gender })}
+              onSelfDescribedChange={(genderSelfDescribed) => patch({ genderSelfDescribed })}
             />
-          </FieldRow>
+          </Group>
 
-          <GenderField
-            className="sm:col-span-2"
-            value={form.gender}
-            selfDescribed={form.genderSelfDescribed}
-            error={errors.genderSelfDescribed}
-            onChange={(gender) => patch({ gender })}
-            onSelfDescribedChange={(genderSelfDescribed) => patch({ genderSelfDescribed })}
-          />
-        </Group>
+          {error ? (
+            <p role="alert" className="text-caption text-muted-foreground">
+              {error}
+            </p>
+          ) : null}
 
-        {error ? (
-          <p role="alert" className="text-caption text-muted-foreground">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
-          <Button
-            type="submit"
-            disabled={!dirty || busy || Object.keys(errors).length > 0}
-            className="rounded-full bg-cta px-pill text-cta-foreground hover:bg-cta-hover"
-            leftIcon={busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : undefined}
-          >
-            {busy ? 'Saving…' : 'Save changes'}
-          </Button>
-          {dirty ? (
+          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
             <Button
-              type="button"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => {
-                setForm(saved);
-                setError(null);
-              }}
+              type="submit"
+              disabled={!dirty || busy || Object.keys(errors).length > 0}
+              className="rounded-full bg-cta px-pill text-cta-foreground hover:bg-cta-hover"
+              leftIcon={busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : undefined}
             >
-              Discard
+              {busy ? 'Saving…' : 'Save changes'}
             </Button>
-          ) : null}
-          {/* Only after a real write, and only until the next keystroke. A
+            {dirty ? (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  setForm(saved);
+                  setError(null);
+                }}
+              >
+                Discard
+              </Button>
+            ) : null}
+            {/* Only after a real write, and only until the next keystroke. A
               permanent "saved" badge is indistinguishable from a stale one. */}
-          {justSaved && !dirty ? (
-            <span
-              role="status"
-              className="inline-flex items-center gap-1.5 text-caption text-success-subtle-foreground"
-            >
-              <Check className="size-3.5" aria-hidden />
-              Saved
-            </span>
-          ) : null}
-        </div>
-      </form>
+            {justSaved && !dirty ? (
+              <span
+                role="status"
+                className="inline-flex items-center gap-1.5 text-caption text-success-subtle-foreground"
+              >
+                <Check className="size-3.5" aria-hidden />
+                Saved
+              </span>
+            ) : null}
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -329,7 +317,9 @@ function ProfileHeader() {
               aria-label="Profile completeness"
             >
               <span
-                className={cn('block h-full rounded-full bg-primary transition-[width] duration-slow')}
+                className={cn(
+                  'block h-full rounded-full bg-primary transition-[width] duration-slow',
+                )}
                 style={{ width: `${completeness.ratio * 100}%` }}
               />
             </span>
@@ -364,9 +354,7 @@ function Group({
     <section className="flex flex-col gap-stack-lg border-t border-border pt-block first:border-0 first:pt-0">
       <div className="flex flex-col gap-0.5">
         <h3 className="text-body font-semibold text-foreground">{title}</h3>
-        {blurb ? (
-          <p className="max-w-prose text-caption text-muted-foreground">{blurb}</p>
-        ) : null}
+        {blurb ? <p className="max-w-prose text-caption text-muted-foreground">{blurb}</p> : null}
       </div>
       {/* Two columns for the short fields on a wide form. A name and a phone
           number on their own lines across 700px is a lot of travel for two

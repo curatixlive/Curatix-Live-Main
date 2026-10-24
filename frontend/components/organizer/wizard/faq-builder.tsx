@@ -125,9 +125,11 @@ export function FaqBuilder({
     if (!eventId) {
       onPending([
         ...pending,
-        { tempId: `faq-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        {
+          tempId: `faq-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           question: question.trim(),
-          answer: answer.trim() },
+          answer: answer.trim(),
+        },
       ]);
       setQuestion('');
       setAnswer('');
@@ -160,10 +162,7 @@ export function FaqBuilder({
           <Skeleton className="h-16 w-full" />
         </div>
       ) : faqs.length === 0 ? (
-        <EmptyState
-          icon={HelpCircle}
-          title="No questions yet"
-        />
+        <EmptyState icon={HelpCircle} title="No questions yet" />
       ) : (
         <ol className="flex flex-col gap-2">
           {faqs.map((faq, index) => (

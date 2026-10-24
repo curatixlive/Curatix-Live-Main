@@ -21,7 +21,6 @@ import { api } from './client';
  * is worse than no cancel button.
  */
 
-
 export type MediaKind = 'hero' | 'gallery' | 'thumbnail' | 'mobile' | 'video';
 
 export type EventMedia = {
@@ -157,8 +156,7 @@ export const fetchEventContent = (eventId: string) =>
  * public content payload. The only way to bring a cancelled session back is to
  * be able to see it.
  */
-export const fetchOwnerSlots = (eventId: string) =>
-  api.get<EventSlot[]>(`${base(eventId)}/slots`);
+export const fetchOwnerSlots = (eventId: string) => api.get<EventSlot[]>(`${base(eventId)}/slots`);
 
 export const addSlot = (
   eventId: string,
@@ -312,8 +310,7 @@ export const SHAPE_FOR_KIND: Partial<Record<MediaKind, ImageShape>> = {
   mobile: EVENT_PORTRAIT,
 };
 
-export const shapeForKind = (kind: MediaKind): ImageShape =>
-  SHAPE_FOR_KIND[kind] ?? EVENT_IMAGE;
+export const shapeForKind = (kind: MediaKind): ImageShape => SHAPE_FOR_KIND[kind] ?? EVENT_IMAGE;
 
 /** One sentence for the dropzone, so the rule is visible before the mistake. */
 export const EVENT_IMAGE_HINT = `Landscape only — ${EVENT_IMAGE.recommendedWidth} x ${EVENT_IMAGE.recommendedHeight} (16:9) is ideal, ${EVENT_IMAGE.minWidth} x ${EVENT_IMAGE.minHeight} minimum.`;
@@ -435,9 +432,7 @@ export type WriteEventQuestion = {
 };
 
 export const fetchEventQuestions = (eventId: string) =>
-  api
-    .get<{ data: EventQuestion[] }>(`${base(eventId)}/questions`)
-    .then((page) => page.data);
+  api.get<{ data: EventQuestion[] }>(`${base(eventId)}/questions`).then((page) => page.data);
 
 export const addQuestion = (eventId: string, input: WriteEventQuestion) =>
   api.post<EventQuestion>(`${base(eventId)}/questions`, input);
@@ -447,10 +442,7 @@ export const updateQuestion = (
   questionId: string,
   changes: Partial<WriteEventQuestion>,
 ) =>
-  api.patch<EventQuestion>(
-    `${base(eventId)}/questions/${encodeURIComponent(questionId)}`,
-    changes,
-  );
+  api.patch<EventQuestion>(`${base(eventId)}/questions/${encodeURIComponent(questionId)}`, changes);
 
 export const removeQuestion = (eventId: string, questionId: string) =>
   api.delete<void>(`${base(eventId)}/questions/${encodeURIComponent(questionId)}`);

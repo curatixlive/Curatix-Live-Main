@@ -326,8 +326,8 @@ const SECTIONS: readonly DocSection[] = [
         <p>
           The DPDP Act requires us to name a Grievance Officer for complaints about how personal
           data is handled. That appointment is being made as part of registering the operating
-          entity, and the name and contact details will be published here — rather than leave
-          this paragraph visibly incomplete than name a role nobody yet holds.
+          entity, and the name and contact details will be published here — rather than leave this
+          paragraph visibly incomplete than name a role nobody yet holds.
         </p>
         <p>
           If we do not resolve your complaint, you may escalate it to the Data Protection Board of

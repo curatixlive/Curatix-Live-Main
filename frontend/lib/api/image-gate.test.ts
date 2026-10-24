@@ -15,10 +15,7 @@ function file(name = 'art.png', type = 'image/png', bytes = 2048) {
 
 /** Stand in for the browser's decoder at a chosen size. */
 function decodesAs(width: number, height: number) {
-  vi.stubGlobal(
-    'createImageBitmap',
-    vi.fn().mockResolvedValue({ width, height, close: vi.fn() }),
-  );
+  vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({ width, height, close: vi.fn() }));
 }
 
 afterEach(() => {
@@ -66,10 +63,7 @@ describe('checkImageFile', () => {
     // The server is authoritative. Refusing an upload the browser merely
     // failed to decode would block a file that is actually fine — the one
     // failure mode a convenience check must not have.
-    vi.stubGlobal(
-      'createImageBitmap',
-      vi.fn().mockRejectedValue(new Error('unsupported')),
-    );
+    vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('unsupported')));
     vi.stubGlobal(
       'Image',
       class {

@@ -29,15 +29,13 @@ export type CalendarStatus = {
   connection: CalendarConnection | null;
 };
 
-export const fetchCalendarStatus = () =>
-  api.get<CalendarStatus>('/me/integrations/google');
+export const fetchCalendarStatus = () => api.get<CalendarStatus>('/me/integrations/google');
 
 /** Returns the URL to send the browser to. Does not redirect it. */
 export const startCalendarConnect = () =>
   api.post<{ authorization_url: string }>('/me/integrations/google/connect', {});
 
-export const disconnectCalendar = () =>
-  api.delete<void>('/me/integrations/google/connect');
+export const disconnectCalendar = () => api.delete<void>('/me/integrations/google/connect');
 
 export const addBookingToCalendar = (bookingId: string) =>
   api.post<{ google_event_id: string }>('/me/calendar/events', { booking_id: bookingId });

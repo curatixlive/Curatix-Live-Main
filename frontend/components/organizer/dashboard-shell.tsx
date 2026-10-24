@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchCoHostedEvents } from '@/lib/api/event-access-admin';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Loader2, LogOut, Ticket } from 'lucide-react';
@@ -69,6 +71,18 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '/dashboard';
   const { status } = useAuth();
   const { isOrganizer, hasOrganization, ready: scopeReady } = useScope();
+  // Somebody who is not an approved organiser may still be a CO-HOST of an event
+  // — the host let them in, so they get the dashboard (the server scopes every
+  // read to what they were given). Asked only when they would otherwise be turned
+  // away, so approved organisers pay nothing for it.
+  const coHosted = useQuery({
+    queryKey: ['organizer', 'cohosted-events'],
+    queryFn: fetchCoHostedEvents,
+    enabled: status === 'authenticated' && scopeReady && !isOrganizer,
+    staleTime: 60_000,
+  });
+  const isCoHost = (coHosted.data ?? []).length > 0;
+  const coHostResolved = isOrganizer || !coHosted.isPending;
   const { collapsed, ready, toggle } = useSidebar();
   const [paletteOpen, setPaletteOpen] = React.useState(false);
 
@@ -86,7 +100,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  if (status === 'unknown' || (status === 'authenticated' && !scopeReady)) {
+  if (
+    status === 'unknown' ||
+    (status === 'authenticated' && (!scopeReady || (!isOrganizer && !coHostResolved)))
+  ) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
         <p className="inline-flex items-center gap-2 text-body-sm text-muted-foreground">
@@ -110,7 +127,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   // `ready` matters: the organization list resolves after auth, and treating
   // "not loaded yet" as "not approved" would flash this panel at every real
   // organizer on every page load.
-  if (scopeReady && !isOrganizer) return <AwaitingApproval hasOrganization={hasOrganization} />;
+  if (scopeReady && !isOrganizer && !isCoHost) {
+    return <AwaitingApproval hasOrganization={hasOrganization} />;
+  }
 
   // The dashboard's own chrome is right for tables and forms and wrong for a
   // page that is itself a layout. One route qualifies today; the set is named
@@ -120,12 +139,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-dvh bg-background">
-      <Sidebar
-        collapsed={collapsed}
-        ready={ready}
-        onToggle={toggle}
-        pathname={pathname}
-      />
+      <Sidebar collapsed={collapsed} ready={ready} onToggle={toggle} pathname={pathname} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* No props: the bar is the brand, the bell and the account menu. The
@@ -211,11 +225,7 @@ function Sidebar({
                 brand change under them. `BrandMark` is the one definition
                 (`components/shell/brand-mark.tsx`); it inherits `currentColor`,
                 so it takes the sidebar's ink without a second asset. */}
-            {collapsed ? (
-              <BrandMark title="Curatix" className="h-6 w-auto" />
-            ) : (
-              <BrandLockup />
-            )}
+            {collapsed ? <BrandMark title="Curatix" className="h-6 w-auto" /> : <BrandLockup />}
           </Link>
         </div>
 
@@ -413,7 +423,6 @@ function SignedOut() {
     </div>
   );
 }
-
 
 /**
  * What a non-approved account sees instead of the dashboard.

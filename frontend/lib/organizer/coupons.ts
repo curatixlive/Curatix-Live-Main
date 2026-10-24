@@ -54,9 +54,7 @@ export function couponStatus(
  */
 export function describeTerms(coupon: Pick<Coupon, 'kind' | 'value' | 'max_discount_minor'>) {
   if (coupon.kind === 'percent') {
-    const cap = coupon.max_discount_minor
-      ? `, max ${formatMoney(coupon.max_discount_minor)}`
-      : '';
+    const cap = coupon.max_discount_minor ? `, max ${formatMoney(coupon.max_discount_minor)}` : '';
     return `${coupon.value}% off${cap}`;
   }
   return `${formatMoney(coupon.value)} off`;
@@ -109,9 +107,7 @@ export function validateDraft(draft: CouponDraft): string[] {
   const code = draft.code.trim().toUpperCase();
 
   if (code && !CODE_PATTERN.test(code)) {
-    issues.push(
-      'A code is 3–32 characters, using letters, numbers, dashes and underscores only.',
-    );
+    issues.push('A code is 3–32 characters, using letters, numbers, dashes and underscores only.');
   }
 
   const value = Number(draft.value.replace(/[^\d.]/g, ''));

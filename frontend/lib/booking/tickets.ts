@@ -35,6 +35,8 @@ export type IssuedTicket = {
   /** Assigned seating: blank for general admission. */
   seat_label?: string;
   seat_section?: string;
+  /** The gender declared where the ticket was priced by gender. */
+  gender?: string;
   qr_token: string;
   created_at: string;
 };

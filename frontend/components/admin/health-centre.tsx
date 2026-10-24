@@ -231,7 +231,6 @@ export function HealthCentre() {
               ))}
             </ul>
           </section>
-
         </>
       )}
     </div>

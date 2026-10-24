@@ -109,9 +109,9 @@ const FAQS: readonly Faq[] = [
     q: 'What does it cost?',
     a: (
       <p>
-        {PLATFORM_FEE_BPS / 100}% of each ticket sold, added at checkout and paid by your
-        attendee — so the amount that reaches you is the price you set. No listing fee, no monthly
-        charge, nothing for a free event. Full detail, with a worked example, is on the{' '}
+        {PLATFORM_FEE_BPS / 100}% of each ticket sold, added at checkout and paid by your attendee —
+        so the amount that reaches you is the price you set. No listing fee, no monthly charge,
+        nothing for a free event. Full detail, with a worked example, is on the{' '}
         <Link href="/pricing">pricing page</Link>.
       </p>
     ),

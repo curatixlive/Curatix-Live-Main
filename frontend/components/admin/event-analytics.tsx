@@ -7,13 +7,7 @@ import { ArrowLeft, BarChart3, ExternalLink } from 'lucide-react';
 import { fetchAdminEventAnalytics } from '@/lib/api/admin';
 import { formatMoney } from '@/lib/discovery/format';
 import { Button } from '@/components/ui/button';
-import {
-  BarList,
-  DonutChart,
-  Meter,
-  TrendLine,
-  statusTone,
-} from '@/components/organizer/charts';
+import { BarList, DonutChart, Meter, TrendLine, statusTone } from '@/components/organizer/charts';
 import { eventBadge } from '@/lib/organizer/event-status';
 import { EmptyState, ErrorState, Skeleton, StatusPill } from '@/components/organizer/primitives';
 import { cn } from '@/lib/utils/cn';
@@ -160,7 +154,11 @@ export function AdminEventAnalytics({ eventId }: { eventId: string }) {
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Revenue" value={formatMoney(stats.revenue_minor)} note="Captured, lifetime" />
+            <Stat
+              label="Revenue"
+              value={formatMoney(stats.revenue_minor)}
+              note="Captured, lifetime"
+            />
             <Stat
               label="Refunded"
               value={formatMoney(stats.refunded_minor)}
@@ -210,10 +208,7 @@ export function AdminEventAnalytics({ eventId }: { eventId: string }) {
               />
             </Panel>
 
-            <Panel
-              title="At the gate"
-              blurb="Every scan that reached a real ticket."
-            >
+            <Panel title="At the gate" blurb="Every scan that reached a real ticket.">
               <BarList
                 items={stats.scans_by_result}
                 format={(value) => value.toLocaleString('en-IN')}
@@ -226,9 +221,7 @@ export function AdminEventAnalytics({ eventId }: { eventId: string }) {
 
           <Panel title="By ticket type" blurb="Where the money and the seats actually went.">
             {stats.tiers.length === 0 ? (
-              <p className="text-body-sm text-muted-foreground">
-                No ticket types on this event.
-              </p>
+              <p className="text-body-sm text-muted-foreground">No ticket types on this event.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[36rem] text-body-sm">
@@ -271,10 +264,7 @@ export function AdminEventAnalytics({ eventId }: { eventId: string }) {
             )}
           </Panel>
 
-          <Panel
-            title="Funnel"
-            blurb="Of everybody who started a booking, how many finished."
-          >
+          <Panel title="Funnel" blurb="Of everybody who started a booking, how many finished.">
             <div className="grid gap-4 sm:grid-cols-2">
               <Ratio
                 label="Completed"

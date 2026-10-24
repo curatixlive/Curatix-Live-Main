@@ -123,7 +123,10 @@ export function Section({
   return (
     <section aria-labelledby={id} className={cn('flex flex-col gap-4', className)}>
       <div className="flex items-center justify-between gap-3">
-        <h2 id={id} className="flex min-w-0 items-center gap-2.5 text-h4 font-semibold text-foreground">
+        <h2
+          id={id}
+          className="flex min-w-0 items-center gap-2.5 text-h4 font-semibold text-foreground"
+        >
           <Icon className="size-6 shrink-0 text-primary" aria-hidden />
           <span className="min-w-0">{title}</span>
         </h2>
@@ -161,7 +164,7 @@ export function StatCard({
         <Icon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
         <span className="min-w-0">{label}</span>
       </span>
-      <span className="text-h3 font-bold leading-tight tabular-nums text-foreground">{value}</span>
+      <span className="text-h3 font-bold tabular-nums leading-tight text-foreground">{value}</span>
       {children}
       {caption ? (
         <span className="text-body-sm leading-snug text-muted-foreground">{caption}</span>
@@ -171,7 +174,13 @@ export function StatCard({
 }
 
 /** A quiet outlined chip for a data label — "52 spots", "31 Aug – 5 Sept". */
-export function DataPill({ children, className }: { children: React.ReactNode; className?: string }) {
+export function DataPill({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <span
       className={cn(
@@ -217,12 +226,11 @@ export function TableCard({
   );
 }
 
-export const TH = 'whitespace-nowrap px-4 py-3.5 text-left text-body-sm font-medium text-muted-foreground';
+export const TH =
+  'whitespace-nowrap px-4 py-3.5 text-left text-body-sm font-medium text-muted-foreground';
 export const TD = 'px-4 py-3.5 align-middle text-body-sm text-foreground';
 
 /** A sentence where a section has nothing to draw. */
 export function EmptyNote({ children }: { children: React.ReactNode }) {
-  return (
-    <p className={cn(CARD, CARD_PAD, 'text-body-sm text-muted-foreground')}>{children}</p>
-  );
+  return <p className={cn(CARD, CARD_PAD, 'text-body-sm text-muted-foreground')}>{children}</p>;
 }

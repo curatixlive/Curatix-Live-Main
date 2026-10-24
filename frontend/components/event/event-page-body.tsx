@@ -219,6 +219,11 @@ export function EventPageBody({
                     {category.label}
                   </span>
                 ) : null}
+                {event.invite_only ? (
+                  <span className="inline-flex items-center rounded-full border border-border bg-surface px-3 py-1 text-caption text-foreground">
+                    Invite only
+                  </span>
+                ) : null}
                 {availability ? (
                   <span
                     className={cn(

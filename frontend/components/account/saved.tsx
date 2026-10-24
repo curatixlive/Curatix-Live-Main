@@ -98,7 +98,7 @@ export function SavedEvents() {
         // `EventCardSkeleton` is the same component's own placeholder, so it is
         // the right height at every breakpoint by construction and cannot drift
         // from the card again.
-        <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-5 lg:gap-6">
+        <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
           {Array.from({ length: savedIds?.length || 4 }, (_, index) => (
             <li key={index}>
               <EventCardSkeleton />
@@ -114,7 +114,7 @@ export function SavedEvents() {
             action={
               <Link
                 href="/events"
-                className="inline-flex h-control items-center rounded-full bg-cta px-pill text-label text-cta-foreground shadow-sm transition-colors duration-fast hover:bg-cta-hover active:bg-cta-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="inline-flex h-control items-center rounded-full bg-cta px-pill text-label text-cta-foreground shadow-sm transition-colors duration-fast hover:bg-cta-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:bg-cta-active"
               >
                 Browse events
               </Link>
@@ -122,7 +122,7 @@ export function SavedEvents() {
           />
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 sm:gap-5 lg:gap-6">
+        <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 lg:gap-6">
           {events.map((event, index) => (
             <li
               key={event.id}

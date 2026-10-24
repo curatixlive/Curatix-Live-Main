@@ -67,8 +67,8 @@ export function CrewRoster() {
     return (
       <Panel title="Crew">
         <p className="text-body-sm text-muted-foreground">
-          Create an organisation first — a crew list belongs to the organisation that books
-          them, so it can be reused across every event you run.
+          Create an organisation first — a crew list belongs to the organisation that books them, so
+          it can be reused across every event you run.
         </p>
       </Panel>
     );
@@ -81,8 +81,8 @@ export function CrewRoster() {
     return (
       <Panel title="Crew">
         <p className="text-body-sm text-muted-foreground">
-          You run more than one organisation. Choose whose crew you are managing — this also
-          sets the organisation for the rest of the dashboard.
+          You run more than one organisation. Choose whose crew you are managing — this also sets
+          the organisation for the rest of the dashboard.
         </p>
         <ul className="mt-stack flex flex-col gap-2">
           {organizations.map((candidate) => (
@@ -109,9 +109,8 @@ export function CrewRoster() {
         <div className="flex flex-col gap-1">
           <h1 className="text-h3 md:text-h2">Crew</h1>
           <p className="max-w-prose text-body text-muted-foreground">
-            The people you put on stage. Add them once here and pick them when you create an
-            event — they appear on the event page under &ldquo;Who&rsquo;s taking the
-            stage&rdquo;.
+            The people you put on stage. Add them once here and pick them when you create an event —
+            they appear on the event page under &ldquo;Who&rsquo;s taking the stage&rdquo;.
           </p>
         </div>
         <Button onClick={() => setAdding(true)} className="shrink-0 gap-1.5">
@@ -163,8 +162,8 @@ function EmptyRoster({ onAdd }: { onAdd: () => void }) {
       <div className="flex max-w-sm flex-col gap-1">
         <p className="text-body font-medium text-foreground">No crew yet</p>
         <p className="text-body-sm text-muted-foreground">
-          Add the DJs, hosts and acts you work with. You only do this once — every event you
-          create can pick from the same list.
+          Add the DJs, hosts and acts you work with. You only do this once — every event you create
+          can pick from the same list.
         </p>
       </div>
       <Button onClick={onAdd} className="gap-1.5">
@@ -650,8 +649,8 @@ function NewMemberPhotoField({
                 />
                 {/* Said before the press, not after a refusal. */}
                 <p className="text-caption text-muted-foreground">
-                  Required with a photo. It is what someone using a screen reader hears in
-                  place of the picture.
+                  Required with a photo. It is what someone using a screen reader hears in place of
+                  the picture.
                 </p>
               </div>
               {/* BOTH operations, on the preview itself. "Choose a different
@@ -689,9 +688,8 @@ function NewMemberPhotoField({
             </>
           ) : (
             <p className="text-caption text-muted-foreground">
-              Any image up to 5 MB. A portrait or a square works best — it is drawn as a
-              circle on the event page, and anything else is cropped to fit rather than
-              refused.
+              Any image up to 5 MB. A portrait or a square works best — it is drawn as a circle on
+              the event page, and anything else is cropped to fit rather than refused.
             </p>
           )}
 
@@ -812,8 +810,7 @@ function PhotoField({
                 />
                 {/* Said before the press, not after a refusal. */}
                 <p className="text-caption text-muted-foreground">
-                  Required. It is what someone using a screen reader hears in place of the
-                  picture.
+                  Required. It is what someone using a screen reader hears in place of the picture.
                 </p>
               </div>
 

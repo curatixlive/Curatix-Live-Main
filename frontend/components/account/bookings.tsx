@@ -245,7 +245,7 @@ export function MyBookings() {
           type="button"
           onClick={() => void bookings.fetchNextPage()}
           disabled={bookings.isFetchingNextPage}
-          className="mx-auto inline-flex h-control items-center justify-center gap-2 rounded-full border border-border bg-surface px-pill text-label text-foreground transition-colors duration-fast hover:bg-muted disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none"
+          className="mx-auto inline-flex h-control items-center justify-center gap-2 rounded-full border border-border bg-surface px-pill text-label text-foreground transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60 motion-reduce:transition-none"
         >
           {bookings.isFetchingNextPage ? (
             <Loader2 className="size-3.5 animate-spin" aria-hidden />
@@ -274,7 +274,6 @@ export function MyBookings() {
           Contact us
         </Link>
       </SurfaceCard>
-
     </div>
   );
 }

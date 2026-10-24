@@ -115,10 +115,7 @@ export function LineupRail({
    */
   const [ownAt, setOwnAt] = React.useState<number | null>(null);
 
-  const portraits = React.useMemo(
-    () => crew.filter((person) => Boolean(person.photo_url)),
-    [crew],
-  );
+  const portraits = React.useMemo(() => crew.filter((person) => Boolean(person.photo_url)), [crew]);
   const ownImages = React.useMemo<LightboxImage[]>(
     () =>
       portraits.map((person) => ({
@@ -165,7 +162,10 @@ export function LineupRail({
             ? // Symmetrical, and computed from the item's own width so the
               // first and last faces can reach the centre exactly like every
               // other one.
-              { paddingLeft: centredRailPadding(ITEM_VW), paddingRight: centredRailPadding(ITEM_VW) }
+              {
+                paddingLeft: centredRailPadding(ITEM_VW),
+                paddingRight: centredRailPadding(ITEM_VW),
+              }
             : undefined
         }
         className={cn(
@@ -233,37 +233,37 @@ export function LineupRail({
                     />
                   </button>
                 ) : (
-                <div
-                  className={cn(
-                    // `rounded-full` on the CLIPPING box, so the photograph is
-                    // the circle rather than a square behind a mask — a border
-                    // and a ring both follow the same shape this way.
-                    'relative aspect-square w-full overflow-hidden rounded-full bg-muted ring-1 ring-border',
-                    PEEK_RAIL_SURFACE,
-                    peekRailSurfaceState(isActive, mode),
-                  )}
-                >
-                  {/* `RemoteImage`, not a raw `<img>`: it already owns the two
+                  <div
+                    className={cn(
+                      // `rounded-full` on the CLIPPING box, so the photograph is
+                      // the circle rather than a square behind a mask — a border
+                      // and a ring both follow the same shape this way.
+                      'relative aspect-square w-full overflow-hidden rounded-full bg-muted ring-1 ring-border',
+                      PEEK_RAIL_SURFACE,
+                      peekRailSurfaceState(isActive, mode),
+                    )}
+                  >
+                    {/* `RemoteImage`, not a raw `<img>`: it already owns the two
                       things this needs — a storage host that may not be in
                       `remotePatterns`, and a url that 404s — and it draws the
                       fallback in both cases rather than a broken-image glyph. */}
-                  <RemoteImage
-                    src={person.photo_url}
-                    alt={person.photo_alt_text || ''}
-                    className="size-full object-cover"
-                    fallback={
-                      // A grey disc reads as a failed image. Most crew will
-                      // have no photo on day one, so this state is drawn on
-                      // purpose.
-                      <span
-                        aria-hidden
-                        className="flex size-full items-center justify-center bg-gradient-to-br from-primary/15 via-muted to-muted text-muted-foreground"
-                      >
-                        <UserRound className="size-8" />
-                      </span>
-                    }
-                  />
-                </div>
+                    <RemoteImage
+                      src={person.photo_url}
+                      alt={person.photo_alt_text || ''}
+                      className="size-full object-cover"
+                      fallback={
+                        // A grey disc reads as a failed image. Most crew will
+                        // have no photo on day one, so this state is drawn on
+                        // purpose.
+                        <span
+                          aria-hidden
+                          className="flex size-full items-center justify-center bg-gradient-to-br from-primary/15 via-muted to-muted text-muted-foreground"
+                        >
+                          <UserRound className="size-8" />
+                        </span>
+                      }
+                    />
+                  </div>
                 )}
                 <figcaption className="flex w-full flex-col items-center gap-0.5 text-center">
                   <span className="w-full truncate text-body-sm font-bold text-foreground">

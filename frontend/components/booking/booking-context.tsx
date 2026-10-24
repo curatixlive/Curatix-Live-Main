@@ -5,6 +5,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { fetchEventTiers } from '@/lib/api/events';
 import { fetchSeatMap, type SeatMap } from '@/lib/api/seating';
+import { checkAccess, type AccessAnswer } from '@/lib/api/access';
+import { useAuth } from '@/lib/auth/auth-provider';
 import type { Booking, EventDetail, TicketTier } from '@/lib/api/types';
 import type { EventQuestion, EventSlot } from '@/lib/api/event-content';
 import { answersFor, setAnswer, unansweredRequired } from '@/lib/booking/answers';
@@ -20,6 +22,7 @@ import {
   SEATS_PARAM,
   SELECTION_PARAM,
   SESSION_PARAM,
+  type Gender,
   type Selection,
   type SelectionTotals,
   parseSeatIds,
@@ -59,7 +62,16 @@ type BookingContextValue = {
   selection: Selection;
   totals: SelectionTotals;
   /** Takes an updater, like `setState` — see `liveSelection` for why. */
-  setQuantity: (tierId: string, update: (current: number) => number) => void;
+  setQuantity: (tierId: string, update: (current: number) => number, gender?: Gender) => void;
+  /** The access code typed for a pre-sale / invite-only event (in the URL as `access=`). */
+  accessCode: string;
+  setAccessCode: (code: string) => void;
+  /** The server's answer about access; null until asked or when the event needs none. */
+  access: AccessAnswer | null;
+  accessLoading: boolean;
+  /** For a seated order: the one gender declared for every seat (URL `sg=`). */
+  seatGender: Gender | undefined;
+  setSeatGender: (gender: Gender | undefined) => void;
   clearSelection: () => void;
   /** Assigned seating: the live seat map, null for general admission. */
   seatMap: SeatMap | null;
@@ -229,6 +241,10 @@ export function BookingProvider({
     );
   }, [seatParam, seatMap, pathname]);
 
+  const rawSeatGender = searchParams?.get('sg');
+  const seatGender: Gender | undefined =
+    rawSeatGender === 'male' || rawSeatGender === 'female' ? rawSeatGender : undefined;
+  const tierById = React.useMemo(() => new Map(tiers.map((tier) => [tier.id, tier])), [tiers]);
   const tierQuery = searchParams?.get(SELECTION_PARAM);
   const selection = React.useMemo<Selection>(() => {
     if (!seated) return parseSelection(tierQuery);
@@ -242,12 +258,14 @@ export function BookingProvider({
       if (!tierId) continue;
       lines.set(tierId, [...(lines.get(tierId) ?? []), id]);
     }
-    return [...lines.entries()].map(([tierId, ids]) => ({
-      tierId,
-      quantity: ids.length,
-      seatIds: ids,
-    }));
-  }, [seated, seatMap, seatIds, tierQuery]);
+    return [...lines.entries()].map(([tierId, ids]) => {
+      // The one declared gender rides on a section only where it earns a price.
+      const priced = seatGender && tierById.get(tierId)?.gender_prices?.[seatGender] !== undefined;
+      return priced
+        ? { tierId, quantity: ids.length, seatIds: ids, gender: seatGender }
+        : { tierId, quantity: ids.length, seatIds: ids };
+    });
+  }, [seated, seatMap, seatIds, tierQuery, seatGender, tierById]);
 
   /**
    * The hold and what it was reserved for, as ONE value.
@@ -308,13 +326,52 @@ export function BookingProvider({
   );
 
   const setQuantity = React.useCallback(
-    (tierId: string, update: (current: number) => number) => {
+    (tierId: string, update: (current: number) => number, gender?: Gender) => {
       const current = liveSelection();
-      const existing = current.find((line) => line.tierId === tierId)?.quantity ?? 0;
-      writeSelection(setQuantityIn(current, tierId, update(existing)));
+      const existing =
+        current.find((line) => line.tierId === tierId && line.gender === gender)?.quantity ?? 0;
+      writeSelection(setQuantityIn(current, tierId, update(existing), gender));
     },
     [liveSelection, writeSelection],
   );
+
+  /** Write one query param without touching the others, from the live address bar. */
+  const writeParam = React.useCallback(
+    (key: string, value: string | null) => {
+      const params = new URLSearchParams(window.location.search);
+      if (value) params.set(key, value);
+      else params.delete(key);
+      const query = params.toString();
+      window.history.replaceState(null, '', query ? `${pathname}?${query}` : pathname);
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router],
+  );
+
+  const accessCode = (searchParams?.get('access') ?? '').slice(0, 32);
+  const setAccessCode = React.useCallback(
+    (code: string) => writeParam('access', code.trim() || null),
+    [writeParam],
+  );
+  const setSeatGender = React.useCallback(
+    (gender: Gender | undefined) => writeParam('sg', gender ?? null),
+    [writeParam],
+  );
+
+  // Does the server think this person has early or invited access? Asked only for
+  // an event that has a pre-sale tier or is invite-only, and again when the code
+  // or the signed-in person changes. The booking decides again regardless.
+  const { status: authStatus } = useAuth();
+  const needsAccess =
+    Boolean(event.invite_only) || initialTiers.some((tier) => Boolean(tier.presale_starts_at));
+  const accessQuery = useQuery({
+    queryKey: ['event-access', event.id, accessCode, authStatus],
+    queryFn: () => checkAccess(event.id, accessCode),
+    enabled: needsAccess && authStatus !== 'unknown',
+    staleTime: 30_000,
+    retry: false,
+  });
+  const access = needsAccess ? (accessQuery.data ?? null) : null;
 
   const writeSeats = React.useCallback(
     (ids: string[]) => {
@@ -413,7 +470,10 @@ export function BookingProvider({
     [session, tiers],
   );
 
-  const totals = React.useMemo(() => totalsFor(selection, tiers), [selection, tiers]);
+  const totals = React.useMemo(
+    () => totalsFor(selection, tiers, { hasAccess: Boolean(access?.granted) }),
+    [selection, tiers, access?.granted],
+  );
 
   const value = React.useMemo<BookingContextValue>(
     () => ({
@@ -423,6 +483,12 @@ export function BookingProvider({
       selection,
       totals,
       setQuantity,
+      accessCode,
+      setAccessCode,
+      access,
+      accessLoading: needsAccess && accessQuery.isPending && authStatus !== 'unknown',
+      seatGender,
+      setSeatGender,
       clearSelection,
       seatMap,
       seatMapLoading: seated && seatQuery.isPending,
@@ -456,6 +522,14 @@ export function BookingProvider({
       selection,
       totals,
       setQuantity,
+      accessCode,
+      setAccessCode,
+      access,
+      needsAccess,
+      accessQuery.isPending,
+      authStatus,
+      seatGender,
+      setSeatGender,
       clearSelection,
       seatMap,
       seated,

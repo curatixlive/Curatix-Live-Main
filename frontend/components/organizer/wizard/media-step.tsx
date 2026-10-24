@@ -347,9 +347,9 @@ export function MediaStep({
    * wizard autosaves within seconds of the required fields existing, so the
    * window is small, and claiming more than that would be the lie.
    */
-  const [queued, setQueued] = React.useState<
-    { file: File; altText: string; kind: MediaKind }[]
-  >([]);
+  const [queued, setQueued] = React.useState<{ file: File; altText: string; kind: MediaKind }[]>(
+    [],
+  );
 
   const flush = (items: { file: File; altText: string; kind: MediaKind }[]) => {
     if (!eventId) {
@@ -407,10 +407,7 @@ export function MediaStep({
 
   return (
     <div className="flex flex-col gap-block">
-      <StepHeader
-        title="Media"
-        step={5}
-      />
+      <StepHeader title="Media" step={5} />
 
       {/* THE COVER AND THE GALLERY ARE DIFFERENT THINGS, so they are different
           sections rather than one grid. `Event.poster_url` is a single column
@@ -513,7 +510,10 @@ export function MediaStep({
                 <ul className="flex flex-col gap-stack">
                   {zoneStaged.map((row) => (
                     <li key={row.key} className="flex flex-col gap-1.5">
-                      <label htmlFor={`alt-${row.key}`} className="truncate text-caption font-medium">
+                      <label
+                        htmlFor={`alt-${row.key}`}
+                        className="truncate text-caption font-medium"
+                      >
                         {row.file.name}
                       </label>
                       <Input
@@ -559,7 +559,10 @@ export function MediaStep({
                 </h3>
                 <ul className="flex flex-col gap-1">
                   {zoneQueued.map((item) => (
-                    <li key={item.file.name} className="truncate text-caption text-muted-foreground">
+                    <li
+                      key={item.file.name}
+                      className="truncate text-caption text-muted-foreground"
+                    >
                       {item.file.name} — {item.altText}
                     </li>
                   ))}
@@ -690,7 +693,6 @@ export function MediaStep({
           <VideoLink eventId={eventId} media={media} />
         </Section>
       ) : null}
-
     </div>
   );
 }
@@ -963,10 +965,7 @@ function PendingTile({
     >
       <p className="flex items-center gap-2 truncate text-body-sm font-medium">
         {failed ? (
-          <AlertTriangle
-            className="size-4 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
+          <AlertTriangle className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         ) : (
           <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
         )}
@@ -1104,7 +1103,6 @@ function MediaTile({
       </div>
 
       <figcaption className="flex min-w-0 flex-1 flex-col gap-1.5 p-card">
-
         {/* Alt text is edited IN PLACE. It used to be fixed at upload, so a
             typo cost a delete and a re-upload of the same bytes — which is
             also how alt text quietly becomes "image1": nobody re-uploads a

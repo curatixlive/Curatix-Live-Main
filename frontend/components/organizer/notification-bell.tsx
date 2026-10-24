@@ -121,9 +121,7 @@ export function NotificationBell() {
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h2 className="text-label">Needs your attention</h2>
-            {count > 0 ? (
-              <span className="text-caption text-muted-foreground">{count}</span>
-            ) : null}
+            {count > 0 ? <span className="text-caption text-muted-foreground">{count}</span> : null}
           </div>
 
           <div className="max-h-[min(26rem,60vh)] overflow-y-auto">

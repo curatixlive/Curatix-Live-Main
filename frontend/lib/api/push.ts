@@ -36,11 +36,8 @@ export const fetchPushConfig = () => api.get<PushConfig>('/push/config', { auth:
 
 export const fetchPushDevices = () => api.get<{ data: PushDevice[] }>('/me/push/subscriptions');
 
-export const savePushSubscription = (input: {
-  endpoint: string;
-  p256dh: string;
-  auth: string;
-}) => api.post<PushDevice>('/me/push/subscriptions', input);
+export const savePushSubscription = (input: { endpoint: string; p256dh: string; auth: string }) =>
+  api.post<PushDevice>('/me/push/subscriptions', input);
 
 export const deletePushSubscription = (endpoint: string) =>
   api.delete<void>('/me/push/subscriptions', { body: { endpoint } });

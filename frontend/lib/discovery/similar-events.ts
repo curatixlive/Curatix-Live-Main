@@ -95,8 +95,7 @@ export function isOrganiserRail(current: EventCard, selected: readonly EventCard
     selected.length > 0 &&
     selected.every(
       (candidate) =>
-        Boolean(current.organization_id) &&
-        candidate.organization_id === current.organization_id,
+        Boolean(current.organization_id) && candidate.organization_id === current.organization_id,
     )
   );
 }

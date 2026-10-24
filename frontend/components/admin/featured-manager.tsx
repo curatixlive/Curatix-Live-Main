@@ -115,7 +115,7 @@ export function FeaturedManager() {
                 onClick={() => setCollection(entry.value)}
                 className={cn(
                   'inline-flex h-control-sm items-center gap-1.5 rounded-full border px-pill text-label transition-colors duration-fast',
-                  'motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
                   selected
                     ? 'border-nav-active bg-nav-active text-nav-active-foreground hover:bg-nav-active-hover'
                     : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -342,35 +342,35 @@ function EventPicker({ onPick, busy }: { onPick: (eventId: string) => void; busy
             : 'No approved, upcoming events yet. Only those can be featured.'}
         </p>
       ) : (
-          <ul className="flex max-h-48 flex-col divide-y divide-border overflow-y-auto rounded-xl border border-border">
-            {/* The list scrolls (`max-h-48`), so a browse-first panel can show
+        <ul className="flex max-h-48 flex-col divide-y divide-border overflow-y-auto rounded-xl border border-border">
+          {/* The list scrolls (`max-h-48`), so a browse-first panel can show
                 more than a search's shortlist without taking the page over. */}
-            {results.slice(0, 25).map((event) => (
-              <li key={event.id} className="flex items-center gap-stack px-card py-2">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-body-sm text-foreground">{event.title}</span>
-                  <span className="block truncate text-caption text-muted-foreground">
-                    {event.city} ·{' '}
-                    {new Date(event.starts_at).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                    })}
-                  </span>
+          {results.slice(0, 25).map((event) => (
+            <li key={event.id} className="flex items-center gap-stack px-card py-2">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-body-sm text-foreground">{event.title}</span>
+                <span className="block truncate text-caption text-muted-foreground">
+                  {event.city} ·{' '}
+                  {new Date(event.starts_at).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                  })}
                 </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  loading={busy}
-                  onClick={() => onPick(event.id)}
-                  leftIcon={<Plus className="size-4" aria-hidden />}
-                  className="shrink-0"
-                >
-                  Add
-                </Button>
-              </li>
-            ))}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                loading={busy}
+                onClick={() => onPick(event.id)}
+                leftIcon={<Plus className="size-4" aria-hidden />}
+                className="shrink-0"
+              >
+                Add
+              </Button>
+            </li>
+          ))}
         </ul>
       )}
     </div>

@@ -73,9 +73,9 @@ describe('StarRatingInput', () => {
   it('says nothing is chosen until something is', () => {
     render(<StarRatingInput value={0} onChange={vi.fn()} />);
     expect(screen.getByText('Tap a star to rate')).toBeInTheDocument();
-    expect(screen.getAllByRole('radio').every((el) => el.getAttribute('aria-checked') === 'false')).toBe(
-      true,
-    );
+    expect(
+      screen.getAllByRole('radio').every((el) => el.getAttribute('aria-checked') === 'false'),
+    ).toBe(true);
   });
 });
 

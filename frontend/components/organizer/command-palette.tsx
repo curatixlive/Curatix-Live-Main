@@ -285,7 +285,15 @@ export function OrganizerPalette({
       ...payoutRows,
       ...refundRows,
     ];
-  }, [debounced, enabled, events.data, bookings.data, customers.data, settlements.data, refunds.data]);
+  }, [
+    debounced,
+    enabled,
+    events.data,
+    bookings.data,
+    customers.data,
+    settlements.data,
+    refunds.data,
+  ]);
 
   React.useEffect(() => setActive(0), [rows.length]);
 

@@ -44,9 +44,7 @@ export function TrendingNearYou({
         <SectionHeader
           title={city ? `Popular in ${city.name}` : 'Trending near you'}
           subtitle={
-            city
-              ? undefined
-              : 'Across India — set your city from the top nav for closer picks'
+            city ? undefined : 'Across India — set your city from the top nav for closer picks'
           }
           href={city ? browseHref({ city: city.name }) : '/events'}
         />

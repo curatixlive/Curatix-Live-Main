@@ -137,7 +137,8 @@ function readDateRange(params: ParamsLike): Pick<DiscoveryFilters, 'dateFrom' | 
   const from = isIsoDate(rawFrom) ? rawFrom : null;
   const to = isIsoDate(rawTo) ? rawTo : null;
 
-  if (from && to) return from <= to ? { dateFrom: from, dateTo: to } : { dateFrom: to, dateTo: from };
+  if (from && to)
+    return from <= to ? { dateFrom: from, dateTo: to } : { dateFrom: to, dateTo: from };
   // A lone `to` is a range with no start, which is not something the UI can
   // produce; treating it as a single day is the closest honest reading.
   if (!from && to) return { dateFrom: to, dateTo: to };
@@ -216,10 +217,7 @@ export function toServerQuery(filters: DiscoveryFilters, now: Date = new Date())
  * NOW when the range starts today — asking the API for events that started
  * this morning would return ones already under way.
  */
-function explicitRange(
-  filters: DiscoveryFilters,
-  now: Date,
-): { from: string; to: string } | null {
+function explicitRange(filters: DiscoveryFilters, now: Date): { from: string; to: string } | null {
   if (!filters.dateFrom) return null;
   const startOfFrom = istStartOfDay(new Date(`${filters.dateFrom}T00:00:00Z`));
   const startOfTo = istStartOfDay(new Date(`${filters.dateTo ?? filters.dateFrom}T00:00:00Z`));

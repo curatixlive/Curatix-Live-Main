@@ -70,15 +70,18 @@ export function AccountSuspended({
           This account needs an administrator
         </h2>
         <p className="text-body-sm text-muted-foreground">
-          Access for <span className="font-medium text-foreground">{email}</span> has been paused
-          by our team. Signing in again — or creating a new account with the same address — will
-          not lift it; only a review will.
+          Access for <span className="font-medium text-foreground">{email}</span> has been paused by
+          our team. Signing in again — or creating a new account with the same address — will not
+          lift it; only a review will.
         </p>
       </div>
 
       <div className="flex flex-col gap-2">
         {SUPPORT_EMAIL ? (
-          <Button asChild className="h-control-lg w-full rounded-full bg-cta px-pill-lg text-cta-foreground hover:bg-cta-hover">
+          <Button
+            asChild
+            className="h-control-lg w-full rounded-full bg-cta px-pill-lg text-cta-foreground hover:bg-cta-hover"
+          >
             <a href={`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`}>
               <Mail className="size-4" aria-hidden />
               Email support
@@ -88,7 +91,10 @@ export function AccountSuspended({
           // The address is env-driven, and an unset one renders as a link to
           // the support page rather than a `mailto:` to nowhere — the same
           // rule the footer's social links follow.
-          <Button asChild className="h-control-lg w-full rounded-full bg-cta px-pill-lg text-cta-foreground hover:bg-cta-hover">
+          <Button
+            asChild
+            className="h-control-lg w-full rounded-full bg-cta px-pill-lg text-cta-foreground hover:bg-cta-hover"
+          >
             <Link href="/support">
               <LifeBuoy className="size-4" aria-hidden />
               Contact support

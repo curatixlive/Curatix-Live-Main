@@ -107,8 +107,7 @@ export const IMAGE_ZONES: readonly ImageZone[] = [
   {
     kind: 'mobile',
     title: 'Portrait poster',
-    purpose:
-      'The picture people see first on a phone, where the card is taller than it is wide.',
+    purpose: 'The picture people see first on a phone, where the card is taller than it is wide.',
     targetRatio: THREE_FOUR,
     targetLabel: '3:4',
     serverCap: 1,

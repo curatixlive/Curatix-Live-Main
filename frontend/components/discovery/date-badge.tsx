@@ -27,13 +27,7 @@ import { cn } from '@/lib/utils/cn';
  * The machine-readable date is on a `<time>` element, so this is a real date to
  * anything parsing the page rather than two decorative numbers.
  */
-export function DateBadge({
-  startsAt,
-  className,
-}: {
-  startsAt: string;
-  className?: string;
-}) {
+export function DateBadge({ startsAt, className }: { startsAt: string; className?: string }) {
   const { day, month } = formatDateParts(startsAt);
 
   return (

@@ -87,8 +87,8 @@ export function OrganizerSignup() {
       <header className="flex flex-col gap-stack">
         <h1 className="text-h3 md:text-h2">Host events</h1>
         <p className="max-w-prose text-body text-muted-foreground">
-          Create an organization to publish events and sell tickets. You keep your existing
-          account, and can own more than one.
+          Create an organization to publish events and sell tickets. You keep your existing account,
+          and can own more than one.
         </p>
       </header>
 
@@ -138,10 +138,7 @@ function CreateForm() {
       </div>
 
       {error ? (
-        <p
-          role="alert"
-          className="rounded-lg bg-muted px-card py-3 text-body-sm text-foreground"
-        >
+        <p role="alert" className="rounded-lg bg-muted px-card py-3 text-body-sm text-foreground">
           {error}
         </p>
       ) : null}
@@ -166,7 +163,7 @@ function CreateForm() {
         <div className="flex items-center gap-3">
           <label
             htmlFor="org-logo"
-            className="inline-flex h-control shrink-0 cursor-pointer items-center gap-2 rounded-full border border-border bg-surface px-pill text-label transition-colors hover:bg-muted focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
+            className="inline-flex h-control shrink-0 cursor-pointer items-center gap-2 rounded-full border border-border bg-surface px-pill text-label transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background hover:bg-muted"
           >
             <Upload className="size-4" aria-hidden />
             Choose file
@@ -304,10 +301,7 @@ function OrganizationCard({ organization }: { organization: Organization }) {
       </div>
 
       {error ? (
-        <p
-          role="alert"
-          className="rounded-lg bg-muted px-card py-3 text-body-sm text-foreground"
-        >
+        <p role="alert" className="rounded-lg bg-muted px-card py-3 text-body-sm text-foreground">
           {error}
         </p>
       ) : null}
@@ -320,8 +314,8 @@ function OrganizationCard({ organization }: { organization: Organization }) {
         </p>
       ) : state === 'pending' ? (
         <p className="text-body-sm text-muted-foreground">
-          Submitted for review. You can keep building draft events while you wait;
-          publishing and payouts unlock on approval.
+          Submitted for review. You can keep building draft events while you wait; publishing and
+          payouts unlock on approval.
         </p>
       ) : (
         <VerificationForm
@@ -393,14 +387,9 @@ function VerificationForm({
     <div className="flex flex-col gap-block rounded-xl border border-border bg-sunken p-card">
       {rejection ? (
         <div className="flex gap-3 rounded-lg border border-border bg-muted p-card">
-          <ShieldAlert
-            className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
+          <ShieldAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
           <div className="flex flex-col gap-1">
-            <p className="text-label text-foreground">
-              Your last application was not approved
-            </p>
+            <p className="text-label text-foreground">Your last application was not approved</p>
             <p className="text-body-sm text-muted-foreground">{rejection}</p>
           </div>
         </div>
@@ -409,8 +398,8 @@ function VerificationForm({
       <div className="flex flex-col gap-stack">
         <h3 className="text-h4">{heading}</h3>
         <p className="text-body-sm text-muted-foreground">
-          Verification unlocks publishing and payouts. Tell us the registered entity and
-          what you run.
+          Verification unlocks publishing and payouts. Tell us the registered entity and what you
+          run.
         </p>
       </div>
 
@@ -439,9 +428,21 @@ function VerificationForm({
 
 function StatusPill({ state }: { state: 'verified' | 'pending' | 'rejected' | 'none' }) {
   const map = {
-    verified: { label: 'Verified', icon: BadgeCheck, className: 'bg-success-subtle text-success-subtle-foreground' },
-    pending: { label: 'In review', icon: Clock, className: 'bg-warning-subtle text-warning-subtle-foreground' },
-    rejected: { label: 'Not approved', icon: ShieldAlert, className: 'bg-destructive-subtle text-destructive-subtle-foreground' },
+    verified: {
+      label: 'Verified',
+      icon: BadgeCheck,
+      className: 'bg-success-subtle text-success-subtle-foreground',
+    },
+    pending: {
+      label: 'In review',
+      icon: Clock,
+      className: 'bg-warning-subtle text-warning-subtle-foreground',
+    },
+    rejected: {
+      label: 'Not approved',
+      icon: ShieldAlert,
+      className: 'bg-destructive-subtle text-destructive-subtle-foreground',
+    },
     none: { label: 'Unverified', icon: ShieldAlert, className: 'bg-muted text-muted-foreground' },
   } as const;
   const { label, icon: Icon, className } = map[state];
@@ -500,8 +501,7 @@ function PayoutAccountButton({ organization }: { organization: Organization }) {
     onError: (error: unknown) =>
       toast.toast({
         title: 'Could not save that',
-        description:
-          error instanceof ApiError ? error.message : 'Please try again in a moment.',
+        description: error instanceof ApiError ? error.message : 'Please try again in a moment.',
         variant: 'destructive',
       }),
   });
@@ -511,7 +511,7 @@ function PayoutAccountButton({ organization }: { organization: Organization }) {
       type="button"
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
-      className="inline-flex h-control w-full items-center justify-center gap-1.5 rounded-full border border-border-strong bg-surface px-pill text-label transition-colors hover:bg-muted disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto"
+      className="inline-flex h-control w-full items-center justify-center gap-1.5 rounded-full border border-border-strong bg-surface px-pill text-label transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60 sm:w-auto"
     >
       {mutation.isPending ? (
         <Loader2 className="size-4 animate-spin" aria-hidden />

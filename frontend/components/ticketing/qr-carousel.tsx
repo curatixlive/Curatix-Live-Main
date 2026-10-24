@@ -145,6 +145,12 @@ export function QrCarousel({
         </ul>
       ) : null}
 
+      {tickets[safe]?.gender ? (
+        <p className="text-body text-ink-25">
+          {tickets[safe]?.gender === 'male' ? 'Male' : 'Female'} ticket
+        </p>
+      ) : null}
+
       {tickets[safe]?.seat_label ? (
         <p className="text-h4 text-ink-25" aria-live="polite">
           Seat {tickets[safe]?.seat_label}

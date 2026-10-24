@@ -171,7 +171,7 @@ export function RefundRequestDialog({
               if (!target || tooShort) return;
               mutation.mutate({ bookingId: target.bookingId, reason: trimmed });
             }}
-            className="inline-flex h-control items-center justify-center gap-2 rounded-full bg-cta px-pill text-label text-cta-foreground shadow-sm transition-colors duration-fast hover:bg-cta-hover active:bg-cta-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60"
+            className="inline-flex h-control items-center justify-center gap-2 rounded-full bg-cta px-pill text-label text-cta-foreground shadow-sm transition-colors duration-fast hover:bg-cta-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:bg-cta-active disabled:opacity-60"
           >
             {mutation.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
             Send request

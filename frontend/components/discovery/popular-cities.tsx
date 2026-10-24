@@ -53,7 +53,10 @@ export function PopularCities({ className }: { className?: string }) {
             <span className="flex items-center gap-2.5">
               {/* Decorative: the city NAME is the accessible content, and a
                   second "city" announcement before it would be noise. */}
-              <span className="h-9 w-12 shrink-0 overflow-hidden rounded-md lg:h-10 lg:w-14" aria-hidden>
+              <span
+                className="h-9 w-12 shrink-0 overflow-hidden rounded-md lg:h-10 lg:w-14"
+                aria-hidden
+              >
                 {/* The city's own LANDMARK, not a shared pin. Ten identical
                     pictures in a ten-tile grid is a bullet — the eye stops
                     reading them after the second and the tiles become a list

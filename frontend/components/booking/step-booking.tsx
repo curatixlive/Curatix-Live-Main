@@ -14,6 +14,7 @@ import { EventSubtitle, FunnelScreen } from './funnel-shell';
 import { Rise, StepTransition } from './motion';
 import { StickyActionBar } from './sticky-action-bar';
 import { TierPicker } from './tier-picker';
+import { AccessGate } from './access-gate';
 import { SeatPicker } from './seat-picker';
 import { SessionPicker } from '@/components/event/session-picker';
 import { Questionnaire } from './questionnaire';
@@ -67,7 +68,11 @@ export function BookingStep() {
     setSession,
     unanswered,
     seatIds,
+    access,
   } = useBooking();
+  // An invite-only event cannot be booked without the code or a relationship; the
+  // server refuses it too, this just says so before the press.
+  const inviteBlocked = Boolean(event.invite_only) && !access?.granted;
   // Nothing is marked wrong until somebody tries to leave — a required
   // question is not a mistake on arrival.
   const [showAnswerErrors, setShowAnswerErrors] = React.useState(false);
@@ -195,6 +200,10 @@ export function BookingStep() {
         ) : null}
 
         <Rise index={sessionDays.length > 0 ? 2 : 1}>
+          <AccessGate />
+        </Rise>
+
+        <Rise index={sessionDays.length > 0 ? 2 : 1}>
           {event.seating_enabled ? <SeatPicker /> : <TierPicker />}
         </Rise>
 
@@ -279,7 +288,13 @@ export function BookingStep() {
         <Button
           size="lg"
           onClick={advance}
-          disabled={!chosen || totals.overAvailable || totals.crossSession || totals.notOnSale}
+          disabled={
+            !chosen ||
+            inviteBlocked ||
+            totals.overAvailable ||
+            totals.crossSession ||
+            totals.notOnSale
+          }
           className={cn(CTA_PILL_LG, 'shrink-0')}
         >
           Proceed

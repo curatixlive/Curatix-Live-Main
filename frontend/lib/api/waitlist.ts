@@ -48,8 +48,7 @@ export type WaitlistEntry = {
 const path = (eventId: string) => `/events/${encodeURIComponent(eventId)}/waitlist`;
 
 /** Join. Idempotent — pressing twice is one row and one place in the queue. */
-export const joinWaitlist = (eventId: string) =>
-  api.post<WaitlistState>(path(eventId), {});
+export const joinWaitlist = (eventId: string) => api.post<WaitlistState>(path(eventId), {});
 
 /**
  * Leave. A 200 whether or not they were on it, because the caller's intent is

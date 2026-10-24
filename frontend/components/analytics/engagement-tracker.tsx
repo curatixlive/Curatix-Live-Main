@@ -35,7 +35,8 @@ import {
  * the time a page's `TrackEventView` records a view, counting is already on —
  * without depending on where in the tree this component happens to sit.
  */
-const useIsomorphicLayoutEffect = typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect;
+const useIsomorphicLayoutEffect =
+  typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect;
 
 export function EngagementTracker() {
   useIsomorphicLayoutEffect(() => armEngagement(), []);
@@ -86,9 +87,9 @@ export function EngagementTracker() {
       // the poster inside it, so look up to the pressable and back down.
       const poster =
         target.closest<HTMLElement>('[data-event-poster]') ??
-        target.closest('a, button, [role="button"]')?.querySelector<HTMLElement>(
-          '[data-event-poster]',
-        );
+        target
+          .closest('a, button, [role="button"]')
+          ?.querySelector<HTMLElement>('[data-event-poster]');
       const id = poster?.dataset.eventPoster;
       if (id) rememberPress(id);
     };

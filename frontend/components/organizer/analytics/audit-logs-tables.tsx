@@ -3,7 +3,15 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { BadgePercent, Download, IndianRupee, RefreshCw, Ticket, TicketPercent, Users } from 'lucide-react';
+import {
+  BadgePercent,
+  Download,
+  IndianRupee,
+  RefreshCw,
+  Ticket,
+  TicketPercent,
+  Users,
+} from 'lucide-react';
 import type {
   EventAnalytics,
   FeaturePeriod,
@@ -64,6 +72,11 @@ const FEATURE_NAME: Record<FeaturePeriod['feature'], string> = {
 
 export function AuditLogsTables({ data, eventId }: { data: EventAnalytics; eventId: string }) {
   const multiTier = new Set(data.tiers.map((tier) => tier.id)).size > 1;
+  if (data.finance_hidden) {
+    // Prices, discounts and takings are money; the host has not shared them with
+    // this co-host. What remains is the sales count by tier.
+    return <TierSales tiers={data.tiers} eventTitle={data.event?.title ?? 'event'} />;
+  }
   return (
     <>
       <PriceTimeline data={data} multiTier={multiTier} />
@@ -79,7 +92,11 @@ export function AuditLogsTables({ data, eventId }: { data: EventAnalytics; event
 
 function periodStart(period: PricePeriod): React.ReactNode {
   const prefix =
-    period.kind === 'created' ? 'Created • ' : period.kind === 'baseline' ? 'Tracking began • ' : '';
+    period.kind === 'created'
+      ? 'Created • '
+      : period.kind === 'baseline'
+        ? 'Tracking began • '
+        : '';
   return (
     <>
       {prefix}
@@ -105,11 +122,21 @@ function PriceTimeline({ data, multiTier }: { data: EventAnalytics; multiTier: b
           <table className="w-full min-w-[36rem]">
             <thead className="bg-sunken">
               <tr>
-                <th scope="col" className={TH}>Ticket Price</th>
-                <th scope="col" className={TH}>Active Period</th>
-                <th scope="col" className={TH}>Spots Sold</th>
-                <th scope="col" className={TH}>Revenue</th>
-                <th scope="col" className={TH}>Status</th>
+                <th scope="col" className={TH}>
+                  Ticket Price
+                </th>
+                <th scope="col" className={TH}>
+                  Active Period
+                </th>
+                <th scope="col" className={TH}>
+                  Spots Sold
+                </th>
+                <th scope="col" className={TH}>
+                  Revenue
+                </th>
+                <th scope="col" className={TH}>
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -128,7 +155,13 @@ function PriceTimeline({ data, multiTier }: { data: EventAnalytics; multiTier: b
                         </span>
                       ) : null}
                     </td>
-                    <td className={cn(TD, 'min-w-[12rem] text-muted-foreground', active && 'text-success')}>
+                    <td
+                      className={cn(
+                        TD,
+                        'min-w-[12rem] text-muted-foreground',
+                        active && 'text-success',
+                      )}
+                    >
                       <span className="block text-foreground">{periodStart(period)}</span>
                       <span className="block">
                         → {period.ended_at ? formatDateTime(period.ended_at) : 'Now'}
@@ -201,10 +234,18 @@ function FeatureLog({ periods, multiTier }: { periods: FeaturePeriod[]; multiTie
         <table className="w-full min-w-[34rem]">
           <thead className="bg-sunken">
             <tr>
-              <th scope="col" className={TH}>Feature</th>
-              <th scope="col" className={TH}>Status</th>
-              <th scope="col" className={TH}>Period</th>
-              <th scope="col" className={TH}>Spots Booked</th>
+              <th scope="col" className={TH}>
+                Feature
+              </th>
+              <th scope="col" className={TH}>
+                Status
+              </th>
+              <th scope="col" className={TH}>
+                Period
+              </th>
+              <th scope="col" className={TH}>
+                Spots Booked
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -230,7 +271,9 @@ function FeatureLog({ periods, multiTier }: { periods: FeaturePeriod[]; multiTie
                   </td>
                   <td className={cn(TD, 'min-w-[12rem] text-muted-foreground')}>
                     <span className="block text-foreground">
-                      {period.enabled_at ? formatDateTime(period.enabled_at) : 'Before history began'}
+                      {period.enabled_at
+                        ? formatDateTime(period.enabled_at)
+                        : 'Before history began'}
                     </span>
                     <span className="block">
                       → {period.disabled_at ? formatDateTime(period.disabled_at) : 'Present'}
@@ -243,10 +286,16 @@ function FeatureLog({ periods, multiTier }: { periods: FeaturePeriod[]; multiTie
           </tbody>
           <tfoot className="border-t-2 border-primary/40 bg-sunken">
             <tr>
-              <th scope="row" colSpan={3} className={cn(TH, 'text-body-sm font-semibold text-primary')}>
+              <th
+                scope="row"
+                colSpan={3}
+                className={cn(TH, 'text-body-sm font-semibold text-primary')}
+              >
                 Total Spots Booked
               </th>
-              <td className={cn(TD, 'font-semibold tabular-nums text-primary')}>{formatCount(total)}</td>
+              <td className={cn(TD, 'font-semibold tabular-nums text-primary')}>
+                {formatCount(total)}
+              </td>
             </tr>
           </tfoot>
         </table>
@@ -291,7 +340,9 @@ function GroupOffers({ data }: { data: EventAnalytics }) {
           caption={
             offers.bands.length
               ? offers.bands
-                  .map((band) => `${band.min_quantity}+ tickets (${formatMoney(band.revenue_minor)})`)
+                  .map(
+                    (band) => `${band.min_quantity}+ tickets (${formatMoney(band.revenue_minor)})`,
+                  )
                   .join(', ')
               : undefined
           }
@@ -328,11 +379,21 @@ function TierSales({ tiers, eventTitle }: { tiers: TierAnalytics[]; eventTitle: 
           <table className="w-full min-w-[32rem]">
             <thead className="bg-sunken">
               <tr>
-                <th scope="col" className={TH}>Tier</th>
-                <th scope="col" className={TH}>Price</th>
-                <th scope="col" className={TH}>Per Person</th>
-                <th scope="col" className={TH}>Orders</th>
-                <th scope="col" className={TH}>Spots</th>
+                <th scope="col" className={TH}>
+                  Tier
+                </th>
+                <th scope="col" className={TH}>
+                  Price
+                </th>
+                <th scope="col" className={TH}>
+                  Per Person
+                </th>
+                <th scope="col" className={TH}>
+                  Orders
+                </th>
+                <th scope="col" className={TH}>
+                  Spots
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -395,9 +456,30 @@ const TIER_EXPORT_COLUMNS: ColumnDef<TierAnalytics>[] = [
     exportValue: (tier) =>
       tier.per_person_minor === null ? '' : (tier.per_person_minor / 100).toFixed(2),
   },
-  { key: 'orders', header: 'Orders', width: 100, numeric: true, render: (tier) => tier.orders, exportValue: (tier) => tier.orders },
-  { key: 'seats', header: 'Spots', width: 100, numeric: true, render: (tier) => tier.seats, exportValue: (tier) => tier.seats },
-  { key: 'quantity', header: 'Quantity', width: 100, numeric: true, render: (tier) => tier.quantity, exportValue: (tier) => tier.quantity },
+  {
+    key: 'orders',
+    header: 'Orders',
+    width: 100,
+    numeric: true,
+    render: (tier) => tier.orders,
+    exportValue: (tier) => tier.orders,
+  },
+  {
+    key: 'seats',
+    header: 'Spots',
+    width: 100,
+    numeric: true,
+    render: (tier) => tier.seats,
+    exportValue: (tier) => tier.seats,
+  },
+  {
+    key: 'quantity',
+    header: 'Quantity',
+    width: 100,
+    numeric: true,
+    render: (tier) => tier.quantity,
+    exportValue: (tier) => tier.quantity,
+  },
   {
     key: 'charged',
     header: 'Billed',
@@ -439,7 +521,7 @@ function CouponUsage({ data, eventId }: { data: EventAnalytics; eventId: string 
       {/* `relative` so anything absolutely positioned inside stays inside —
           see the same scroller in `audience-and-feedback.tsx` for the 552px
           page that taught this. */}
-      <div className="relative -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 touch-manipulation [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+      <div className="relative -mx-4 flex touch-manipulation snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
         <StatCard
           icon={TicketPercent}
           label="Coupons Used"
@@ -470,7 +552,8 @@ function CouponCodes({ eventId }: { eventId: string }) {
     staleTime: 30_000,
   });
 
-  if (!ready || (organization && query.isPending)) return <Skeleton className="h-16 w-full rounded-2xl" />;
+  if (!ready || (organization && query.isPending))
+    return <Skeleton className="h-16 w-full rounded-2xl" />;
   if (!organization || query.isError) return null;
 
   const all = query.data ?? [];
@@ -502,7 +585,15 @@ function CouponCodes({ eventId }: { eventId: string }) {
   );
 }
 
-function CodeGroup({ coupons, caption, note }: { coupons: Coupon[]; caption: string; note?: string }) {
+function CodeGroup({
+  coupons,
+  caption,
+  note,
+}: {
+  coupons: Coupon[];
+  caption: string;
+  note?: string;
+}) {
   return (
     <div className={cn(CARD, CARD_PAD, 'flex flex-col gap-3')}>
       <div className="flex flex-col gap-0.5">
@@ -518,7 +609,9 @@ function CodeGroup({ coupons, caption, note }: { coupons: Coupon[]; caption: str
             <span className="inline-flex min-w-0 items-center gap-2">
               <BadgePercent className="size-3.5 shrink-0 text-primary" aria-hidden />
               <span className="truncate font-mono text-body-sm font-semibold">{coupon.code}</span>
-              <span className="shrink-0 text-caption text-muted-foreground">{couponTerms(coupon)}</span>
+              <span className="shrink-0 text-caption text-muted-foreground">
+                {couponTerms(coupon)}
+              </span>
               {coupon.is_active ? null : (
                 <span className="shrink-0 text-caption text-muted-foreground">· switched off</span>
               )}
@@ -536,7 +629,9 @@ function CodeGroup({ coupons, caption, note }: { coupons: Coupon[]; caption: str
 
 function couponTerms(coupon: Coupon): string {
   if (coupon.kind === 'percent') {
-    const cap = coupon.max_discount_minor ? `, up to ${formatMoney(coupon.max_discount_minor)}` : '';
+    const cap = coupon.max_discount_minor
+      ? `, up to ${formatMoney(coupon.max_discount_minor)}`
+      : '';
     return `${coupon.value}% off${cap}`;
   }
   return `${formatMoney(coupon.value)} off`;

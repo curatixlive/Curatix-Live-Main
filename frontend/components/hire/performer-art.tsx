@@ -162,7 +162,15 @@ const GLYPHS: Record<PerformerType, React.ReactNode> = {
   // versions below deliberately do not have.
   singer: (
     <>
-      <rect x="20" y="12" width="8" height="13" rx="4" fill="rgb(var(--on-gradient))" stroke="none" />
+      <rect
+        x="20"
+        y="12"
+        width="8"
+        height="13"
+        rx="4"
+        fill="rgb(var(--on-gradient))"
+        stroke="none"
+      />
       <path d="M16 23a8 8 0 0 0 16 0" />
       <path d="M24 31v5M18 36h12" />
     </>
@@ -191,7 +199,15 @@ const GLYPHS: Record<PerformerType, React.ReactNode> = {
   // A handheld mic with sound leaving it — a host talks TO a room.
   anchor: (
     <>
-      <rect x="15" y="14" width="7" height="12" rx="3.5" fill="rgb(var(--on-gradient))" stroke="none" />
+      <rect
+        x="15"
+        y="14"
+        width="7"
+        height="12"
+        rx="3.5"
+        fill="rgb(var(--on-gradient))"
+        stroke="none"
+      />
       <path d="M18.5 26v9" />
       <path d="M28 19a7 7 0 0 1 0 11" strokeWidth="2.2" />
       <path d="M32.5 15.5a13 13 0 0 1 0 18" strokeWidth="2.2" />
@@ -225,7 +241,10 @@ const GLYPHS: Record<PerformerType, React.ReactNode> = {
       <path d="M16 31h14" strokeWidth="3" />
       <path d="M19 31V16h9v15" />
       <path d="M19 22h9" strokeWidth="2.2" />
-      <path d="M34 13l1.3 3.2L38.5 17.5 35.3 18.8 34 22l-1.3-3.2L29.5 17.5l3.2-1.3L34 13Z" strokeWidth="1.8" />
+      <path
+        d="M34 13l1.3 3.2L38.5 17.5 35.3 18.8 34 22l-1.3-3.2L29.5 17.5l3.2-1.3L34 13Z"
+        strokeWidth="1.8"
+      />
     </>
   ),
 

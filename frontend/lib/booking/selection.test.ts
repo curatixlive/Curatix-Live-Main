@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { TicketTier } from '@/lib/api/types';
 import {
+  bookingItemsSignature,
+  genderUnitPrice,
+  quantityFor,
+  serialiseSelection,
+  setQuantity,
+  tierQuantityFor,
+  toBookingItems,
   SELECTION_PARAM,
   SESSION_PARAM,
   idempotencyKeyFor,
@@ -177,5 +184,97 @@ describe('standingSeatIds', () => {
   });
   it('keeps everything until the seat map has loaded', () => {
     expect(standingSeatIds(['a', 'b'], null, true)).toEqual(['a', 'b']);
+  });
+});
+
+describe('gender lines', () => {
+  const T = 'tier-1';
+
+  it('round-trips through the URL, one line per (tier, gender)', () => {
+    const selection = [
+      { tierId: T, quantity: 2, gender: 'female' as const },
+      { tierId: T, quantity: 1, gender: 'male' as const },
+      { tierId: T, quantity: 3 },
+    ];
+    expect(parseSelection(serialiseSelection(selection))).toEqual(selection);
+  });
+
+  it('drops a repeated (tier, gender) and an unknown gender code', () => {
+    expect(parseSelection(`${T}:1:f,${T}:2:f`)).toEqual([
+      { tierId: T, quantity: 1, gender: 'female' },
+    ]);
+    expect(parseSelection(`${T}:2:x`)).toEqual([{ tierId: T, quantity: 2 }]);
+  });
+
+  it('sets and reads one gender without disturbing the others', () => {
+    let selection = setQuantity([], T, 1, 'male');
+    selection = setQuantity(selection, T, 2, 'female');
+    selection = setQuantity(selection, T, 1);
+    expect(quantityFor(selection, T, 'male')).toBe(1);
+    expect(quantityFor(selection, T, 'female')).toBe(2);
+    expect(quantityFor(selection, T)).toBe(1);
+    expect(tierQuantityFor(selection, T)).toBe(4);
+    expect(setQuantity(selection, T, 0, 'female').some((l) => l.gender === 'female')).toBe(false);
+  });
+
+  it('is sent to the server per line, and only where chosen', () => {
+    expect(
+      toBookingItems([
+        { tierId: T, quantity: 1, gender: 'female' },
+        { tierId: T, quantity: 2 },
+      ]),
+    ).toEqual([
+      { ticket_type_id: T, quantity: 1, gender: 'female' },
+      { ticket_type_id: T, quantity: 2 },
+    ]);
+  });
+
+  it('prices a chosen gender at its own price, and the rest at the normal one', () => {
+    const priced = tier({
+      id: T,
+      gender_prices: { male: 149_900, female: 129_900 },
+      price: 99_900,
+      effective_price: 99_900,
+    });
+    expect(genderUnitPrice(priced, 1, 'male')).toBe(149_900);
+    expect(genderUnitPrice(priced, 1, 'female')).toBe(129_900);
+    expect(genderUnitPrice(priced, 1)).toBe(99_900);
+  });
+
+  it('totals each line at its own price and names the gender only where it applied', () => {
+    const priced = tier({ id: T, gender_prices: { female: 40_000 } });
+    const totals = totalsFor(
+      [
+        { tierId: T, quantity: 2, gender: 'female' },
+        { tierId: T, quantity: 1, gender: 'male' },
+      ],
+      [priced],
+    );
+    expect(totals.total).toBe(2 * 40_000 + 50_000);
+    expect(totals.lines.map((line) => line.gender)).toEqual(['female', undefined]);
+  });
+
+  it('counts two lines of one tier against ONE stock', () => {
+    const scarce = tier({ id: T, available: 3, gender_prices: { female: 40_000 } });
+    const totals = totalsFor(
+      [
+        { tierId: T, quantity: 2, gender: 'female' },
+        { tierId: T, quantity: 2 },
+      ],
+      [scarce],
+    );
+    expect(totals.overAvailable).toBe(true);
+  });
+
+  it('gives different genders different idempotency keys, and compares a hold per tier', () => {
+    const a = [{ tierId: T, quantity: 1, gender: 'male' as const }];
+    const b = [{ tierId: T, quantity: 1, gender: 'female' as const }];
+    expect(selectionSignature(a)).not.toBe(selectionSignature(b));
+    // The hold's own lines split only where a gender price applied; the basket
+    // splits by whatever was picked. Per tier they must agree or a matching
+    // hold is cancelled as "stale".
+    expect(tierSignature([...a, { tierId: T, quantity: 2 }])).toBe(
+      bookingItemsSignature([{ ticket_type_id: T, quantity: 3 }]),
+    );
   });
 });

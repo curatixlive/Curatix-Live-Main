@@ -5,12 +5,7 @@ import { RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { DatePicker } from './date-picker';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerTitle,
-} from '@/components/ui/drawer';
+import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer';
 import { CATEGORIES } from '@/lib/discovery/categories';
 import { POPULAR_CITIES } from '@/lib/discovery/cities';
 import type { DateWindowId } from '@/lib/discovery/date-windows';

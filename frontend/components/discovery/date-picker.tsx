@@ -4,12 +4,7 @@ import * as React from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerTitle,
-} from '@/components/ui/drawer';
+import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer';
 import {
   addDays,
   addMonths,
@@ -210,7 +205,7 @@ export function DatePicker({
                 type="button"
                 onClick={clear}
                 disabled={!selection.from && !from}
-                className="rounded-md text-body-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="rounded-md text-body-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
               >
                 Clear
               </button>
@@ -236,7 +231,7 @@ export function DatePicker({
             // A month entirely in the past has nothing bookable in it.
             disabled={month.slice(0, 7) <= today.slice(0, 7)}
             aria-label="Previous month"
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
           >
             <ChevronLeft className="size-4" aria-hidden />
           </button>
@@ -278,7 +273,7 @@ export function DatePicker({
             type="button"
             onClick={clear}
             disabled={!selection.from && !from}
-            className="rounded-md text-body-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-md text-body-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
           >
             Clear
           </button>

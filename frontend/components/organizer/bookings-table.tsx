@@ -6,9 +6,7 @@ import { Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/discovery/format';
 import type { BookingStatus, OrganizerBooking } from '@/lib/api/organizer';
-import { useOrganizerBookings,
-  useEventRows,
-} from '@/lib/organizer/queries';
+import { useOrganizerBookings, useEventRows } from '@/lib/organizer/queries';
 import { useDataTable, type ColumnDef } from '@/lib/organizer/table';
 import { EmptyState, ErrorState } from './primitives';
 import {
@@ -146,7 +144,8 @@ export function BookingsTable() {
     values.q && { key: 'q', label: `“${values.q}”`, onClear: () => set({ q: '' }) },
     values.status && {
       key: 'status',
-      label: STATUS_FILTERS.find((option) => option.value === values.status)?.label ?? values.status,
+      label:
+        STATUS_FILTERS.find((option) => option.value === values.status)?.label ?? values.status,
       onClear: () => set({ status: '' }),
     },
     values.event_id && {

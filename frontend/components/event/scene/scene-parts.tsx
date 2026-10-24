@@ -202,7 +202,7 @@ export function OffersCard({ eventId }: { eventId: string }) {
           </span>
         </span>
         {offers.length > 1 ? (
-          <span className="shrink-0 text-caption font-bold tabular-nums text-warning">
+          <span className="shrink-0 text-caption font-bold tabular-nums text-foreground">
             {(index % offers.length) + 1}/{offers.length}
           </span>
         ) : null}

@@ -138,7 +138,7 @@ export function PosterCard({
           {/* Desktop link navigation */}
           <Link
             href={eventPath(event)}
-            className="hidden sm:inline after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-offset-2 focus-visible:after:ring-offset-background"
+            className="hidden after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-offset-2 focus-visible:after:ring-offset-background sm:inline"
           >
             {event.title}
           </Link>
@@ -146,7 +146,7 @@ export function PosterCard({
           <button
             type="button"
             onClick={handleMobileTap}
-            className="sm:hidden text-left after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none"
+            className="text-left after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none sm:hidden"
           >
             {event.title}
           </button>

@@ -72,7 +72,9 @@ function UrlFiltered({ eventId }: { eventId: string }) {
   const search = React.useMemo(() => new URLSearchParams(params?.toString() ?? ''), [params]);
   const { values, set } = useUrlFilters(DEFAULTS, search, (query) =>
     router.replace(
-      query ? `/dashboard/events/${eventId}/attendees?${query}` : `/dashboard/events/${eventId}/attendees`,
+      query
+        ? `/dashboard/events/${eventId}/attendees?${query}`
+        : `/dashboard/events/${eventId}/attendees`,
       { scroll: false },
     ),
   );
@@ -105,7 +107,10 @@ function Checkins({
     sort,
   });
 
-  const rows = React.useMemo(() => query.data?.pages.flatMap((page) => page.data) ?? [], [query.data]);
+  const rows = React.useMemo(
+    () => query.data?.pages.flatMap((page) => page.data) ?? [],
+    [query.data],
+  );
   const total = query.data?.pages[0]?.meta.count ?? null;
   const hasMore = Boolean(query.hasNextPage);
   const filtered = Boolean(values.q || values.state);
@@ -114,7 +119,10 @@ function Checkins({
     <section aria-labelledby={headingId} className={cn(CARD, 'flex flex-col overflow-hidden')}>
       <div className="flex flex-col gap-4 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
-          <h2 id={headingId} className="flex min-w-0 items-center gap-2.5 text-h4 font-semibold text-foreground">
+          <h2
+            id={headingId}
+            className="flex min-w-0 items-center gap-2.5 text-h4 font-semibold text-foreground"
+          >
             <UserCheck className="size-6 shrink-0 text-primary" aria-hidden />
             <span className="min-w-0">Attendee Check-ins</span>
           </h2>
@@ -294,7 +302,12 @@ function AttendeeRowView({ row }: { row: AttendeeRow }) {
   const admitted = row.status === 'used';
   const name = row.holder_name || row.holder_email || 'Ticket holder';
   return (
-    <article className={cn('flex items-start gap-4 px-4 py-5 sm:px-5', row.status === 'void' && 'opacity-60')}>
+    <article
+      className={cn(
+        'flex items-start gap-4 px-4 py-5 sm:px-5',
+        row.status === 'void' && 'opacity-60',
+      )}
+    >
       <Initial name={row.holder_name || row.holder_email} admitted={admitted} />
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -331,7 +344,9 @@ function AttendeeRowView({ row }: { row: AttendeeRow }) {
         ) : null}
 
         {row.is_reassigned ? (
-          <p className="text-caption text-muted-foreground">Booked by {row.buyer_name || row.buyer_email}</p>
+          <p className="text-caption text-muted-foreground">
+            Booked by {row.buyer_name || row.buyer_email}
+          </p>
         ) : null}
 
         <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-caption text-muted-foreground">
@@ -339,6 +354,11 @@ function AttendeeRowView({ row }: { row: AttendeeRow }) {
             <Ticket className="size-3.5 shrink-0" aria-hidden />
             <span className="truncate">{row.ticket_type}</span>
           </span>
+          {row.gender ? (
+            <span className="font-semibold text-foreground">
+              {row.gender === 'male' ? 'Male' : 'Female'}
+            </span>
+          ) : null}
           {row.seat_label ? (
             <span className="font-semibold text-foreground">
               Seat {row.seat_label}
@@ -413,6 +433,14 @@ const EXPORT_COLUMNS: ColumnDef<AttendeeRow>[] = [
   { key: 'phone', header: 'Phone', width: 140, render: (row) => row.phone },
   { key: 'ticket_type', header: 'Ticket type', width: 140, render: (row) => row.ticket_type },
   { key: 'seat_label', header: 'Seat', width: 100, render: (row) => row.seat_label ?? '' },
+  {
+    key: 'gender',
+    header: 'Gender (as chosen)',
+    width: 120,
+    render: (row) => row.gender ?? '',
+    exportValue: (row) =>
+      row.gender === 'male' ? 'Male' : row.gender === 'female' ? 'Female' : '',
+  },
   { key: 'seat_section', header: 'Section', width: 120, render: (row) => row.seat_section ?? '' },
   {
     key: 'status',

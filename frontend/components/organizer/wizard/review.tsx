@@ -90,7 +90,8 @@ export function ReviewStep({
 }) {
   // Submitting is only a real action from these two states; everywhere else
   // the event is already past this step and editing is all there is to do.
-  const submittable = eventStatus === undefined || eventStatus === 'draft' || eventStatus === 'rejected';
+  const submittable =
+    eventStatus === undefined || eventStatus === 'draft' || eventStatus === 'rejected';
   const blockers = publishBlockers(draft, organizations);
   const publishFailure = publishError ? describePublishFailure(publishError) : null;
   const organization = organizations?.find((entry) => entry.id === draft.organizationId);
@@ -202,7 +203,9 @@ export function ReviewStep({
                 <span
                   className={cn(
                     'inline-flex size-5 shrink-0 items-center justify-center rounded-full',
-                    item.done ? 'bg-success text-success-foreground' : 'border border-border-strong',
+                    item.done
+                      ? 'bg-success text-success-foreground'
+                      : 'border border-border-strong',
                   )}
                   aria-hidden
                 >
@@ -223,8 +226,8 @@ export function ReviewStep({
           ))}
         </ul>
         <p className="text-caption text-muted-foreground">
-          A title, venue, city, future start time and one ticket type are required. A cover
-          image is recommended.
+          A title, venue, city, future start time and one ticket type are required. A cover image is
+          recommended.
         </p>
       </section>
 
@@ -345,7 +348,7 @@ export function ReviewStep({
                     }
                   : undefined
               }
-              className="shrink-0 rounded-full border border-current px-pill-sm py-1 text-label underline-offset-2 hover:underline"
+              className="px-pill-sm shrink-0 rounded-full border border-current py-1 text-label underline-offset-2 hover:underline"
             >
               {publishFailure.action.label}
             </Link>
@@ -353,7 +356,7 @@ export function ReviewStep({
             <button
               type="button"
               onClick={() => onJump(publishFailure.action!.step!)}
-              className="shrink-0 rounded-full border border-current px-pill-sm py-1 text-label underline-offset-2 hover:underline"
+              className="px-pill-sm shrink-0 rounded-full border border-current py-1 text-label underline-offset-2 hover:underline"
             >
               {publishFailure.action.label}
             </button>

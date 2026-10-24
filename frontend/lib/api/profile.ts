@@ -77,12 +77,7 @@ export const avatarUrlOf = (user: ProfileUser | null | undefined): string =>
  */
 export const AVATAR_MAX_BYTES = 10 * 1024 * 1024;
 
-export const ACCEPTED_AVATAR_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-];
+export const ACCEPTED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 /** For an `<input type="file">`'s `accept`, so the picker filters too. */
 export const AVATAR_ACCEPT = ACCEPTED_AVATAR_TYPES.join(',');
@@ -189,6 +184,7 @@ export type ProfileUpdate = {
   date_of_birth?: string | null;
   gender?: Gender | '';
   gender_self_described?: string;
+  city?: string;
 };
 
 export const updateProfile = (changes: ProfileUpdate) =>

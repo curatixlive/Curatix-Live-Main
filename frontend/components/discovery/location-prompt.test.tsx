@@ -16,10 +16,12 @@ import { LocationPrompt } from './location-prompt';
  */
 
 const locationState = vi.hoisted(() => ({ current: {} as Partial<LocationState> }));
-const authState = vi.hoisted(() => ({ current: { status: 'anonymous', user: null } as {
-  status: string;
-  user: { onboarding_completed_at: string | null } | null;
-} }));
+const authState = vi.hoisted(() => ({
+  current: { status: 'anonymous', user: null } as {
+    status: string;
+    user: { onboarding_completed_at: string | null } | null;
+  },
+}));
 
 vi.mock('@/lib/location/location-context', () => ({
   useLocationContext: () => locationState.current,
@@ -92,7 +94,10 @@ describe('LocationPrompt', () => {
   });
 
   it('stays away once a city is known', () => {
-    locationState.current = { ...locationState.current, city: { name: 'Mumbai', slug: 'mumbai' } as never };
+    locationState.current = {
+      ...locationState.current,
+      city: { name: 'Mumbai', slug: 'mumbai' } as never,
+    };
     render(<LocationPrompt />);
     settle();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

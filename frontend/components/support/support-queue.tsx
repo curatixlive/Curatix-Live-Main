@@ -105,9 +105,7 @@ export function SupportQueue({ scope }: { scope: 'organizer' | 'admin' }) {
             icon={MessageSquare}
             title="Nothing here"
             body={
-              filter === 'open'
-                ? 'No queries are waiting on a reply.'
-                : 'No queries in this view.'
+              filter === 'open' ? 'No queries are waiting on a reply.' : 'No queries in this view.'
             }
           />
         </div>
@@ -126,9 +124,11 @@ export function SupportQueue({ scope }: { scope: 'organizer' | 'admin' }) {
           type="button"
           onClick={() => void query.fetchNextPage()}
           disabled={query.isFetchingNextPage}
-          className="mx-auto inline-flex h-control items-center gap-2 rounded-full border border-border bg-surface px-pill text-label disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mx-auto inline-flex h-control items-center gap-2 rounded-full border border-border bg-surface px-pill text-label focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
         >
-          {query.isFetchingNextPage ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+          {query.isFetchingNextPage ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : null}
           Load more
         </button>
       ) : null}
@@ -239,7 +239,7 @@ function QueryCard({
             type="button"
             onClick={() => resolve.mutate()}
             disabled={resolve.isPending}
-            className="inline-flex h-control items-center rounded-full border border-border bg-surface px-pill text-label transition-colors hover:bg-muted disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-control items-center rounded-full border border-border bg-surface px-pill text-label transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
           >
             Mark resolved
           </button>
@@ -263,7 +263,7 @@ function QueryCard({
             type="button"
             disabled={reply.trim().length < 2 || send.isPending}
             onClick={() => send.mutate()}
-            className="inline-flex h-control w-fit items-center gap-2 rounded-full bg-cta px-pill text-label text-cta-foreground disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-control w-fit items-center gap-2 rounded-full bg-cta px-pill text-label text-cta-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
           >
             {send.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
             Send reply

@@ -46,10 +46,7 @@ export function AccountControl() {
 
   if (status === 'unknown') {
     return (
-      <div
-        className="h-control w-control shrink-0 rounded-full bg-muted sm:w-24"
-        aria-hidden
-      />
+      <div className="h-control w-control shrink-0 rounded-full bg-muted sm:w-24" aria-hidden />
     );
   }
 

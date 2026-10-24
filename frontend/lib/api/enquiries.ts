@@ -54,12 +54,7 @@ export type Occasion =
  * on purpose: one is a lost deal and the other is a request that stopped
  * existing, and averaging them reports a worse conversion than the truth.
  */
-export type EnquiryStatus =
-  | 'new'
-  | 'in_progress'
-  | 'closed_won'
-  | 'closed_lost'
-  | 'cancelled';
+export type EnquiryStatus = 'new' | 'in_progress' | 'closed_won' | 'closed_lost' | 'cancelled';
 
 export type Enquiry = {
   id: string;

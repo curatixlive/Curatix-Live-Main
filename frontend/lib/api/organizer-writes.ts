@@ -71,6 +71,10 @@ export type EventContentFields = {
   address?: string;
   state?: string;
   postal_code?: string;
+  /** Invite-only: booking needs the access code or a relationship with the organiser. */
+  invite_only?: boolean;
+  /** Stored upper-case by the server; blank removes it. */
+  access_code?: string;
   accessibility_notes: string;
   /**
    * The organiser's own rules, replaced WHOLESALE — an empty array clears
@@ -161,7 +165,6 @@ export const publishEvent = (eventId: string) =>
  */
 export const archiveEvent = (eventId: string) =>
   api.post<EventDetail>(`/events/${encodeURIComponent(eventId)}/archive`, {});
-
 
 /** What a cancellation actually did. A bare 200 would leave an organiser who
  *  just spent money with no idea how much. */
@@ -256,6 +259,10 @@ export type CreateTicketTypeInput = {
    * writes must be a field this type names.
    */
   group_bands?: GroupBandInput[];
+  /** Early access before `sale_start`, for people with the event's code or a relationship. */
+  presale_starts_at?: string | null;
+  /** Per-ticket minor units by self-declared gender; `{}` clears gender pricing. */
+  gender_prices?: { male?: number; female?: number };
 };
 
 /**
@@ -319,6 +326,8 @@ export type VerifyResult = {
   /** Assigned seating: blank for general admission. */
   seat_label?: string | null;
   seat_section?: string | null;
+  /** The gender the buyer declared where the ticket was priced by gender. */
+  gender?: string | null;
 };
 
 export const verifyTicket = (input: { event_id: string; qr_token: string; gate?: string }) =>

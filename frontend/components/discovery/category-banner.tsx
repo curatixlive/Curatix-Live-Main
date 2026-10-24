@@ -135,14 +135,14 @@ export function CategoryBanner({
           {eyebrow}
         </p>
         {headline ? (
-        <h2
-          className={cn(
-            'max-w-2xl text-h4 md:text-h3',
-            onPhoto ? 'text-on-gradient' : 'text-foreground',
-          )}
-        >
-          {headline}
-        </h2>
+          <h2
+            className={cn(
+              'max-w-2xl text-h4 md:text-h3',
+              onPhoto ? 'text-on-gradient' : 'text-foreground',
+            )}
+          >
+            {headline}
+          </h2>
         ) : null}
       </div>
     </section>

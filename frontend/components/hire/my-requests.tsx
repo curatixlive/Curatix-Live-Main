@@ -120,7 +120,7 @@ export function MyRequests() {
             type="button"
             onClick={() => void query.fetchNextPage()}
             disabled={query.isFetchingNextPage}
-            className="inline-flex h-control items-center rounded-full border border-border px-pill text-label transition-colors hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-control items-center rounded-full border border-border px-pill text-label transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
             {query.isFetchingNextPage ? 'Loading…' : 'Show older briefs'}
           </button>

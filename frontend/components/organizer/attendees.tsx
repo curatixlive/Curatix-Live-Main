@@ -76,7 +76,9 @@ function LiveCount({ eventId }: { eventId: string }) {
         <div className="text-right">
           <p className="text-h3 tabular-nums leading-none text-foreground" aria-live="polite">
             {admitted === null ? '—' : admitted}
-            {capacity ? <span className="text-body-sm text-muted-foreground"> / {capacity}</span> : null}
+            {capacity ? (
+              <span className="text-body-sm text-muted-foreground"> / {capacity}</span>
+            ) : null}
           </p>
           <p className="mt-1 text-caption text-muted-foreground">
             inside now{rate === null ? '' : ' · '}

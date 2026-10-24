@@ -21,6 +21,7 @@ import { useOrganizations } from '@/lib/identity/scope';
 import { useToast } from '@/components/ui/toast';
 import { useInvalidateOrganizer } from '@/lib/organizer/queries';
 import { describePublishFailure } from '@/lib/organizer/publish-error';
+import { FlatFormContext } from './fields';
 import { completion, stepStatus, validate, type StepId } from '@/lib/organizer/wizard/model';
 import {
   PHASES,
@@ -55,6 +56,8 @@ import { MediaStep } from './media-step';
 import { SeoStep } from './seo-step';
 import { TicketBuilder } from './ticket-builder';
 import { SeatingPanel } from './seating-panel';
+import { AccessPanel } from './access-panel';
+import { CoHostPanel } from './cohost-panel';
 import { LivePreview } from './preview';
 import { ReviewStep } from './review';
 
@@ -110,7 +113,22 @@ import { WizardActionBar, saveSummary } from './action-bar';
  * "Only the owning organization can manage this event." is not reachable from
  * here any more.
  */
-export function EventWizard({ eventId, cloneFrom }: { eventId?: string; cloneFrom?: string } = {}) {
+/** The members of the single-page form, in the order the form reads top to bottom. */
+const SINGLE_PAGE_ORDER: readonly PhaseMember[] = [
+  'basics',
+  'details',
+  'schedule',
+  'venue',
+  'tickets',
+  'coupons',
+  'media',
+];
+
+export function EventWizard({
+  eventId,
+  cloneFrom,
+  layout = 'steps',
+}: { eventId?: string; cloneFrom?: string; layout?: 'steps' | 'single' } = {}) {
   const router = useRouter();
   const invalidate = useInvalidateOrganizer();
   // Aliased: `status` below is the per-step rail state, which is a different
@@ -424,6 +442,8 @@ export function EventWizard({ eventId, cloneFrom }: { eventId?: string; cloneFro
               onTiers={setTiers}
               onSeated={setSeatedTiers}
             />
+            <AccessPanel draft={draft} update={update} save={save} />
+            <CoHostPanel eventId={draft.eventId} />
             {seatedTiers ? (
               <p className="text-body-sm text-muted-foreground">
                 Each seating section is its own ticket type, priced above.
@@ -657,6 +677,64 @@ export function EventWizard({ eventId, cloneFrom }: { eventId?: string; cloneFro
           <Link href="/dashboard">Back to the dashboard</Link>
         </Button>
       </div>
+    );
+  }
+
+  if (layout === 'single') {
+    const failure = publishError ? describePublishFailure(publishError) : null;
+    return (
+      <FlatFormContext.Provider value>
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-block-lg">
+          <div className="flex flex-wrap items-center gap-stack">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/dashboard/events">
+                <ArrowLeft className="size-4" aria-hidden />
+                Events
+              </Link>
+            </Button>
+            <SaveBadge state={wizard.state} error={wizard.error} savedAt={wizard.savedAt} />
+          </div>
+
+          <h1 className="text-center text-h2 font-bold uppercase tracking-wide">
+            {editing ? 'Edit event' : 'Create event'}
+          </h1>
+
+          <div className="flex flex-col gap-block-lg rounded-3xl border border-border bg-surface p-card-lg">
+            {SINGLE_PAGE_ORDER.map((member) => (
+              <section key={member} id={memberAnchor(member)} className="scroll-mt-20">
+                {renderMember(member)}
+              </section>
+            ))}
+
+            {failure ? (
+              <p
+                role="alert"
+                className="rounded-xl border border-border bg-muted px-card py-3 text-body-sm"
+              >
+                {failure.message}
+              </p>
+            ) : null}
+
+            {/* The form's only actions, exactly three: keep it, look at it, send it. */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" size="lg" onClick={() => void wizard.saveNow()}>
+                Save Draft
+              </Button>
+              <Button variant="outline" size="lg" onClick={openPreview}>
+                Preview Event
+              </Button>
+              <Button
+                size="lg"
+                className="col-span-2"
+                loading={publishing}
+                onClick={() => void publish()}
+              >
+                Create Event
+              </Button>
+            </div>
+          </div>
+        </div>
+      </FlatFormContext.Provider>
     );
   }
 

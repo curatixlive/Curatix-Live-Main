@@ -52,16 +52,16 @@ export function OpenEventLink({
 
   return (
     <>
-      <span className="inline-block max-w-full min-w-0 sm:hidden">
+      <span className="inline-block min-w-0 max-w-full sm:hidden">
         <button
           type="button"
           onClick={() => openEvent(event)}
-          className={cn('text-left max-w-full', className)}
+          className={cn('max-w-full text-left', className)}
         >
           {children}
         </button>
       </span>
-      <span className="hidden sm:inline-block max-w-full min-w-0">
+      <span className="hidden min-w-0 max-w-full sm:inline-block">
         <Link
           // `eventPath` handles a missing slug by falling back to the bare-id
           // URL, which is what the platform served before slugs existed — so a

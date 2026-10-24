@@ -77,7 +77,8 @@ export function bookingBill(
     {
       label: items.length === 1 ? ticketLabel(items[0]) : 'Tickets',
       amount: subtotal,
-      hint: items.length > 1 ? items.map(ticketLabel).join(' · ') : items[0]?.phase_name ?? undefined,
+      hint:
+        items.length > 1 ? items.map(ticketLabel).join(' · ') : (items[0]?.phase_name ?? undefined),
     },
     // The ONE line that comes off. Named with the code where the payload
     // carries it — "Discount −₹100" leaves somebody wondering which of the
@@ -102,7 +103,9 @@ export function bookingBill(
 }
 
 function ticketLabel(item: BookingItem): string {
-  const tier = item.phase_name ? `${item.ticket_type_name} — ${item.phase_name}` : item.ticket_type_name;
+  const tier = item.phase_name
+    ? `${item.ticket_type_name} — ${item.phase_name}`
+    : item.ticket_type_name;
   return `${item.quantity} × ${tier}`;
 }
 
@@ -134,11 +137,21 @@ export function BillLines({
       {visible.map((line) => (
         <div key={line.label} className="flex items-start justify-between gap-4">
           <dt className="min-w-0">
-            <span className={cn('block text-body-sm', onDark ? 'text-ink-300' : 'text-muted-foreground')}>
+            <span
+              className={cn(
+                'block text-body-sm',
+                onDark ? 'text-ink-300' : 'text-muted-foreground',
+              )}
+            >
               {line.label}
             </span>
             {line.hint ? (
-              <span className={cn('mt-0.5 block text-caption', onDark ? 'text-ink-400' : 'text-foreground-subtle')}>
+              <span
+                className={cn(
+                  'mt-0.5 block text-caption',
+                  onDark ? 'text-ink-400' : 'text-foreground-subtle',
+                )}
+              >
                 {line.hint}
               </span>
             ) : null}

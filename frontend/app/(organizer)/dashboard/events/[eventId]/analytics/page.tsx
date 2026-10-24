@@ -17,10 +17,6 @@ import { EventAnalytics } from '@/components/organizer/event-analytics';
  */
 export const metadata: Metadata = { title: 'Event analytics' };
 
-export default function OrganizerEventAnalyticsPage({
-  params,
-}: {
-  params: { eventId: string };
-}) {
+export default function OrganizerEventAnalyticsPage({ params }: { params: { eventId: string } }) {
   return <EventAnalytics eventId={params.eventId} />;
 }

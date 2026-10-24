@@ -159,8 +159,9 @@ export function groupSessions(slots: EventSlot[], tiers: TicketTier[]): SessionD
 export function defaultSession(days: SessionDay[]): Session | null {
   const all = days.flatMap((day) => day.sessions);
   if (!all.length) return null;
-  return all.find((session) => session.state === 'available' || session.state === 'few_left')
-    ?? all[0]!;
+  return (
+    all.find((session) => session.state === 'available' || session.state === 'few_left') ?? all[0]!
+  );
 }
 
 /** The short line under a session chip. Null when there is nothing worth saying —

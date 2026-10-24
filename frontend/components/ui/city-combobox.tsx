@@ -185,7 +185,9 @@ export function CityCombobox({
                         <span className="text-muted-foreground"> · {city.state}</span>
                       ) : null}
                     </span>
-                    {selected ? <Check className="size-4 shrink-0 text-primary" aria-hidden /> : null}
+                    {selected ? (
+                      <Check className="size-4 shrink-0 text-primary" aria-hidden />
+                    ) : null}
                   </button>
                 </li>
               );

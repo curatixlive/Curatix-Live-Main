@@ -66,8 +66,7 @@ export default function CareersPage() {
         <div className="flex max-w-md flex-col gap-2">
           <h2 className="text-h4 text-foreground">No open roles today</h2>
           <p className="text-body-sm text-muted-foreground">
-            We are not hiring yet. If you would like to hear about the first opening, write to
-            us.
+            We are not hiring yet. If you would like to hear about the first opening, write to us.
           </p>
         </div>
         {SUPPORT_EMAIL ? (

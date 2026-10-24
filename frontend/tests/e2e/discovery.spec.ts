@@ -1218,7 +1218,8 @@ test.describe('the event page', () => {
 
     // The reading order is the DOM order, which is what a screen reader follows.
     const headings = await page.locator('h1, h2').allTextContents();
-    const order = ['About this event', 'Event information'];
+    // "About" (the description) comes before "Event information" (the disclosures).
+    const order = ['About', 'Event information'];
     const indexes = order.map((h) => headings.findIndex((text) => text.trim() === h));
     expect(indexes.every((i) => i >= 0)).toBe(true);
     expect(indexes).toEqual([...indexes].sort((a, b) => a - b));

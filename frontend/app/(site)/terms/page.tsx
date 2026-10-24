@@ -294,9 +294,9 @@ const SECTIONS: readonly DocSection[] = [
              the moment NEXT_PUBLIC_REGISTERED_ADDRESS is set. An invented
              address on this page would undermine the whole document. */
           <p>
-            The operating entity behind {BRAND_NAME} is in the process of being registered, and
-            this page will state its registered address once registration completes. Reach us
-            through <Link href="/contact">the contact page</Link> in the meantime.
+            The operating entity behind {BRAND_NAME} is in the process of being registered, and this
+            page will state its registered address once registration completes. Reach us through{' '}
+            <Link href="/contact">the contact page</Link> in the meantime.
           </p>
         )}
         <p>

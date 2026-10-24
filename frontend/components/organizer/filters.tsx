@@ -339,8 +339,13 @@ export function DateRangeFilter({
                   }}
                   className="flex min-h-control-sm w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-body-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 >
-                  <span className="inline-flex size-4 shrink-0 items-center justify-center text-primary" aria-hidden>
-                    {preset === option.value && !custom.from ? <Check className="size-3.5" /> : null}
+                  <span
+                    className="inline-flex size-4 shrink-0 items-center justify-center text-primary"
+                    aria-hidden
+                  >
+                    {preset === option.value && !custom.from ? (
+                      <Check className="size-3.5" />
+                    ) : null}
                   </span>
                   {option.label}
                 </button>

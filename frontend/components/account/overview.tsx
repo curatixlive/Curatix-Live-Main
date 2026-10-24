@@ -96,7 +96,9 @@ export function AccountOverview() {
               profile. Moving it here is what buys the two tiles that ARE
               navigational the width they need. */}
           {memberSince ? (
-            <p className="truncate text-caption text-foreground-subtle">Member since {memberSince}</p>
+            <p className="truncate text-caption text-foreground-subtle">
+              Member since {memberSince}
+            </p>
           ) : null}
         </div>
       </header>
@@ -138,10 +140,7 @@ export function AccountOverview() {
       </ul>
 
       {isOrganizer ? (
-        <Panel
-          title="Your organisations"
-          className="shadow-sm"
-        >
+        <Panel title="Your organisations" className="shadow-sm">
           <ul className="divide-y divide-border">
             {organizations.map((organization) => (
               <li key={organization.id}>
@@ -174,16 +173,8 @@ export function AccountOverview() {
       ) : null}
 
       <div className="grid gap-stack-lg sm:grid-cols-2">
-        <Shortcut
-          href="/account/tickets"
-          icon={TicketIcon}
-          title="My tickets"
-        />
-        <Shortcut
-          href="/account/saved"
-          icon={Bookmark}
-          title="Saved events"
-        />
+        <Shortcut href="/account/tickets" icon={TicketIcon} title="My tickets" />
+        <Shortcut href="/account/saved" icon={Bookmark} title="Saved events" />
       </div>
 
       {/* A paragraph here used to list the fields the account record does not

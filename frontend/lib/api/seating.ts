@@ -34,10 +34,10 @@ export type NewLayout = {
 
 export const fetchVenueLayouts = (venue: string, city: string, placeId = '') =>
   api
-    .get<{ data: VenueLayout[] }>(
-      `/seating/layouts?venue=${encodeURIComponent(venue)}&city=${encodeURIComponent(city)}${
-        placeId ? `&place_id=${encodeURIComponent(placeId)}` : ''
-      }`,
+    .get<{
+      data: VenueLayout[];
+    }>(
+      `/seating/layouts?venue=${encodeURIComponent(venue)}&city=${encodeURIComponent(city)}${placeId ? `&place_id=${encodeURIComponent(placeId)}` : ''}`,
     )
     .then((response) => response.data);
 
@@ -51,6 +51,8 @@ export type SeatSection = {
   name: string;
   ticket_type_id: string;
   price_minor: number;
+  /** Display only: what each declared gender pays in this section, when it differs. */
+  gender_prices?: { male?: number; female?: number };
   total: number;
   available: number;
 };

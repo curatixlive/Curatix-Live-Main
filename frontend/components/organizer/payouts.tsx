@@ -240,7 +240,6 @@ export function Payouts() {
         ) : null}
       </Panel>
 
-
       {/* ── ONE EXPLAINER, BELOW THE MONEY ───────────────────────────────
           This was inside `Card`, which is rendered four times -- so the
           payouts screen opened with the same four-step lifecycle printed

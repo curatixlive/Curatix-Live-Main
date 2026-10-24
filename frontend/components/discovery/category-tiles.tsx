@@ -119,15 +119,18 @@ export function CategoryTiles({
   return (
     <ul
       className={cn(
-        '-mx-4 grid grid-flow-col grid-rows-2 gap-3 overflow-x-auto touch-manipulation overscroll-x-contain px-4 pb-3 snap-x snap-mandatory scroll-pl-4 scrollbar-none',
-        'sm:mx-0 sm:grid-flow-row sm:grid-rows-1 sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0 sm:gap-4 lg:grid-cols-4 lg:scroll-pl-6',
-        className
+        'scrollbar-none -mx-4 grid touch-manipulation snap-x snap-mandatory scroll-pl-4 grid-flow-col grid-rows-2 gap-3 overflow-x-auto overscroll-x-contain px-4 pb-3',
+        'sm:mx-0 sm:grid-flow-row sm:grid-cols-3 sm:grid-rows-1 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:scroll-pl-6 lg:grid-cols-4',
+        className,
       )}
     >
       {tiles.map((category, index) => {
         const tint = categoryTint(category.slug);
         return (
-          <li key={category.slug} className="h-full w-[42vw] shrink-0 snap-start sm:w-auto sm:shrink">
+          <li
+            key={category.slug}
+            className="h-full w-[42vw] shrink-0 snap-start sm:w-auto sm:shrink"
+          >
             <Reveal delayMs={Math.min(index, 5) * 60} className="h-full">
               <Link
                 href={`/categories/${category.slug}`}
@@ -149,7 +152,7 @@ export function CategoryTiles({
                     {category.label}
                   </span>
                   {category.blurb ? (
-                    <span className="text-caption text-muted-foreground line-clamp-1">
+                    <span className="line-clamp-1 text-caption text-muted-foreground">
                       {category.blurb}
                     </span>
                   ) : null}
@@ -167,7 +170,7 @@ export function CategoryTiles({
                 >
                   <CategoryScene
                     slug={category.slug}
-                    className="h-16 w-full transition-transform duration-base ease-spring group-hover:scale-[1.05] group-active:-translate-y-1.5 sm:h-24 motion-reduce:transition-none motion-reduce:group-hover:scale-100 motion-reduce:group-active:translate-y-0"
+                    className="h-16 w-full transition-transform duration-base ease-spring group-hover:scale-[1.05] group-active:-translate-y-1.5 motion-reduce:transition-none motion-reduce:group-hover:scale-100 motion-reduce:group-active:translate-y-0 sm:h-24"
                   />
                 </span>
               </Link>

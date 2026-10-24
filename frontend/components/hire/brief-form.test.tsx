@@ -209,8 +209,10 @@ describe('the rail', () => {
     // Links, not buttons: an in-page map is addressable and back-buttonable,
     // where a stepper's index is state only the form can see.
     expect(within(rail).getAllByRole('link')).toHaveLength(5);
-    expect(within(rail).getByRole('link', { name: /budget/i }).getAttribute('href')).toBe(
-      '#brief-budget',
-    );
+    expect(
+      within(rail)
+        .getByRole('link', { name: /budget/i })
+        .getAttribute('href'),
+    ).toBe('#brief-budget');
   });
 });

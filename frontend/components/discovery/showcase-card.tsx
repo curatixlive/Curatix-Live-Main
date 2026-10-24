@@ -75,13 +75,7 @@ export function ShowcaseCard({
         className="relative flex aspect-[3/4] w-[15rem] shrink-0 overflow-hidden rounded-2xl border border-border bg-sunken shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
       >
         {event.poster_url ? (
-          <Image
-            src={event.poster_url}
-            alt=""
-            fill
-            sizes="15rem"
-            className="object-cover"
-          />
+          <Image src={event.poster_url} alt="" fill sizes="15rem" className="object-cover" />
         ) : null}
         <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-3 text-left">
           <span className="line-clamp-2 text-body-sm font-bold text-white">{event.title}</span>
@@ -90,58 +84,64 @@ export function ShowcaseCard({
 
       <Link
         href={eventPath(event)}
-      className={cn(
-        'group relative flex aspect-[3/4] w-[15rem] shrink-0 overflow-hidden rounded-2xl border border-border bg-sunken shadow-lg sm:w-[17rem]',
-        'transition duration-base ease-out hover:-translate-y-1 hover:shadow-xl',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        'motion-reduce:transition-none motion-reduce:hover:translate-y-0',
-      )}
-    >
-      {event.poster_url ? (
-        <Image
-          src={event.poster_url}
-          alt=""
-          fill
-          // The card is a fixed 240/272px wide, so the browser needs no
-          // viewport arithmetic — telling it the real number stops it fetching
-          // a full-width source for a quarter-width box.
-          sizes="(min-width: 640px) 272px, 240px"
-          priority={priority}
-          className="object-cover transition-transform duration-slow ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-        />
-      ) : (
-        <EventPosterArt slug={category?.slug ?? ''} seed={event.id} className="absolute inset-0" />
-      )}
+        className={cn(
+          'group relative flex aspect-[3/4] w-[15rem] shrink-0 overflow-hidden rounded-2xl border border-border bg-sunken shadow-lg sm:w-[17rem]',
+          'transition duration-base ease-out hover:-translate-y-1 hover:shadow-xl',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          'motion-reduce:transition-none motion-reduce:hover:translate-y-0',
+        )}
+      >
+        {event.poster_url ? (
+          <Image
+            src={event.poster_url}
+            alt=""
+            fill
+            // The card is a fixed 240/272px wide, so the browser needs no
+            // viewport arithmetic — telling it the real number stops it fetching
+            // a full-width source for a quarter-width box.
+            sizes="(min-width: 640px) 272px, 240px"
+            priority={priority}
+            className="object-cover transition-transform duration-slow ease-out group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+          />
+        ) : (
+          <EventPosterArt
+            slug={category?.slug ?? ''}
+            seed={event.id}
+            className="absolute inset-0"
+          />
+        )}
 
-      {/* The scrim. Two stops rather than a single fade: a linear wash over the
+        {/* The scrim. Two stops rather than a single fade: a linear wash over the
           whole card greys the artwork, where a dark foot and a clear top keeps
           the poster readable AND the text legible. */}
-      <div
-        className="absolute inset-0 bg-gradient-to-t from-overlay/85 via-overlay/25 to-transparent"
-        aria-hidden
-      />
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-overlay/85 via-overlay/25 to-transparent"
+          aria-hidden
+        />
 
-      <div className="relative mt-auto flex w-full flex-col gap-1.5 p-4">
-        {badge ? <AvailabilityBadge badge={badge} className="w-fit" /> : null}
-        <h3 className="line-clamp-2 text-body-lg font-semibold text-white">{event.title}</h3>
-        <p className="flex items-center gap-1.5 text-caption text-white/85">
-          <CalendarDays className="size-3.5 shrink-0" aria-hidden />
-          <time dateTime={machineDate(event.starts_at)}>{formatEventDateTime(event.starts_at)}</time>
-        </p>
-        <p className="flex items-center gap-1.5 text-caption text-white/85">
-          <MapPin className="size-3.5 shrink-0" aria-hidden />
-          <span className="truncate">
-            {event.venue}
-            {event.city ? `, ${event.city}` : ''}
-          </span>
-        </p>
-        {price ? (
-          <p className="text-caption font-semibold text-white">
-            {price === 'Free' ? 'Free' : `from ${price}`}
+        <div className="relative mt-auto flex w-full flex-col gap-1.5 p-4">
+          {badge ? <AvailabilityBadge badge={badge} className="w-fit" /> : null}
+          <h3 className="line-clamp-2 text-body-lg font-semibold text-white">{event.title}</h3>
+          <p className="flex items-center gap-1.5 text-caption text-white/85">
+            <CalendarDays className="size-3.5 shrink-0" aria-hidden />
+            <time dateTime={machineDate(event.starts_at)}>
+              {formatEventDateTime(event.starts_at)}
+            </time>
           </p>
-        ) : null}
-      </div>
-    </Link>
+          <p className="flex items-center gap-1.5 text-caption text-white/85">
+            <MapPin className="size-3.5 shrink-0" aria-hidden />
+            <span className="truncate">
+              {event.venue}
+              {event.city ? `, ${event.city}` : ''}
+            </span>
+          </p>
+          {price ? (
+            <p className="text-caption font-semibold text-white">
+              {price === 'Free' ? 'Free' : `from ${price}`}
+            </p>
+          ) : null}
+        </div>
+      </Link>
     </>
   );
 }

@@ -273,9 +273,7 @@ export function useAttention() {
 
 function upcoming(...lists: (EventRow[] | undefined)[]): EventRow[] {
   const now = Date.now();
-  return lists
-    .flatMap((list) => list ?? [])
-    .filter((event) => Date.parse(event.starts_at) > now);
+  return lists.flatMap((list) => list ?? []).filter((event) => Date.parse(event.starts_at) > now);
 }
 
 /** Local midnight — the same day boundary a person means by "today". */

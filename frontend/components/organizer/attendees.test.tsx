@@ -26,7 +26,9 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/lib/organizer/queries', () => ({
   useEventAttendees: () => ({
-    data: { pages: [{ data: harness.rows, meta: { next: null, previous: null, count: harness.count } }] },
+    data: {
+      pages: [{ data: harness.rows, meta: { next: null, previous: null, count: harness.count } }],
+    },
     isPending: false,
     isError: false,
     hasNextPage: harness.hasNextPage,

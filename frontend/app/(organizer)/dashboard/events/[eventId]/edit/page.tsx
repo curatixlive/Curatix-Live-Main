@@ -29,5 +29,5 @@ export const metadata: Metadata = { title: 'Edit event' };
  * refuse to take from a client.
  */
 export default function EditEventPage({ params }: { params: { eventId: string } }) {
-  return <EventWizard eventId={params.eventId} />;
+  return <EventWizard eventId={params.eventId} layout="single" />;
 }

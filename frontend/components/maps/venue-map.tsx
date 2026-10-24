@@ -107,22 +107,22 @@ export function VenueMap({
     }
 
     try {
-    const position = { lat: lat as number, lng: lng as number };
-    const map = new maps.Map(containerRef.current, {
-      center: position,
-      zoom,
-      // A venue map is for orientation, not exploration. Removing the chrome
-      // keeps it from competing with the page it sits in.
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-      // Scroll-wheel zoom OFF: this sits mid-page, and a map that swallows
-      // the scroll wheel traps the reader. Ctrl+scroll and pinch still work.
-      gestureHandling: 'cooperative',
-    });
-    mapRef.current = map;
+      const position = { lat: lat as number, lng: lng as number };
+      const map = new maps.Map(containerRef.current, {
+        center: position,
+        zoom,
+        // A venue map is for orientation, not exploration. Removing the chrome
+        // keeps it from competing with the page it sits in.
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        // Scroll-wheel zoom OFF: this sits mid-page, and a map that swallows
+        // the scroll wheel traps the reader. Ctrl+scroll and pinch still work.
+        gestureHandling: 'cooperative',
+      });
+      mapRef.current = map;
 
-    new maps.Marker({ position, map, title: venue });
+      new maps.Marker({ position, map, title: venue });
     } catch {
       // Anything Google changes on their side degrades to the address rather
       // than to a blank page. Deliberately silent: there is nothing the reader
@@ -132,7 +132,11 @@ export function VenueMap({
   }, [state, hasCoordinates, lat, lng, zoom, venue]);
 
   const address = [venue, city].filter(Boolean).join(', ');
-  const link = directionsUrl(venue, city, hasCoordinates ? { latitude: lat!, longitude: lng! } : null);
+  const link = directionsUrl(
+    venue,
+    city,
+    hasCoordinates ? { latitude: lat!, longitude: lng! } : null,
+  );
 
   const showMap = hasCoordinates && state !== 'unavailable' && state !== 'error' && !failed;
 

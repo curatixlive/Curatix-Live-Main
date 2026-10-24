@@ -61,7 +61,7 @@ const MIN_CODE_LENGTH = 3;
 export function CouponsStep({ draft, save }: { draft: Draft; save?: DraftSave }) {
   if (!draft.eventId) {
     return (
-      <AccordionCard title="Coupons">
+      <AccordionCard toggle title="Coupons">
         <NeedsSavedDraft
           title="Add a promo code once the draft exists"
           what="A code is attached to this event, so it needs the event to have been created. That happens automatically as soon as there is a title."

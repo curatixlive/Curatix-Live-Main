@@ -82,7 +82,7 @@ export function AuditTrail({ steps, className }: { steps: TrailStep[]; className
                     // `-bottom-5` matches the `gap-5` between rows exactly, so
                     // the line meets the next marker rather than stopping short
                     // of it or running past the last one.
-                    'absolute left-3 top-7 -bottom-5 -ml-px w-0.5',
+                    'absolute -bottom-5 left-3 top-7 -ml-px w-0.5',
                     settled ? 'bg-primary' : 'bg-border',
                   )}
                 />
@@ -93,9 +93,12 @@ export function AuditTrail({ steps, className }: { steps: TrailStep[]; className
                 className={cn(
                   'relative z-10 mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full',
                   settled && 'bg-primary text-primary-foreground',
-                  step.state === 'active' && 'bg-primary/15 text-primary ring-2 ring-inset ring-primary',
-                  step.state === 'waiting' && 'border-2 border-dashed border-border-strong bg-surface text-foreground-subtle',
-                  step.state === 'unknowable' && 'border-2 border-border-strong bg-surface text-foreground-subtle',
+                  step.state === 'active' &&
+                    'bg-primary/15 text-primary ring-2 ring-inset ring-primary',
+                  step.state === 'waiting' &&
+                    'border-2 border-dashed border-border-strong bg-surface text-foreground-subtle',
+                  step.state === 'unknowable' &&
+                    'border-2 border-border-strong bg-surface text-foreground-subtle',
                 )}
               >
                 {settled ? (
@@ -110,7 +113,9 @@ export function AuditTrail({ steps, className }: { steps: TrailStep[]; className
                   <p
                     className={cn(
                       'text-body-sm font-semibold',
-                      settled || step.state === 'active' ? 'text-foreground' : 'text-muted-foreground',
+                      settled || step.state === 'active'
+                        ? 'text-foreground'
+                        : 'text-muted-foreground',
                     )}
                   >
                     {step.title}
@@ -124,7 +129,10 @@ export function AuditTrail({ steps, className }: { steps: TrailStep[]; className
                 {/* A date ONLY where one was recorded. See the rule at the top:
                     a waiting step never gets a time, invented or estimated. */}
                 {step.at ? (
-                  <time dateTime={step.at} className="mt-0.5 block text-caption text-foreground-subtle">
+                  <time
+                    dateTime={step.at}
+                    className="mt-0.5 block text-caption text-foreground-subtle"
+                  >
                     {stamp(step.at)}
                   </time>
                 ) : null}

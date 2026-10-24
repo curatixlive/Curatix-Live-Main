@@ -138,7 +138,7 @@ export function FilterToolbar({
             // renders — tapping "All" wiped the visitor's search term with no
             // undo and no indication that it had happened.
             onClick={() => onChange({ ...EMPTY_FILTERS, q: filters.q })}
-            className={isAllSelected ? 'bg-primary text-primary-foreground font-medium' : undefined}
+            className={isAllSelected ? 'bg-primary font-medium text-primary-foreground' : undefined}
           >
             All
           </Chip>
@@ -150,7 +150,11 @@ export function FilterToolbar({
           <Chip
             selected={filters.when === chip.id}
             onClick={() => toggle('when', chip.id)}
-            className={filters.when === chip.id ? 'bg-primary text-primary-foreground font-medium' : undefined}
+            className={
+              filters.when === chip.id
+                ? 'bg-primary font-medium text-primary-foreground'
+                : undefined
+            }
           >
             {chip.label}
           </Chip>
@@ -174,7 +178,11 @@ export function FilterToolbar({
           <Chip
             selected={filters.price === chip.id}
             onClick={() => toggle('price', chip.id)}
-            className={filters.price === chip.id ? 'bg-primary text-primary-foreground font-medium' : undefined}
+            className={
+              filters.price === chip.id
+                ? 'bg-primary font-medium text-primary-foreground'
+                : undefined
+            }
           >
             {chip.label}
           </Chip>
@@ -186,7 +194,11 @@ export function FilterToolbar({
           <Chip
             selected={filters.category === category.slug}
             onClick={() => toggle('category', category.slug)}
-            className={filters.category === category.slug ? 'bg-primary text-primary-foreground font-medium' : undefined}
+            className={
+              filters.category === category.slug
+                ? 'bg-primary font-medium text-primary-foreground'
+                : undefined
+            }
           >
             <category.icon className="size-3.5" aria-hidden />
             {category.label}
@@ -224,8 +236,8 @@ export function FilterToolbar({
             <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
             <span
               className={cn(
-                'inline-block transition-all duration-300 ease-out overflow-hidden whitespace-nowrap',
-                isFilterMinimised ? 'max-w-0 opacity-0 -ml-1' : 'max-w-xs opacity-100'
+                'inline-block overflow-hidden whitespace-nowrap transition-all duration-300 ease-out',
+                isFilterMinimised ? '-ml-1 max-w-0 opacity-0' : 'max-w-xs opacity-100',
               )}
             >
               Filters
@@ -242,7 +254,7 @@ export function FilterToolbar({
           {/* Mobile Horizontal Scrollable Chip Container with Scroll Minimization Listener */}
           <div
             onScroll={handleChipsScroll}
-            className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto touch-manipulation scrollbar-none snap-x snap-mandatory py-0.5 sm:hidden"
+            className="scrollbar-none flex min-w-0 flex-1 touch-manipulation snap-x snap-mandatory items-center gap-2 overflow-x-auto py-0.5 sm:hidden"
           >
             {items.map((item) => (
               <div key={item.key} className="shrink-0 snap-start">
@@ -253,11 +265,7 @@ export function FilterToolbar({
 
           {/* Desktop OverflowRow */}
           <div className="hidden min-w-0 flex-1 sm:block">
-            <OverflowRow
-              items={items}
-              gapPx={ROW_GAP_PX}
-              renderMore={() => null}
-            />
+            <OverflowRow items={items} gapPx={ROW_GAP_PX} renderMore={() => null} />
           </div>
 
           <span className="hidden h-6 w-px shrink-0 bg-border xl:block" aria-hidden />

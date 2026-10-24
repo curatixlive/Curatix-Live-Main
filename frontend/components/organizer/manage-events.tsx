@@ -272,17 +272,9 @@ function ActionRow({ row }: { row: EventRow }) {
           scan and nobody to list, so the tile refuses with the reason rather
           than linking to a page that can only be empty. */}
       {scannable ? (
-        <ActionTile
-          icon={QrCode}
-          label="Scan desk"
-          href={`/dashboard/check-in?event=${row.id}`}
-        />
+        <ActionTile icon={QrCode} label="Scan desk" href={`/dashboard/check-in?event=${row.id}`} />
       ) : hasSold ? (
-        <ActionTile
-          icon={Users}
-          label="Attendees"
-          href={`/dashboard/events/${row.id}/attendees`}
-        />
+        <ActionTile icon={Users} label="Attendees" href={`/dashboard/events/${row.id}/attendees`} />
       ) : (
         <ActionTile
           icon={QrCode}

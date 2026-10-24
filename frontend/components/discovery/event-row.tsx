@@ -159,7 +159,9 @@ export function EventRow({
               </Link>
               <button
                 type="button"
-                onClick={() => openDeck(allEvents && allEvents.length > 0 ? allEvents : [event], index)}
+                onClick={() =>
+                  openDeck(allEvents && allEvents.length > 0 ? allEvents : [event], index)
+                }
                 className="text-left after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none sm:hidden"
               >
                 {event.title}

@@ -20,7 +20,13 @@ import {
   User as UserIcon,
   X,
 } from 'lucide-react';
-import { Drawer, DrawerClose, DrawerContent, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 import { IdentityAvatar } from '@/components/ui/avatar';
 import { avatarUrlOf, resolveMediaUrl } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -113,25 +119,25 @@ export function AccountMenu({
         hideClose
         overlayClassName={layer === 'overlay' ? 'z-popover' : undefined}
         className={cn(
-          'w-full max-w-md bg-background border-l shadow-2xl flex flex-col h-full',
+          'flex h-full w-full max-w-md flex-col border-l bg-background shadow-2xl',
           layer === 'overlay' && 'z-popover',
         )}
       >
         {/* District Top Header Bar */}
-        <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-4 shrink-0">
+        <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-5 py-4">
           {/* `DrawerTitle`, not a bare `h2`. This is a Radix Dialog: without a
               `Dialog.Title` descendant it has NO accessible name, so a screen
               reader announces an unnamed dialog where the account, the scope
               switcher and Sign out live — and Radix logs an error on every
               open. */}
           <DrawerTitle className="text-body-lg font-bold text-foreground">Profile</DrawerTitle>
-          <DrawerClose className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <DrawerClose className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <X className="size-5" aria-hidden />
           </DrawerClose>
         </div>
 
         {/* Scrollable Drawer Body */}
-        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+        <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-5">
           {/* User Info Header Block */}
           <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
             <IdentityAvatar name={name} imageUrl={avatarUrl} size="lg" />
@@ -192,7 +198,9 @@ export function AccountMenu({
                     icon={<Building2 className="size-4" aria-hidden />}
                     label={organization.name}
                     hint={
-                      organization.verified_level === 'verified' ? 'Verified organiser' : 'Organiser'
+                      organization.verified_level === 'verified'
+                        ? 'Verified organiser'
+                        : 'Organiser'
                     }
                     onSelect={() => {
                       switchTo({ kind: 'organization', organization });
@@ -221,7 +229,7 @@ export function AccountMenu({
           {/* More Section */}
           <div className="flex flex-col gap-2">
             <GroupLabel>More</GroupLabel>
-            <div className="flex flex-col gap-1.5 rounded-2xl border border-border bg-surface p-1.5 shadow-sm divide-y divide-border/40">
+            <div className="flex flex-col gap-1.5 divide-y divide-border/40 rounded-2xl border border-border bg-surface p-1.5 shadow-sm">
               <MenuLink href="/terms" icon={CircleHelp} onNavigate={close}>
                 Terms & Conditions
               </MenuLink>
@@ -268,10 +276,7 @@ const rowClass = cn(
 
 function GroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      aria-hidden
-      className="px-2 pt-1 text-caption font-semibold text-muted-foreground"
-    >
+    <div aria-hidden className="px-2 pt-1 text-caption font-semibold text-muted-foreground">
       {children}
     </div>
   );
@@ -294,11 +299,13 @@ function ScopeRow({
 }) {
   const content = (
     <>
-      <span className={cn('shrink-0', active ? 'text-nav-active-foreground' : 'text-muted-foreground')}>
+      <span
+        className={cn('shrink-0', active ? 'text-nav-active-foreground' : 'text-muted-foreground')}
+      >
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-bold text-body-sm">{label}</span>
+        <span className="block truncate text-body-sm font-bold">{label}</span>
         <span
           className={cn(
             'block truncate text-caption',

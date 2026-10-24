@@ -24,7 +24,11 @@ import {
  */
 
 /** A file of an arbitrary declared size, without allocating the bytes. */
-function fileOf({ type, size = 1024, name = 'photo.png' }: {
+function fileOf({
+  type,
+  size = 1024,
+  name = 'photo.png',
+}: {
   type: string;
   size?: number;
   name?: string;
@@ -58,7 +62,9 @@ describe('checkAvatarFile', () => {
 
   it('allows a file exactly at the cap — the server compares with >', () => {
     expect(checkAvatarFile(fileOf({ type: 'image/png', size: AVATAR_MAX_BYTES }))).toBeNull();
-    expect(checkAvatarFile(fileOf({ type: 'image/png', size: AVATAR_MAX_BYTES + 1 }))).not.toBeNull();
+    expect(
+      checkAvatarFile(fileOf({ type: 'image/png', size: AVATAR_MAX_BYTES + 1 })),
+    ).not.toBeNull();
   });
 
   it('refuses SVG, and names the reason rather than just refusing', () => {
@@ -124,7 +130,9 @@ describe('resolveMediaUrl', () => {
   });
 
   it('adds the missing separator rather than concatenating blindly', () => {
-    expect(resolveMediaUrl('media/avatars/a.png')).toBe('http://localhost:8000/media/avatars/a.png');
+    expect(resolveMediaUrl('media/avatars/a.png')).toBe(
+      'http://localhost:8000/media/avatars/a.png',
+    );
   });
 
   it('passes an absolute URL through untouched', () => {

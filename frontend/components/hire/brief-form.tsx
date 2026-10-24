@@ -397,11 +397,7 @@ export function BriefForm() {
           submit();
         }}
       >
-        <Section
-          id="brief-act"
-          index={1}
-          title="What are you looking for?"
-        >
+        <Section id="brief-act" index={1} title="What are you looking for?">
           <CardGrid label="Act">
             {(Object.keys(PERFORMER_TYPE_LABELS) as PerformerType[]).map((option) => (
               <SelectCard
@@ -458,11 +454,7 @@ export function BriefForm() {
           ) : null}
         </Section>
 
-        <Section
-          id="brief-place"
-          index={2}
-          title="Where and when?"
-        >
+        <Section id="brief-place" index={2} title="Where and when?">
           <div className="grid gap-block sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <label htmlFor="brief-city" className="text-body-sm font-medium">
@@ -494,7 +486,7 @@ export function BriefForm() {
                         // 44px on a phone, 32px from `sm` — the same treatment
                         // every chip row in this slice got.
                         'inline-flex min-h-control items-center rounded-full border px-3 text-caption transition-colors duration-fast sm:h-8 sm:min-h-0',
-                        'motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
                         city === entry.name
                           ? 'border-primary bg-primary/10 text-foreground'
                           : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
@@ -528,24 +520,11 @@ export function BriefForm() {
           </div>
         </Section>
 
-        <Section
-          id="brief-budget"
-          index={3}
-          title="What is the budget?"
-        >
-          <BudgetRange
-            min={budgetMin}
-            max={budgetMax}
-            onMin={setBudgetMin}
-            onMax={setBudgetMax}
-          />
+        <Section id="brief-budget" index={3} title="What is the budget?">
+          <BudgetRange min={budgetMin} max={budgetMax} onMin={setBudgetMin} onMax={setBudgetMax} />
         </Section>
 
-        <Section
-          id="brief-details"
-          index={4}
-          title="Anything else we should know?"
-        >
+        <Section id="brief-details" index={4} title="Anything else we should know?">
           <div className="grid gap-block sm:grid-cols-[12rem_minmax(0,1fr)]">
             <FloatField
               id="brief-guests"
@@ -567,11 +546,7 @@ export function BriefForm() {
           />
         </Section>
 
-        <Section
-          id="brief-contact"
-          index={5}
-          title="How should we reach you?"
-        >
+        <Section id="brief-contact" index={5} title="How should we reach you?">
           <div className="grid gap-block sm:grid-cols-2">
             <FloatField
               id="brief-contact-name"
@@ -637,7 +612,7 @@ export function BriefForm() {
               type="submit"
               disabled={!ready || create.isPending}
               aria-describedby={missing.length ? 'brief-missing' : undefined}
-              className="inline-flex h-control w-full items-center justify-center gap-2 rounded-xl bg-cta px-6 text-label text-cta-foreground transition-colors hover:bg-cta-hover disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:self-start"
+              className="inline-flex h-control w-full items-center justify-center gap-2 rounded-xl bg-cta px-6 text-label text-cta-foreground transition-colors hover:bg-cta-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 sm:w-auto sm:self-start"
             >
               {create.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
               Send enquiry
@@ -799,7 +774,7 @@ function SelectCard({
         className={cn(
           'group relative flex min-h-control w-full flex-col items-center gap-2 rounded-2xl border p-3 text-center',
           'transition-[background-color,border-color,box-shadow,transform] duration-fast',
-          'motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
           selected
             ? 'border-primary bg-primary/5 text-foreground ring-4 ring-primary/15'
             : 'border-border text-muted-foreground hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted hover:text-foreground hover:shadow-sm motion-reduce:hover:translate-y-0',
@@ -1093,7 +1068,7 @@ function BudgetRange({
             <label htmlFor={field.id} className="text-body-sm font-medium">
               {field.label}
             </label>
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 transition-colors duration-fast hover:border-primary/40 focus-within:border-primary focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none">
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 transition-colors duration-fast focus-within:border-primary focus-within:ring-2 focus-within:ring-ring hover:border-primary/40 motion-reduce:transition-none">
               <span className="text-body-sm text-muted-foreground" aria-hidden>
                 ₹
               </span>

@@ -434,7 +434,6 @@ export function DataTable<Row extends { id: string }>({
                 })}
           </tbody>
         </table>
-
       </div>
 
       {/* OUTSIDE the desktop wrapper. Left inside it, an empty list rendered

@@ -3,8 +3,17 @@ import { ORGANIZER_SECTIONS } from './nav';
 import { STEPS } from './wizard/model';
 
 const WORDS = [
-  'Zero', 'One', 'Two', 'Three', 'Four', 'Five',
-  'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+  'Zero',
+  'One',
+  'Two',
+  'Three',
+  'Four',
+  'Five',
+  'Six',
+  'Seven',
+  'Eight',
+  'Nine',
+  'Ten',
 ];
 
 describe('organizer nav', () => {

@@ -50,9 +50,8 @@ const buttonVariants = cva(
         // THE primary action. Near-black in light, near-white in dark — the
         // `--cta` family, deliberately separate from `--primary`, which stayed
         // violet and now means "brand accent" (see styles/tokens.css).
-        primary: 'bg-cta text-cta-foreground hover:bg-cta-hover active:bg-cta-active shadow-sm',
-        brand:
-          'bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-active',
+        primary: 'bg-cta text-cta-foreground shadow-sm hover:bg-cta-hover active:bg-cta-active',
+        brand: 'bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-active',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'bg-transparent text-foreground hover:bg-muted',
         outline: 'border border-border bg-surface text-foreground hover:bg-muted',

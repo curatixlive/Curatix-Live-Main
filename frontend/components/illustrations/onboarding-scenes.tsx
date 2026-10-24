@@ -115,7 +115,11 @@ export function SceneWelcome({ className }: SceneProps) {
 
           <ContactShadow cx={78} cy={123} rx={40} ry={5} ground={ids.ground} />
           {/* The frame, then the leaf swung open towards the light. */}
-          <Solid d="M46 122V38a32 32 0 0 1 64 0v84h-10V44a22 22 0 0 0-44 0v78Z" body={body} ids={ids} />
+          <Solid
+            d="M46 122V38a32 32 0 0 1 64 0v84h-10V44a22 22 0 0 0-44 0v78Z"
+            body={body}
+            ids={ids}
+          />
           <Solid
             d="M110 122V40l34 10v72Z"
             body={body}
@@ -172,8 +176,24 @@ export function SceneYourName({ className }: SceneProps) {
               fill="none"
             />
             {/* The name line, and a second shorter one under it. */}
-            <rect x="54" y="80" width="58" height="6" rx="3" fill="rgb(var(--on-gradient))" opacity="0.5" />
-            <rect x="54" y="94" width="34" height="5" rx="2.5" fill="rgb(var(--on-gradient))" opacity="0.3" />
+            <rect
+              x="54"
+              y="80"
+              width="58"
+              height="6"
+              rx="3"
+              fill="rgb(var(--on-gradient))"
+              opacity="0.5"
+            />
+            <rect
+              x="54"
+              y="94"
+              width="34"
+              height="5"
+              rx="2.5"
+              fill="rgb(var(--on-gradient))"
+              opacity="0.3"
+            />
             <circle cx="143" cy="88" r="9" fill="rgb(var(--on-gradient))" opacity="0.35" />
           </g>
 
@@ -181,7 +201,13 @@ export function SceneYourName({ className }: SceneProps) {
           <g className="illo-a-write">
             <path d="M126 22l14 14-46 46-18 4 4-18Z" fill={body} />
             <path d="M126 22l14 14-46 46-18 4 4-18Z" fill={`url(#${ids.rim})`} />
-            <path d="M80 68l18 18" stroke="rgb(var(--overlay))" strokeWidth="2" opacity="0.3" fill="none" />
+            <path
+              d="M80 68l18 18"
+              stroke="rgb(var(--overlay))"
+              strokeWidth="2"
+              opacity="0.3"
+              fill="none"
+            />
           </g>
         </>
       )}
@@ -216,7 +242,15 @@ export function SceneYourPhoto({ className }: SceneProps) {
               is what a photograph of a person looks like at this size. */}
           <g className="illo-a-float">
             <Solid d="M44 20h84v66H44Z" body={body} ids={ids} />
-            <rect x="52" y="28" width="68" height="50" rx="3" fill="rgb(var(--overlay))" opacity="0.26" />
+            <rect
+              x="52"
+              y="28"
+              width="68"
+              height="50"
+              rx="3"
+              fill="rgb(var(--overlay))"
+              opacity="0.26"
+            />
             <circle cx="86" cy="48" r="11" fill="rgb(var(--on-gradient))" opacity="0.42" />
             <path d="M64 78a22 22 0 0 1 44 0Z" fill="rgb(var(--on-gradient))" opacity="0.42" />
           </g>
@@ -226,7 +260,14 @@ export function SceneYourPhoto({ className }: SceneProps) {
           <Solid d="M132 122V88h48v34Z" body={body} ids={ids} opacity={0.85} />
           <rect x="146" y="82" width="20" height="8" rx="3" fill={body} opacity="0.85" />
           <circle cx="156" cy="104" r="11" fill="rgb(var(--overlay))" opacity="0.34" />
-          <circle className="illo-a-pulse" cx="156" cy="104" r="6" fill="rgb(var(--on-gradient))" opacity="0.5" />
+          <circle
+            className="illo-a-pulse"
+            cx="156"
+            cy="104"
+            r="6"
+            fill="rgb(var(--on-gradient))"
+            opacity="0.5"
+          />
         </>
       )}
     </Scene>
@@ -269,7 +310,14 @@ export function SceneAboutYou({ className }: SceneProps) {
               )),
             )}
             {/* The one marked day. */}
-            <circle className="illo-a-pulse" cx="92" cy="91" r="9" fill="rgb(var(--on-gradient))" opacity="0.55" />
+            <circle
+              className="illo-a-pulse"
+              cx="92"
+              cy="91"
+              r="9"
+              fill="rgb(var(--on-gradient))"
+              opacity="0.55"
+            />
           </g>
 
           {/* A small card, leaning against the calendar. */}
@@ -277,8 +325,24 @@ export function SceneAboutYou({ className }: SceneProps) {
           <g transform="rotate(6 152 100)">
             <Solid d="M126 122V78h52v44Z" body={body} ids={ids} opacity={0.88} />
             <circle cx="142" cy="94" r="7" fill="rgb(var(--on-gradient))" opacity="0.42" />
-            <rect x="154" y="90" width="18" height="4" rx="2" fill="rgb(var(--on-gradient))" opacity="0.34" />
-            <rect x="154" y="99" width="12" height="4" rx="2" fill="rgb(var(--on-gradient))" opacity="0.24" />
+            <rect
+              x="154"
+              y="90"
+              width="18"
+              height="4"
+              rx="2"
+              fill="rgb(var(--on-gradient))"
+              opacity="0.34"
+            />
+            <rect
+              x="154"
+              y="99"
+              width="12"
+              height="4"
+              rx="2"
+              fill="rgb(var(--on-gradient))"
+              opacity="0.24"
+            />
           </g>
         </>
       )}
@@ -325,8 +389,24 @@ export function SceneOnboardingDone({ className }: SceneProps) {
               opacity="0.4"
               fill="none"
             />
-            <rect x="60" y="62" width="48" height="6" rx="3" fill="rgb(var(--on-gradient))" opacity="0.45" />
-            <rect x="60" y="76" width="32" height="5" rx="2.5" fill="rgb(var(--on-gradient))" opacity="0.3" />
+            <rect
+              x="60"
+              y="62"
+              width="48"
+              height="6"
+              rx="3"
+              fill="rgb(var(--on-gradient))"
+              opacity="0.45"
+            />
+            <rect
+              x="60"
+              y="76"
+              width="32"
+              height="5"
+              rx="2.5"
+              fill="rgb(var(--on-gradient))"
+              opacity="0.3"
+            />
             {/* The seal. */}
             <circle cx="138" cy="76" r="12" fill="rgb(var(--on-gradient))" opacity="0.5" />
             <path

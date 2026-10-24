@@ -103,11 +103,7 @@ export function DashboardHome() {
           <InsightsCard />
           <MoneyStrip />
           <section className="flex flex-col gap-stack">
-            <SectionHeading
-              title="Activity"
-              href="/dashboard/activity"
-              linkLabel="Full timeline"
-            />
+            <SectionHeading title="Activity" href="/dashboard/activity" linkLabel="Full timeline" />
             <ActivityFeed limit={6} />
           </section>
         </div>
@@ -245,11 +241,7 @@ function UpcomingEvents() {
 
   return (
     <section className="flex flex-col gap-stack">
-      <SectionHeading
-        title="Happening next"
-        href="/dashboard/events"
-        linkLabel="All events"
-      />
+      <SectionHeading title="Happening next" href="/dashboard/events" linkLabel="All events" />
 
       {query.isError ? (
         <ErrorState
@@ -435,7 +427,7 @@ function UpcomingCard({ event }: { event: EventRow }) {
   return (
     <Link
       href={`/dashboard/events?event=${event.id}`}
-      className="group flex gap-3 rounded-xl border border-border bg-surface p-card shadow-sm transition-colors duration-fast hover:bg-muted motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex gap-3 rounded-xl border border-border bg-surface p-card shadow-sm transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
     >
       <span className="relative hidden size-16 shrink-0 overflow-hidden rounded-lg bg-muted sm:block">
         <Poster url={event.poster_url} className="size-full object-cover" />
@@ -492,11 +484,7 @@ function MoneyStrip() {
 
   return (
     <section className="flex flex-col gap-stack">
-      <SectionHeading
-        title="Money"
-        href="/dashboard/payouts"
-        linkLabel="Payouts"
-      />
+      <SectionHeading title="Money" href="/dashboard/payouts" linkLabel="Payouts" />
 
       {query.isError ? (
         <ErrorState
@@ -522,15 +510,7 @@ function MoneyStrip() {
   );
 }
 
-function MoneyCell({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string | null;
-  hint: string;
-}) {
+function MoneyCell({ label, value, hint }: { label: string; value: string | null; hint: string }) {
   return (
     <div className="rounded-xl border border-border bg-surface p-card shadow-sm">
       <dt className="text-caption text-muted-foreground">{label}</dt>

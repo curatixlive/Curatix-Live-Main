@@ -28,7 +28,7 @@ const TINTS = [
 ];
 
 export function SeatPicker({ className }: { className?: string }) {
-  const { seatMap, seatMapLoading, seatIds, toggleSeat } = useBooking();
+  const { seatMap, seatMapLoading, seatIds, toggleSeat, seatGender, setSeatGender } = useBooking();
 
   if (seatMapLoading) {
     return <p className="text-body-sm text-muted-foreground">Loading the seat map…</p>;
@@ -61,6 +61,42 @@ export function SeatPicker({ className }: { className?: string }) {
 
   return (
     <div className={cn('flex flex-col gap-4', className)}>
+      {seatMap.sections.some((section) => hasGenderPrice(section)) ? (
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="text-caption font-bold uppercase tracking-wide text-muted-foreground">
+            Pricing for these seats
+          </legend>
+          <div role="group" aria-label="Pricing for these seats" className="flex flex-wrap gap-2">
+            {(
+              [
+                [undefined, 'Standard'],
+                ['male', 'Male'],
+                ['female', 'Female'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={label}
+                type="button"
+                aria-pressed={seatGender === value}
+                onClick={() => setSeatGender(value)}
+                className={cn(
+                  'rounded-full border px-4 py-1.5 text-body-sm transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  seatGender === value
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-surface text-foreground hover:bg-muted',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-caption text-muted-foreground">
+            Optional. Pick one only if you want that price — the door sees what you chose.
+          </p>
+        </fieldset>
+      ) : null}
+
       <ul aria-label="Seat sections" className="flex flex-wrap gap-2">
         {seatMap.sections.map((section, i) => (
           <li
@@ -183,3 +219,6 @@ export function SeatPicker({ className }: { className?: string }) {
     </div>
   );
 }
+
+const hasGenderPrice = (section: { gender_prices?: { male?: number; female?: number } }) =>
+  section.gender_prices?.male !== undefined || section.gender_prices?.female !== undefined;

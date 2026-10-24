@@ -80,8 +80,8 @@ const FAQS: readonly Faq[] = [
     a: (
       <p>
         A free ticket costs nothing, to you or to your attendee. The fee is a percentage of the
-        ticket price and a percentage of zero is zero — so a free event on {BRAND_NAME} is
-        genuinely free, including check-in and the attendee list.
+        ticket price and a percentage of zero is zero — so a free event on {BRAND_NAME} is genuinely
+        free, including check-in and the attendee list.
       </p>
     ),
   },
@@ -123,9 +123,8 @@ const FAQS: readonly Faq[] = [
       <p>
         A refund returns what the attendee paid for the ticket, our fee included. We do not keep a
         fee on a ticket that ended up refunded, and a refund issued before payout simply reduces
-        what is released to you. A charitable donation added at checkout is the one thing that
-        stays — unless the booking never issued a ticket at all, in which case everything comes
-        back.
+        what is released to you. A charitable donation added at checkout is the one thing that stays
+        — unless the booking never issued a ticket at all, in which case everything comes back.
       </p>
     ),
   },
@@ -134,8 +133,8 @@ const FAQS: readonly Faq[] = [
     a: (
       <p>
         No. <Link href="/hire">Tell us what you need</Link> and somebody on our team comes back to
-        you with options and prices. Nothing is booked or paid for through the platform, so there
-        is no fee — there is no platform payment to take one from.
+        you with options and prices. Nothing is booked or paid for through the platform, so there is
+        no fee — there is no platform payment to take one from.
       </p>
     ),
   },

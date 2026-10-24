@@ -224,7 +224,9 @@ export function DateField({
           aria-invalid={Boolean(error)}
           aria-describedby={describedBy || undefined}
           onChange={(event) =>
-            onChange(`${value.slice(0, 10) || new Date().toISOString().slice(0, 10)}T${event.target.value}`)
+            onChange(
+              `${value.slice(0, 10) || new Date().toISOString().slice(0, 10)}T${event.target.value}`,
+            )
           }
         />
       </div>
@@ -815,6 +817,16 @@ export function FieldGroup({
  * single control, where collapsing hides a field behind a press that reveals
  * a field.
  */
+/**
+ * The single-page form.
+ *
+ * Inside it every ordinary section is OPEN and drawn as a plain titled group —
+ * the way a one-page create form reads — while a section marked `toggle` (a
+ * feature the organiser switches on: group offers, early bird, coupons, a
+ * questionnaire…) keeps its switch and reveals its controls only when on.
+ */
+export const FlatFormContext = React.createContext(false);
+
 export function AccordionCard({
   title,
   count,
@@ -822,7 +834,10 @@ export function AccordionCard({
   defaultOpen = false,
   invalid = false,
   required = false,
+  toggle = false,
 }: {
+  /** A feature switch: stays a toggle card even inside the single-page form. */
+  toggle?: boolean;
   title: string;
   /** The quiet right-hand figure — "3 of 10", "Set", "Required". */
   count?: string;
@@ -834,6 +849,28 @@ export function AccordionCard({
 }) {
   const [open, setOpen] = React.useState(defaultOpen);
   const bodyId = React.useId();
+  const flat = React.useContext(FlatFormContext) && !toggle;
+
+  if (flat) {
+    return (
+      <section className="flex flex-col gap-stack">
+        <h3 className="flex items-center gap-2 text-body font-semibold text-foreground">
+          {title}
+          {required ? (
+            <span className="text-destructive" aria-hidden>
+              *
+            </span>
+          ) : null}
+          {count ? (
+            <span className="text-caption font-normal tabular-nums text-muted-foreground">
+              {count}
+            </span>
+          ) : null}
+        </h3>
+        <div className="flex flex-col gap-stack-lg">{children}</div>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -869,7 +906,7 @@ export function AccordionCard({
         aria-controls={bodyId}
         onClick={() => setOpen((value) => !value)}
         className={cn(
-          'flex w-full min-h-control items-center gap-3 px-card py-3.5 text-left',
+          'flex min-h-control w-full items-center gap-3 px-card py-3.5 text-left',
           'transition-colors duration-fast hover:bg-muted/50 motion-reduce:transition-none',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
         )}
@@ -886,7 +923,10 @@ export function AccordionCard({
         </span>
 
         {invalid ? (
-          <AlertTriangle className="size-4 shrink-0 text-destructive" aria-label="Needs attention" />
+          <AlertTriangle
+            className="size-4 shrink-0 text-destructive"
+            aria-label="Needs attention"
+          />
         ) : count ? (
           <span className="shrink-0 truncate text-caption tabular-nums text-muted-foreground">
             {count}

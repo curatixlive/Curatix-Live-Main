@@ -1020,7 +1020,7 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
           flushed by the save engine the moment it is created. They ride the
           local-first autosave, so a reload keeps them. See `PendingSlot` in
           `model.ts` and the flush in `use-wizard.ts`. */}
-      <Section title="Sessions">
+      <Section toggle title="Sessions">
         <SessionsEditor
           eventId={draft.eventId || null}
           startsAtLocal={draft.startsAt}
@@ -1029,7 +1029,7 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
         />
       </Section>
 
-      <Section title="Running order">
+      <Section toggle title="Running order">
         <RunningOrder
           organizationId={draft.organizationId}
           eventId={draft.eventId || null}
@@ -1050,7 +1050,7 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
           event — it hangs off the organization — so the crew list and the add
           form always worked; only the LINEUP needs an id, and that is held in
           the draft until there is one. */}
-      <Section title="Who's taking the stage">
+      <Section toggle title="Who's taking the stage">
         <CrewPicker
           eventId={draft.eventId || null}
           staged={draft.crewIds}

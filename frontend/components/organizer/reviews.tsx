@@ -54,9 +54,7 @@ export function Reviews() {
     [query.data],
   );
 
-  const average = rows.length
-    ? rows.reduce((sum, row) => sum + row.rating, 0) / rows.length
-    : null;
+  const average = rows.length ? rows.reduce((sum, row) => sum + row.rating, 0) / rows.length : null;
 
   // Five fixed buckets, always all five. A distribution that omits the ratings
   // nobody gave draws a different shape than the one the data has — "no 1-stars"
@@ -122,10 +120,7 @@ export function Reviews() {
 
       <Panel title="Reviews" className="overflow-hidden">
         {query.isError ? (
-          <ErrorState
-            message="Could not load your reviews."
-            onRetry={() => void query.refetch()}
-          />
+          <ErrorState message="Could not load your reviews." onRetry={() => void query.refetch()} />
         ) : query.isPending ? (
           <div className="flex flex-col gap-2 p-card">
             {Array.from({ length: 4 }, (_, index) => (

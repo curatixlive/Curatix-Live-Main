@@ -205,10 +205,7 @@ export function QuestionBuilder({
   return (
     <div className="flex flex-col gap-stack">
       {questions.length === 0 ? (
-        <EmptyState
-          icon={MessageSquare}
-          title="No questions yet"
-        />
+        <EmptyState icon={MessageSquare} title="No questions yet" />
       ) : (
         <ul className="flex flex-col gap-2">
           {questions.map((question) => (

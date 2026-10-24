@@ -82,7 +82,7 @@ export function ProfilePreview({ performerId }: { performerId: string }) {
                 aria-pressed={narrow === option.value}
                 onClick={() => setNarrow(option.value)}
                 className={cn(
-                  'inline-flex h-control-sm items-center gap-1.5 rounded-full px-3 text-label transition-colors duration-fast motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'inline-flex h-control-sm items-center gap-1.5 rounded-full px-3 text-label transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
                   narrow === option.value
                     ? 'bg-nav-active text-nav-active-foreground'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground',

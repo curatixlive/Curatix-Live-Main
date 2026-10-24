@@ -224,9 +224,9 @@ export default function ContactPage() {
         <div className="flex items-start gap-3 rounded-xl border border-warning-subtle bg-warning-subtle p-card">
           <Mail className="mt-0.5 size-5 shrink-0 text-warning-subtle-foreground" aria-hidden />
           <p className="text-body-sm text-warning-subtle-foreground">
-            <strong>Support channels are being set up.</strong> No contact address is available
-            on this deployment yet. If you are testing this build, reach the person who gave you
-            the link.
+            <strong>Support channels are being set up.</strong> No contact address is available on
+            this deployment yet. If you are testing this build, reach the person who gave you the
+            link.
           </p>
         </div>
       ) : null}

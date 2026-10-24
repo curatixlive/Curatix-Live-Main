@@ -18,12 +18,7 @@ import { TagMatrix } from './tag-matrix';
 const MAX_HIGHLIGHTS = 8;
 import { FaqBuilder } from './faq-builder';
 import { QuestionBuilder } from './question-builder';
-import {
-  Section,
-  StepHeader,
-  TextArea,
-  TextField,
-} from './fields';
+import { Section, StepHeader, TextArea, TextField } from './fields';
 
 /**
  * Duration, language, age policy, access notes and FAQs.
@@ -59,10 +54,7 @@ const AGE_PRESETS = ['All ages', 'Under 18s with an adult', '16+', '18+', '21+']
 export function DetailsStep({ draft, update, issues }: Props) {
   return (
     <div className="flex flex-col gap-block">
-      <StepHeader
-        title="Details"
-        step={6}
-      />
+      <StepHeader title="Details" step={6} />
 
       <Section title="One-line summary">
         <TextField
@@ -173,9 +165,7 @@ export function DetailsStep({ draft, update, issues }: Props) {
         <TagMatrix value={draft.tags} onChange={(tags) => update({ tags })} />
       </Section>
 
-      <Section
-        title="Event policies"
-      >
+      <Section title="Event policies">
         {/* LOCAL, unlike the FAQs below: `policies` is a column on the event
             written by the same PATCH as everything else on this step, so it
             saves before the draft exists on the server and needs no
@@ -200,14 +190,13 @@ export function DetailsStep({ draft, update, issues }: Props) {
           an FAQ is what the organiser TELLS a buyer, a question is what they
           ASK them. No draft gate on either any more — both are staged in the
           draft and flushed by the save engine on the first create. */}
-      <Section title="Questions for attendees">
+      <Section toggle title="Questions for attendees">
         <QuestionBuilder
           eventId={draft.eventId || null}
           pending={draft.pendingQuestions}
           onPending={(pendingQuestions) => update({ pendingQuestions })}
         />
       </Section>
-
     </div>
   );
 }
@@ -249,7 +238,6 @@ function Chips({
     </div>
   );
 }
-
 
 /** Exactly the fields `POST /events` needs — the same list `canCreate` checks. */
 export function missingForSave(draft: Draft): string[] {

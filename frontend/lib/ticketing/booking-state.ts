@@ -76,7 +76,11 @@ export function bookingState(
   // Every ticket voided with none used is a refund that reached the tickets —
   // reachable through the organiser's own refund path, which writes no
   // `RefundRequest` at all, so status alone would miss it entirely.
-  if (booking.ticket_count > 0 && booking.active_ticket_count === 0 && booking.used_ticket_count === 0) {
+  if (
+    booking.ticket_count > 0 &&
+    booking.active_ticket_count === 0 &&
+    booking.used_ticket_count === 0
+  ) {
     return 'refunded';
   }
 

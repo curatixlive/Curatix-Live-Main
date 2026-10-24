@@ -19,7 +19,7 @@ import type { Booking, CreateBookingResponse, MyBooking, Paginated } from './typ
 
 export function createBooking(
   eventId: string,
-  items: { ticket_type_id: string; quantity: number }[],
+  items: { ticket_type_id: string; quantity: number; gender?: string }[],
   idempotencyKey: string,
   /**
    * The organiser's questionnaire, as `{question_id: answer}`.
@@ -46,6 +46,12 @@ export function createBooking(
   gateway?: string,
   /** The chosen seats, for an event with assigned seating. Sent INSTEAD of items. */
   seatIds?: string[],
+  /**
+   * Access and gender, both optional and both only REQUESTS: the server decides
+   * whether a code or a relationship opens a pre-sale / invite-only event, and
+   * whether a gender earns a different price.
+   */
+  extra?: { seatGender?: string; accessCode?: string },
 ): Promise<CreateBookingResponse> {
   const hasAnswers = answers && Object.keys(answers).length > 0;
   return api.post<CreateBookingResponse>(
@@ -54,6 +60,8 @@ export function createBooking(
       event_id: eventId,
       ...(seatIds && seatIds.length ? { seat_ids: seatIds } : { items }),
       ...(hasAnswers ? { answers } : {}),
+      ...(extra?.seatGender && seatIds?.length ? { seat_gender: extra.seatGender } : {}),
+      ...(extra?.accessCode ? { access_code: extra.accessCode } : {}),
       // A REQUEST, not an instruction: the server falls back to the
       // deployment default for anything it does not offer, so a stale value
       // in a cached tab can never refuse a sale. Omitted entirely when the
@@ -126,7 +134,9 @@ export const fetchBooking = (bookingId: string) =>
  * booking has no active ticket and belongs on this list.
  */
 export const fetchMyBookings = (cursor?: string | null) =>
-  api.get<Paginated<MyBooking>>(`/me/bookings${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`);
+  api.get<Paginated<MyBooking>>(
+    `/me/bookings${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+  );
 
 /**
  * Set (or clear, with `0`) the donation on a live hold.

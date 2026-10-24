@@ -188,7 +188,7 @@ export function ColumnChooser<Row>({ table }: { table: DataTable<Row> }) {
         <Columns3 className="size-3.5" aria-hidden />
         Columns
         {table.hidden.length ? (
-          <span className="tabular-nums text-caption">({table.columns.length})</span>
+          <span className="text-caption tabular-nums">({table.columns.length})</span>
         ) : null}
       </Button>
 
@@ -264,7 +264,11 @@ export function DensityToggle<Row>({ table }: { table: DataTable<Row> }) {
       aria-label={compact ? 'Switch to comfortable rows' : 'Switch to compact rows'}
       className={TOOLBAR_ICON}
     >
-      {compact ? <Rows3 className="size-4" aria-hidden /> : <Rows2 className="size-4" aria-hidden />}
+      {compact ? (
+        <Rows3 className="size-4" aria-hidden />
+      ) : (
+        <Rows2 className="size-4" aria-hidden />
+      )}
     </Button>
   );
 }
@@ -322,7 +326,7 @@ export function SavedViews<Row>({
         <Bookmark className="size-3.5" aria-hidden />
         Views
         {table.views.length ? (
-          <span className="tabular-nums text-caption">({table.views.length})</span>
+          <span className="text-caption tabular-nums">({table.views.length})</span>
         ) : null}
       </Button>
 
@@ -450,7 +454,7 @@ export function BulkBar({
         'fixed inset-x-0 z-sticky mx-auto flex w-[calc(100%-2rem)] max-w-2xl items-center gap-3',
         ORGANIZER_NAV_OFFSET,
         'rounded-xl border border-border bg-elevated px-card py-2 shadow-lg',
-        'animate-in slide-in-from-bottom-2 fade-in-0 motion-reduce:animate-none',
+        'animate-in fade-in-0 slide-in-from-bottom-2 motion-reduce:animate-none',
       )}
     >
       <span aria-live="polite" className="text-body-sm font-medium tabular-nums">
@@ -605,7 +609,7 @@ export function DataGrid<Row>({
       </ul>
 
       <div className={cn('hidden w-full overflow-x-auto rounded-b-xl sm:block', className)}>
-      {/* `border-separate border-spacing-0`, NOT `border-collapse`.
+        {/* `border-separate border-spacing-0`, NOT `border-collapse`.
 
           The third and last reason the sticky header never worked: Chrome
           ignores `position: sticky` on a `<th>` inside a table with collapsed
@@ -620,129 +624,127 @@ export function DataGrid<Row>({
           undifferentiated block. The rule now lives on the CELLS, which is the
           only place the separated model honours it, and at spacing 0 the
           per-cell edges join into the continuous line a dense table needs. */}
-      <table className="w-full table-fixed border-separate border-spacing-0 text-body-sm">
-        <caption className="sr-only">
-          {caption}
-          {table.sort
-            ? '. Sorted within the rows loaded so far, not across the whole list.'
-            : ''}
-        </caption>
-        <colgroup>
-          {selectable ? <col style={{ width: '2.75rem' }} /> : null}
-          {table.columns.map((column) => (
-            <col key={column.key} style={{ width: `${table.widthFor(column)}px` }} />
-          ))}
-        </colgroup>
-
-        <thead>
-          <tr>
-            {selectable ? (
-              <th scope="col" className={headCellClass}>
-                <input
-                  type="checkbox"
-                  checked={table.allSelected}
-                  ref={(node) => {
-                    // The indeterminate state is a DOM property, not an
-                    // attribute — React cannot set it declaratively.
-                    if (node) node.indeterminate = table.someSelected;
-                  }}
-                  onChange={table.toggleAll}
-                  aria-label={table.allSelected ? 'Clear selection' : 'Select all loaded rows'}
-                  className="size-5 cursor-pointer accent-primary"
-                />
-              </th>
-            ) : null}
-
+        <table className="w-full table-fixed border-separate border-spacing-0 text-body-sm">
+          <caption className="sr-only">
+            {caption}
+            {table.sort ? '. Sorted within the rows loaded so far, not across the whole list.' : ''}
+          </caption>
+          <colgroup>
+            {selectable ? <col style={{ width: '2.75rem' }} /> : null}
             {table.columns.map((column) => (
-              <HeadCell key={column.key} column={column} table={table} />
+              <col key={column.key} style={{ width: `${table.widthFor(column)}px` }} />
             ))}
-          </tr>
-        </thead>
+          </colgroup>
 
-        <tbody
-          ref={bodyRef}
-          onKeyDown={(event) => {
-            if (event.key === 'ArrowDown') {
-              event.preventDefault();
-              move(1);
-            } else if (event.key === 'ArrowUp') {
-              event.preventDefault();
-              move(-1);
-            } else if (event.key === 'Home') {
-              event.preventDefault();
-              table.setCursor(0);
-              move(0);
-            } else if (event.key === 'End') {
-              event.preventDefault();
-              table.setCursor(table.rows.length - 1);
-              move(0);
-            }
-          }}
-        >
-          {table.rows.map((row, index) => {
-            const id = table.ids[index];
-            const chosen = table.isSelected(id);
-            return (
-              <tr
-                key={id}
-                // Roving tabindex: one stop for the table, arrows inside it.
-                tabIndex={index === Math.max(table.cursor, 0) ? 0 : -1}
-                aria-selected={selectable ? chosen : undefined}
-                onFocus={() => table.setCursor(index)}
-                onKeyDown={(event) => {
-                  if (event.key === ' ' && selectable) {
-                    event.preventDefault();
-                    table.toggleRow(id);
-                  } else if (event.key === 'Enter' && onOpen) {
-                    event.preventDefault();
-                    onOpen(row, index);
-                  }
-                }}
-                onClick={() => onOpen?.(row, index)}
-                className={cn(
-                  'transition-colors duration-fast motion-reduce:transition-none',
-                  // A selected row wears the warm `--nav-active` pill colour —
-                  // the same token the sidebar's current page uses. Selection
-                  // and "you are here" are the same idea, and butter is the one
-                  // fill in the palette that cannot be mistaken for a status.
-                  chosen ? 'bg-nav-active hover:bg-nav-active-hover' : 'hover:bg-muted',
-                  onOpen && 'cursor-pointer',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-                )}
-              >
-                {selectable ? (
-                  <td className={cn('border-t border-border px-3 align-middle', cellClass)}>
-                    <input
-                      type="checkbox"
-                      checked={chosen}
-                      onChange={() => table.toggleRow(id)}
-                      // The row's own click opens the drawer; without this the
-                      // checkbox would open it too.
-                      onClick={(event) => event.stopPropagation()}
-                      aria-label={chosen ? 'Deselect row' : 'Select row'}
-                      className="size-5 cursor-pointer accent-primary"
-                    />
-                  </td>
-                ) : null}
+          <thead>
+            <tr>
+              {selectable ? (
+                <th scope="col" className={headCellClass}>
+                  <input
+                    type="checkbox"
+                    checked={table.allSelected}
+                    ref={(node) => {
+                      // The indeterminate state is a DOM property, not an
+                      // attribute — React cannot set it declaratively.
+                      if (node) node.indeterminate = table.someSelected;
+                    }}
+                    onChange={table.toggleAll}
+                    aria-label={table.allSelected ? 'Clear selection' : 'Select all loaded rows'}
+                    className="size-5 cursor-pointer accent-primary"
+                  />
+                </th>
+              ) : null}
 
-                {table.columns.map((column) => (
-                  <td
-                    key={column.key}
-                    className={cn(
-                      'truncate border-t border-border px-3 align-middle',
-                      cellClass,
-                      column.numeric && 'text-right tabular-nums',
-                      table.isPinned(column.key) && 'border-l border-l-border',
-                    )}
-                  >
-                    {column.render(row)}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+              {table.columns.map((column) => (
+                <HeadCell key={column.key} column={column} table={table} />
+              ))}
+            </tr>
+          </thead>
+
+          <tbody
+            ref={bodyRef}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                move(1);
+              } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                move(-1);
+              } else if (event.key === 'Home') {
+                event.preventDefault();
+                table.setCursor(0);
+                move(0);
+              } else if (event.key === 'End') {
+                event.preventDefault();
+                table.setCursor(table.rows.length - 1);
+                move(0);
+              }
+            }}
+          >
+            {table.rows.map((row, index) => {
+              const id = table.ids[index];
+              const chosen = table.isSelected(id);
+              return (
+                <tr
+                  key={id}
+                  // Roving tabindex: one stop for the table, arrows inside it.
+                  tabIndex={index === Math.max(table.cursor, 0) ? 0 : -1}
+                  aria-selected={selectable ? chosen : undefined}
+                  onFocus={() => table.setCursor(index)}
+                  onKeyDown={(event) => {
+                    if (event.key === ' ' && selectable) {
+                      event.preventDefault();
+                      table.toggleRow(id);
+                    } else if (event.key === 'Enter' && onOpen) {
+                      event.preventDefault();
+                      onOpen(row, index);
+                    }
+                  }}
+                  onClick={() => onOpen?.(row, index)}
+                  className={cn(
+                    'transition-colors duration-fast motion-reduce:transition-none',
+                    // A selected row wears the warm `--nav-active` pill colour —
+                    // the same token the sidebar's current page uses. Selection
+                    // and "you are here" are the same idea, and butter is the one
+                    // fill in the palette that cannot be mistaken for a status.
+                    chosen ? 'bg-nav-active hover:bg-nav-active-hover' : 'hover:bg-muted',
+                    onOpen && 'cursor-pointer',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                  )}
+                >
+                  {selectable ? (
+                    <td className={cn('border-t border-border px-3 align-middle', cellClass)}>
+                      <input
+                        type="checkbox"
+                        checked={chosen}
+                        onChange={() => table.toggleRow(id)}
+                        // The row's own click opens the drawer; without this the
+                        // checkbox would open it too.
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label={chosen ? 'Deselect row' : 'Select row'}
+                        className="size-5 cursor-pointer accent-primary"
+                      />
+                    </td>
+                  ) : null}
+
+                  {table.columns.map((column) => (
+                    <td
+                      key={column.key}
+                      className={cn(
+                        'truncate border-t border-border px-3 align-middle',
+                        cellClass,
+                        column.numeric && 'text-right tabular-nums',
+                        table.isPinned(column.key) && 'border-l border-l-border',
+                      )}
+                    >
+                      {column.render(row)}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 border-t border-border py-4 text-caption text-muted-foreground">
@@ -869,7 +871,7 @@ function HeadCell<Row>({ column, table }: { column: ColumnDef<Row>; table: DataT
           // people use once.
           pinned
             ? 'text-primary opacity-100'
-            : 'opacity-0 group-hover/head:opacity-60 focus-visible:opacity-100',
+            : 'opacity-0 focus-visible:opacity-100 group-hover/head:opacity-60',
         )}
       >
         <Pin className="size-3" aria-hidden />
@@ -939,10 +941,7 @@ export function TableSkeleton({ rows = 6, columns = 5 }: { rows?: number; column
       {Array.from({ length: rows }, (_, row) => (
         <div key={row} className="flex gap-3 py-2">
           {Array.from({ length: columns }, (_, column) => (
-            <Skeleton
-              key={column}
-              className={cn('h-4', column === 0 ? 'w-1/3' : 'flex-1')}
-            />
+            <Skeleton key={column} className={cn('h-4', column === 0 ? 'w-1/3' : 'flex-1')} />
           ))}
         </div>
       ))}

@@ -187,10 +187,7 @@ export function HomepageCms({
 
   return (
     <div
-      className={cn(
-        'grid gap-block',
-        section === 'ribbon' && 'xl:grid-cols-[minmax(0,1fr)_22rem]',
-      )}
+      className={cn('grid gap-block', section === 'ribbon' && 'xl:grid-cols-[minmax(0,1fr)_22rem]')}
     >
       <div className="flex flex-col gap-block">
         {stale ? (
@@ -240,32 +237,29 @@ export function HomepageCms({
             What replaced the editorial control: `Featured events`, which
             chooses the actual events on that first screen. */}
         {section === 'ribbon' ? (
-        <Panel
-          title="Announcement ribbon"
-          subtitle="A thin bar above the header"
-        >
-          <div className="flex flex-col gap-block p-card">
-            {/* A native checkbox inside its own label: the whole row is the
+          <Panel title="Announcement ribbon" subtitle="A thin bar above the header">
+            <div className="flex flex-col gap-block p-card">
+              {/* A native checkbox inside its own label: the whole row is the
                 target, which is what makes this reachable at 390px. */}
-            <label className="flex min-h-control items-center gap-2.5 text-body-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={ribbonOn}
-                onChange={(event) => setRibbonOn(event.target.checked)}
-                className="size-5 accent-primary"
+              <label className="flex min-h-control items-center gap-2.5 text-body-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={ribbonOn}
+                  onChange={(event) => setRibbonOn(event.target.checked)}
+                  className="size-5 accent-primary"
+                />
+                Show the ribbon
+              </label>
+              <Field
+                id="ribbon"
+                label="Ribbon text"
+                value={draft.ribbon_text ?? ''}
+                onChange={(value) => set('ribbon_text', value)}
+                max={LIMITS.ribbon_text}
+                hint="Turning the ribbon on with no text shows nothing — an empty bar is not a banner."
               />
-              Show the ribbon
-            </label>
-            <Field
-              id="ribbon"
-              label="Ribbon text"
-              value={draft.ribbon_text ?? ''}
-              onChange={(value) => set('ribbon_text', value)}
-              max={LIMITS.ribbon_text}
-              hint="Turning the ribbon on with no text shows nothing — an empty bar is not a banner."
-            />
-          </div>
-        </Panel>
+            </div>
+          </Panel>
         ) : null}
 
         {/* The footer note is NOT part of the announcement ribbon and now has

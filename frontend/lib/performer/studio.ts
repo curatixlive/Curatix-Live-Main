@@ -1,7 +1,12 @@
 'use client';
 
 import { useMemo } from 'react';
-import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import {
   fetchMyPerformer,
   fetchMyPerformers,
@@ -385,7 +390,8 @@ export function profileState(act: OwnerPerformer): ProfileState {
       return {
         label: 'Changes needed',
         tone: 'danger',
-        detail: act.moderation_note || 'No reason was recorded. Contact support if this looks wrong.',
+        detail:
+          act.moderation_note || 'No reason was recorded. Contact support if this looks wrong.',
         action: 'Make the changes and resubmit',
       };
     case 'live':

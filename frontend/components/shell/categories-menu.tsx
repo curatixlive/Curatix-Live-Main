@@ -150,9 +150,7 @@ export function CategoriesMenu({ active }: { active: boolean }) {
             ink — so a link still reads as a link now that the primary action
             colour elsewhere is near-black. */}
         <div className="mt-1.5 flex flex-wrap gap-1 border-t border-border pt-1.5">
-          {[
-            { href: '/events', label: 'All events' },
-          ].map((item) => (
+          {[{ href: '/events', label: 'All events' }].map((item) => (
             <Link
               key={item.href}
               href={item.href}

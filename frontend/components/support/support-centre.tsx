@@ -135,7 +135,10 @@ export function SupportCentre() {
           {list.isPending ? (
             <Skeleton className="h-24 w-full rounded-xl" />
           ) : list.isError ? (
-            <ErrorState message="Could not load your queries." onRetry={() => void list.refetch()} />
+            <ErrorState
+              message="Could not load your queries."
+              onRetry={() => void list.refetch()}
+            />
           ) : rows.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border p-card text-caption text-muted-foreground">
               Nothing yet. Anything you ask will appear here.
@@ -152,7 +155,7 @@ export function SupportCentre() {
                       'flex w-full flex-col gap-1.5 rounded-xl border p-card text-left transition-colors duration-fast',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       openId === row.id
-                        ? 'border-primary bg-primary-subtle'
+                        ? 'bg-primary-subtle border-primary'
                         : 'border-border bg-surface hover:bg-muted',
                     )}
                   >
@@ -270,7 +273,7 @@ function RaiseForm({
             className={cn(
               'flex cursor-pointer items-start gap-2.5 rounded-lg border p-2.5 transition-colors duration-fast',
               audience === option.value
-                ? 'border-primary bg-primary-subtle'
+                ? 'bg-primary-subtle border-primary'
                 : 'border-border hover:bg-muted',
             )}
           >
@@ -294,7 +297,7 @@ function RaiseForm({
         type="button"
         disabled={!ready || mutation.isPending}
         onClick={() => mutation.mutate()}
-        className="inline-flex h-control items-center justify-center gap-2 rounded-full bg-cta px-pill text-label text-cta-foreground shadow-sm transition-colors hover:bg-cta-hover disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        className="inline-flex h-control items-center justify-center gap-2 rounded-full bg-cta px-pill text-label text-cta-foreground shadow-sm transition-colors hover:bg-cta-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-60"
       >
         {mutation.isPending ? (
           <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -340,7 +343,9 @@ function Thread({ id }: { id: string | null }) {
 
   if (thread.isPending) return <Skeleton className="h-64 w-full rounded-xl" />;
   if (thread.isError || !thread.data) {
-    return <ErrorState message="Could not load that query." onRetry={() => void thread.refetch()} />;
+    return (
+      <ErrorState message="Could not load that query." onRetry={() => void thread.refetch()} />
+    );
   }
 
   const query = thread.data;
@@ -394,7 +399,7 @@ function Thread({ id }: { id: string | null }) {
             type="button"
             disabled={reply.trim().length < 2 || send.isPending}
             onClick={() => send.mutate()}
-            className="inline-flex h-control w-fit items-center gap-2 rounded-full bg-cta px-pill text-label text-cta-foreground disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex h-control w-fit items-center gap-2 rounded-full bg-cta px-pill text-label text-cta-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
           >
             {send.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
             Reply

@@ -103,7 +103,10 @@ describe('what the screen no longer has', () => {
   it('has no Columns, no Export and no inline filter cluster', () => {
     // Removed at the owner's instruction. A source scan, because an absent
     // control has no rendered output to assert against.
-    const source = readFileSync(join(process.cwd(), 'components/organizer/events-table.tsx'), 'utf8');
+    const source = readFileSync(
+      join(process.cwd(), 'components/organizer/events-table.tsx'),
+      'utf8',
+    );
     expect(source).not.toContain('<ColumnChooser');
     expect(source).not.toContain('<ExportButton');
     expect(source).not.toContain('<FilterCluster');

@@ -11,11 +11,7 @@ export const metadata: Metadata = { title: 'Create event' };
  * component could usefully render — the draft does not exist on the server
  * until the organizer has typed enough for `POST /events` to accept it.
  */
-export default function CreateEventPage({
-  searchParams,
-}: {
-  searchParams?: { from?: string };
-}) {
+export default function CreateEventPage({ searchParams }: { searchParams?: { from?: string } }) {
   /**
    * `?from={id}` is CLONE MODE — the same create wizard, hydrated from an
    * event that already exists instead of from an empty draft.
@@ -29,5 +25,5 @@ export default function CreateEventPage({
    * not-available branch already answers for it, and it is the component that
    * knows what a half-loaded editor should look like.
    */
-  return <EventWizard cloneFrom={searchParams?.from} />;
+  return <EventWizard cloneFrom={searchParams?.from} layout="single" />;
 }

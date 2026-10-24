@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EventSlot } from '@/lib/api/event-content';
 import type { TicketTier } from '@/lib/api/types';
-import {
-  defaultSession,
-  groupSessions,
-  sessionNote,
-  tiersForSession,
-} from '@/lib/event/sessions';
+import { defaultSession, groupSessions, sessionNote, tiersForSession } from '@/lib/event/sessions';
 
 function slot(overrides: Partial<EventSlot> & { id: string; starts_at: string }): EventSlot {
   return {

@@ -60,8 +60,7 @@ export const railModeFor = (count: number): RailMode =>
  * widens, which put card one about 12px left of centre at 390px and 27px off on
  * a Pro Max the last time they disagreed.
  */
-export const centredRailPadding = (itemWidthVw: number): string =>
-  `${(100 - itemWidthVw) / 2}vw`;
+export const centredRailPadding = (itemWidthVw: number): string => `${(100 - itemWidthVw) / 2}vw`;
 
 /**
  * The scroll track.

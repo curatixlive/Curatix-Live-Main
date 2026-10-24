@@ -64,7 +64,7 @@ export function EventReviews({ eventId }: { eventId: string }) {
     // ("Rate experience"). A fragment that resolves to nothing is a link that
     // silently drops somebody at the top of a long page and leaves them to find
     // the thing they pressed for.
-    <div id="reviews" className="scroll-mt-header-lg flex flex-col gap-block">
+    <div id="reviews" className="flex scroll-mt-header-lg flex-col gap-block">
       <RatingSummary
         average={count ? (summary.data?.average ?? 0) : null}
         count={count}
@@ -108,7 +108,7 @@ export function EventReviews({ eventId }: { eventId: string }) {
               type="button"
               onClick={() => void reviews.fetchNextPage()}
               disabled={reviews.isFetchingNextPage}
-              className="mx-auto inline-flex h-control items-center gap-2 rounded-full border border-border bg-surface px-pill text-label transition-colors hover:bg-muted disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mx-auto inline-flex h-control items-center gap-2 rounded-full border border-border bg-surface px-pill text-label transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
             >
               {reviews.isFetchingNextPage ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -227,11 +227,7 @@ function WriteSlot({ eventId }: { eventId: string }) {
           </button>
         </div>
         {editing ? (
-          <ReviewForm
-            eventId={eventId}
-            existing={mine.data}
-            onDone={() => setEditing(false)}
-          />
+          <ReviewForm eventId={eventId} existing={mine.data} onDone={() => setEditing(false)} />
         ) : (
           <>
             <StarRatingDisplay value={mine.data.rating} />
@@ -281,10 +277,7 @@ function ReviewCard({ review }: { review: Review }) {
             Attended
           </span>
         ) : null}
-        <time
-          dateTime={review.created_at}
-          className="ml-auto text-caption text-foreground-subtle"
-        >
+        <time dateTime={review.created_at} className="ml-auto text-caption text-foreground-subtle">
           {new Date(review.created_at).toLocaleDateString('en-IN', {
             day: 'numeric',
             month: 'short',

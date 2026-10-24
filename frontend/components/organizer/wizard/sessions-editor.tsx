@@ -177,9 +177,7 @@ export function SessionsEditor({
           <Skeleton className="h-14 w-full" />
           <Skeleton className="h-14 w-full" />
         </div>
-      ) : rows.length === 0 && pending.length === 0 ? (
-        null
-      ) : (
+      ) : rows.length === 0 && pending.length === 0 ? null : (
         <ul className="flex flex-col gap-2">
           {rows.map((slot) => (
             <SessionRow

@@ -300,8 +300,8 @@ export function SupportDesk() {
               <div className="flex max-w-md flex-col gap-1.5">
                 <h2 className="text-body font-semibold text-foreground">Look up a booking</h2>
                 <p className="text-body-sm text-muted-foreground">
-                  Search by email, booking reference, payment reference or event name.
-                  Partial references work.
+                  Search by email, booking reference, payment reference or event name. Partial
+                  references work.
                 </p>
               </div>
             </div>
@@ -502,8 +502,8 @@ function BookingSummary({ booking }: { booking: AdminBookingDetail }) {
             rather than a gap. */}
         <p className="flex items-start gap-1.5 text-caption text-foreground-subtle">
           <X className="mt-0.5 size-3 shrink-0" aria-hidden />
-          Entry codes are never shown here. Use the check-in scanner to verify a code a
-          holder presents.
+          Entry codes are never shown here. Use the check-in scanner to verify a code a holder
+          presents.
         </p>
       </section>
     </div>

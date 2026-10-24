@@ -2,12 +2,7 @@
 
 import * as React from 'react';
 import Image from 'next/image';
-import {
-  flipTransform,
-  restrain,
-  toCss,
-  type Box,
-} from '@/lib/discovery/shared-poster';
+import { flipTransform, restrain, toCss, type Box } from '@/lib/discovery/shared-poster';
 
 /**
  * The poster, in flight between a card and the event detail.

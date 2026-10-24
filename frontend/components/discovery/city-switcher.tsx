@@ -1,7 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import { ArrowRight, Check, ChevronDown, Crosshair, Loader2, MapPin, Search, X } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  ChevronDown,
+  Crosshair,
+  Loader2,
+  MapPin,
+  Search,
+  X,
+} from 'lucide-react';
 import {
   ALL_CITIES,
   type City,
@@ -471,13 +480,13 @@ export function CitySwitcher({ className }: { className?: string }) {
                             selected={city?.slug === entry.slug}
                             active={index === activeIndex}
                             onHover={() => {
-                            // Marks the source BEFORE the state change, so the
-                            // effect the change schedules already knows not to
-                            // scroll. Setting it after would be a render too
-                            // late — which is the whole bug.
-                            moveSource.current = 'pointer';
-                            setActiveIndex(index);
-                          }}
+                              // Marks the source BEFORE the state change, so the
+                              // effect the change schedules already knows not to
+                              // scroll. Setting it after would be a render too
+                              // late — which is the whole bug.
+                              moveSource.current = 'pointer';
+                              setActiveIndex(index);
+                            }}
                             onSelect={() => choose(entry)}
                           />
                         );
@@ -502,7 +511,7 @@ export function CitySwitcher({ className }: { className?: string }) {
             {!searching ? (
               <nav
                 aria-label="Jump to letter"
-                className="my-auto mr-1 flex flex-col items-center justify-center rounded-full border border-primary/20 bg-primary/5 px-1 py-2 text-caption font-medium text-primary shadow-xs"
+                className="shadow-xs my-auto mr-1 flex flex-col items-center justify-center rounded-full border border-primary/20 bg-primary/5 px-1 py-2 text-caption font-medium text-primary"
               >
                 {groups.map((group) => (
                   <button
@@ -577,7 +586,12 @@ function CityOption({
         selected ? 'bg-primary/10 font-medium' : active ? 'bg-muted' : 'bg-transparent',
       )}
     >
-      <span className={cn('min-w-0 flex-1 truncate text-body-sm', selected ? 'text-primary font-medium' : 'text-foreground')}>
+      <span
+        className={cn(
+          'min-w-0 flex-1 truncate text-body-sm',
+          selected ? 'font-medium text-primary' : 'text-foreground',
+        )}
+      >
         {city.name}
       </span>
       {/* The state is the disambiguator, not decoration — there is an Aurangabad
