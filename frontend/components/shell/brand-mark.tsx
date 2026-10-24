@@ -77,26 +77,15 @@ export function BrandMark({
 }
 
 /**
- * Mark plus wordmark — renders the official Curatix logo assets:
- * Light mode: /curatix-logo.png
- * Dark mode: /curatix-logo-dark.png
+ * The Curatix wordmark — the logo's lettering without the ticket icon.
  *
- * ── THE SIZE, AND WHAT BOUNDS IT ──────────────────────────────────────────
+ * Light mode: /curatix-wordmark.png. Dark mode: /curatix-wordmark-dark.png.
+ * Both are cropped from the official artwork (`curatix-logo*.png`), so the
+ * letterforms and the blue-to-violet "x" are exactly the brand's.
  *
- * `h-10` (40px), up from `h-7` (28px): the lockup read as small beside the
- * 44px account avatar it shares every header row with, and a wordmark that has
- * to carry the brand at 28px on a phone is carrying it at the size of body
- * copy.
- *
- * 40px is the ceiling, not a preference. The header is `--header-height` 64px
- * and its brand link adds `py-1`, so the lockup occupies 48 of those 64 —
- * comfortable. `h-12` (48px) would occupy 56 and leave 4px of clearance top
- * and bottom, which is not a margin, it is a rounding error; the row would
- * look wrong the first time anything gained a border.
- *
- * `w-auto` throughout, so the aspect ratio is the asset's and never this
- * file's opinion, and `shrink-0` on the wrapper so a long city name in the
- * next grid column squeezes itself rather than the logo.
+ * `h-5` (20px), `h-4` when collapsed. `w-auto` so the aspect ratio is the
+ * asset's, and `shrink-0` so a long city name in the next grid column squeezes
+ * itself rather than the logo.
  */
 export function BrandLockup({
   className,
@@ -105,18 +94,24 @@ export function BrandLockup({
   className?: string;
   collapsed?: boolean;
 }) {
-  // The wordmark is TEXT, not an image: it is the brand name, so it should be
-  // selectable, translatable, always crisp and correct in both themes without
-  // a second asset. Weight and tracking do the work a logotype's drawing did.
+  // The logo's lettering WITHOUT the ticket icon: the same drawn "curatix"
+  // (near-black or white, with the blue-to-violet x) cropped from the official
+  // artwork, rather than a font that only approximates it. Two files because the
+  // letters invert with the theme; the second is hidden from assistive technology
+  // so the name is announced once.
   return (
-    <span
-      className={cn(
-        'inline-flex shrink-0 items-center font-extrabold leading-none tracking-tight text-foreground',
-        collapsed ? 'text-xl' : 'text-2xl',
-        className,
-      )}
-    >
-      {BRAND_NAME}
+    <span className={cn('inline-flex shrink-0 items-center', className)}>
+      <img
+        src="/curatix-wordmark.png"
+        alt={BRAND_NAME}
+        className={cn('w-auto object-contain dark:hidden', collapsed ? 'h-4' : 'h-5')}
+      />
+      <img
+        src="/curatix-wordmark-dark.png"
+        alt=""
+        aria-hidden
+        className={cn('hidden w-auto object-contain dark:block', collapsed ? 'h-4' : 'h-5')}
+      />
     </span>
   );
 }
