@@ -31,6 +31,8 @@ class VerifyResultSerializer(serializers.Serializer):
     used_at = serializers.DateTimeField(allow_null=True)
     gate = serializers.CharField(allow_null=True)
     seat_label = serializers.CharField(allow_blank=True, default="")
+    #: The gender the buyer declared where the ticket was priced by gender.
+    gender = serializers.CharField(allow_blank=True, default="")
     seat_section = serializers.CharField(allow_blank=True, default="")
 
 
@@ -66,6 +68,8 @@ class LookupResultSerializer(serializers.Serializer):
     used_at = serializers.DateTimeField(allow_null=True)
     gate = serializers.CharField(allow_null=True)
     seat_label = serializers.CharField(allow_blank=True, default="")
+    #: The gender the buyer declared where the ticket was priced by gender.
+    gender = serializers.CharField(allow_blank=True, default="")
     seat_section = serializers.CharField(allow_blank=True, default="")
     attendee_name = serializers.CharField(allow_null=True)
 

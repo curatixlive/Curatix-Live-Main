@@ -128,6 +128,7 @@ class TicketTypeListCreateView(APIView):
             price_minor=data["price"],
             quantity=data["quantity"],
             sale_start=data.get("sale_start"),
+            presale_starts_at=data.get("presale_starts_at"),
             sale_end=data.get("sale_end"),
             max_per_order=data["max_per_order"],
             phases=_to_service_phases(data.get("phases")),
@@ -139,6 +140,7 @@ class TicketTypeListCreateView(APIView):
             # back: these go straight into a JSON column, and a serializer's
             # own mapping type is not what should be persisted there.
             group_bands=[dict(band) for band in data.get("group_bands") or []],
+            gender_prices=dict(data.get("gender_prices") or {}),
         )
         return _no_store(
             Response(TicketTypeSerializer(ticket_type).data, status=status.HTTP_201_CREATED)

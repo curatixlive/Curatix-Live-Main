@@ -176,11 +176,12 @@ class TestFilters:
         assert ticket is not None
         ticket.seat_label = "C7"
         ticket.seat_section = "Gold"
-        ticket.save(update_fields=["seat_label", "seat_section"])
+        ticket.gender = "female"
+        ticket.save(update_fields=["seat_label", "seat_section", "gender"])
 
         rows = auth(world.owner).get(path(world.event.id)).json()["data"]
         row = next(r for r in rows if r["ticket_id"] == str(ticket.id))
-        assert (row["seat_label"], row["seat_section"]) == ("C7", "Gold")
+        assert (row["seat_label"], row["seat_section"], row["gender"]) == ("C7", "Gold", "female")
         # General admission rows carry blanks, never nulls.
         others = [r for r in rows if r["ticket_id"] != str(ticket.id)]
         assert others and all(r["seat_label"] == "" for r in others)

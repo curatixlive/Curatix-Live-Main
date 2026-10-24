@@ -21,6 +21,26 @@ urlpatterns = [
         name="event-publish",
     ),
     path(
+        "events/<uuid:event_id>/cohosts",
+        api.EventCoHostListView.as_view(),
+        name="event-cohosts",
+    ),
+    path(
+        "events/<uuid:event_id>/cohosts/<uuid:cohost_id>",
+        api.EventCoHostDetailView.as_view(),
+        name="event-cohost-detail",
+    ),
+    path(
+        "organizer/cohosted-events",
+        api.CoHostedEventsView.as_view(),
+        name="organizer-cohosted-events",
+    ),
+    path(
+        "events/<uuid:event_id>/invites",
+        api.EventInviteView.as_view(),
+        name="event-invites",
+    ),
+    path(
         "events/<uuid:event_id>/archive",
         api.EventArchiveView.as_view(),
         name="event-archive",

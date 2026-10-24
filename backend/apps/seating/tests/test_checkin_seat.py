@@ -105,3 +105,34 @@ def test_general_admission_scans_have_no_seat(checkin, booking_service, buyer, o
         event_id=plain.id, qr_token=ticket.qr_token, gate="Main", scanned_by_id=organizer.id
     )
     assert result.allowed and result.seat_label == "" and result.seat_section == ""
+
+
+def test_case_2_and_4_a_seated_gender_priced_ticket_shows_section_seat_and_gender(
+    checkin, booking_service, buyer, organizer, seated_event
+):
+    """Seat + section + the declared gender, all on one scan result."""
+    from apps.ticketing.models import TicketType
+
+    TicketType.objects.filter(event_id=seated_event.id, name="VIP").update(
+        gender_prices={"female": 1}
+    )
+    from apps.seating.models import EventSeat
+
+    seat = EventSeat.objects.get(event_id=seated_event.id, label="B2")
+    booking = booking_service.create_booking(
+        user_id=buyer.id,
+        event_id=seated_event.id,
+        items=[],
+        seat_ids=[str(seat.id)],
+        seat_gender="female",
+    ).booking
+    booking_service.confirm_booking(booking_id=booking.id, payment_ref="pay_seat_gender")
+    Event.objects.filter(pk=seated_event.id).update(starts_at=timezone.now())
+    ticket = Ticket.objects.get(booking=booking)
+
+    result = checkin.verify_and_mark_used(
+        event_id=seated_event.id, qr_token=ticket.qr_token, gate="Main", scanned_by_id=organizer.id
+    )
+    assert result.allowed is True
+    assert (result.ticket_type, result.seat_label, result.seat_section) == ("VIP", "B2", "VIP")
+    assert result.gender == "female"

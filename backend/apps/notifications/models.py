@@ -106,6 +106,9 @@ class NotificationType(models.TextChoices):
     # have none and says "there is one now, and it is first come". Different
     # audience, different claim, different urgency.
     WAITLIST_AVAILABLE = "waitlist_available", "Waitlist: tickets available"
+    # An organiser inviting somebody to an invite-only event or a pre-sale, with
+    # the access code. The only mail that carries it.
+    EVENT_INVITE = "event_invite", "Event invitation"
 
 
 class NotificationLog(models.Model):

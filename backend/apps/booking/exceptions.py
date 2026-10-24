@@ -48,6 +48,16 @@ class InvalidBookingItemsError(InvalidInputError):
         super().__init__(message)
 
 
+class InviteRequiredError(PermissionDeniedError):
+    """The event is invite-only and the buyer has neither the code nor a
+    relationship with the organiser."""
+
+    code = "invite_required"
+
+    def __init__(self) -> None:
+        super().__init__("This event is invite-only. Enter your access code to book.")
+
+
 class EventNotBookableError(ConflictError):
     """The event isn't live / open for booking."""
 

@@ -132,6 +132,8 @@ class AttendeeRowSerializer(serializers.Serializer):
     #: Assigned seating: blank for general admission.
     seat_label = serializers.CharField(allow_blank=True)
     seat_section = serializers.CharField(allow_blank=True)
+    #: The gender the buyer declared where the ticket was priced by gender.
+    gender = serializers.CharField(allow_blank=True)
     booking_id = serializers.UUIDField()
     created_at = serializers.DateTimeField()
 
@@ -373,6 +375,9 @@ class EventAnalyticsSerializer(serializers.Serializer):
     scans_by_result = LabelValueSerializer(many=True)
     tiers = TierAnalyticsSerializer(many=True)
     sales_timeline = SeriesPointSerializer(many=True)
+    #: True when the viewer is a co-host without the finance permission: every money
+    #: figure above is zeroed and the page must not draw a money section.
+    finance_hidden = serializers.BooleanField(required=False, default=False)
     generated_at = serializers.CharField()
     #: Every booking ever started, lapsed holds included.
     add_to_cart = serializers.IntegerField()

@@ -55,6 +55,17 @@ CONTEXTS: dict[str, dict[str, Any]] = {
         "url": f"{SITE}/events/3f1d9c22-0000-4000-8000-000000000001",
         "tickets_available": 2,
     },
+    # An organiser inviting somebody, with the access code. Every field the
+    # template reads is present.
+    NotificationType.EVENT_INVITE: {
+        "event_title": "Sunburn Jazz Night",
+        "event_when": "Sat 23 Aug 2026, 20:10 IST",
+        "event_where": "Phoenix Arena, Mumbai",
+        "organiser": "Groove Collective",
+        "code": "FRIENDS24",
+        "invite_only": True,
+        "url": f"{SITE}/events/3f1d9c22-0000-4000-8000-000000000001",
+    },
     NotificationType.TICKET_DELIVERY: {
         "name": "Asha Rao",
         "event_title": "Sunburn Jazz Night",

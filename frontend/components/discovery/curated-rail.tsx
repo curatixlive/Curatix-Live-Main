@@ -75,7 +75,7 @@ export function CuratedRail({
       {/* 12px gutters below `sm`, 24px above. The cards are compact rows on a
           phone (see `event-card.tsx`) and a 24px trough between two 140px rows
           reads as a break in the rail rather than as breathing room. */}
-      <ul className="grid gap-3 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
         {cards.map((card, index) => (
           <li key={card.entry_id}>
             {/* Only the first row is eager: these sit high on the page, and

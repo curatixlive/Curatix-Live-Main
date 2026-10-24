@@ -112,6 +112,70 @@ class OrganizerView(APIView):
         return cast(User, self.request.user).id
 
 
+def resolve_event_access(
+    user_id: UUID, event_id: UUID, permission: str | None
+) -> tuple[UUID, dict | None]:
+    """Who is acting on this event, and with what rights.
+
+    Returns `(host_id, permissions)`. The host gets `(their own id, None)` —
+    `None` meaning unrestricted. A CO-HOST gets the HOST's id (every query here
+    is scoped by the host who owns the event) plus the permission set the host
+    gave them, and only if `permission` is one of them (`None` asks for any
+    co-host). Everybody else gets the same 404 as a missing event, so an id
+    cannot be probed.
+    """
+    from apps.events.repositories import EventCoHostRepository
+
+    repo = OrganizerRepository()
+    if repo.owns_event(user_id, event_id):
+        return user_id, None
+    perms = EventCoHostRepository().permissions_for(event_id=event_id, user_id=user_id)
+    if perms is not None and (permission is None or perms.get(permission)):
+        host = repo.event_owner_id(event_id)
+        if host is not None:
+            return host, perms
+    raise NotFoundError("Event not found.")
+
+
+#: Every key, at any depth of the analytics payload, that carries money. A
+#: co-host without the `finance` permission gets zeros here AND
+#: `finance_hidden: true`, so the page draws no money section at all rather than
+#: "₹0". Matching by key at every depth — not a hand-listed path — is what keeps a
+#: figure added to some nested section later from leaking until somebody notices.
+_FINANCE_KEYS = frozenset(
+    {
+        "revenue_minor",
+        "refunded_minor",
+        "refunded_count",
+        "avg_per_attendee_minor",
+        "charged_minor",
+        "discount_minor",
+        "per_person_minor",
+    }
+)
+
+
+def _redact(node):
+    if isinstance(node, dict):
+        return {
+            key: (None if key == "per_person_minor" else 0)
+            if key in _FINANCE_KEYS
+            else _redact(value)
+            for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [_redact(item) for item in node]
+    return node
+
+
+def redact_finance(payload: dict) -> dict:
+    out = _redact(payload)
+    # The daily sales line is revenue by day.
+    out["sales_timeline"] = [{**point, "value": 0} for point in out.get("sales_timeline", [])]
+    out["finance_hidden"] = True
+    return out
+
+
 class OverviewView(OrganizerView):
     @extend_schema(responses={200: OrganizerOverviewSerializer})
     def get(self, request: Request) -> Response:
@@ -294,13 +358,14 @@ class EventAnalyticsView(OrganizerView):
         responses={200: EventAnalyticsSerializer},
     )
     def get(self, request: Request, event_id: UUID) -> Response:
-        if not OrganizerRepository().owns_event(self.owner_id, event_id):
-            # NotFound, not PermissionDenied — see permissions.py. A 403 here
-            # would confirm the event exists to anyone guessing ids.
-            raise NotFoundError("Event not found.")
+        # The host, or a co-host the host allowed to see analytics. A stranger
+        # gets the same 404 as a missing event — see permissions.py.
+        host_id, perms = resolve_event_access(self.owner_id, event_id, "analytics")
         payload = selectors.get_event_analytics(
-            self.owner_id, event_id, _int_param(request, "days", selectors.DEFAULT_SERIES_DAYS)
+            host_id, event_id, _int_param(request, "days", selectors.DEFAULT_SERIES_DAYS)
         )
+        if perms is not None and not perms.get("finance"):
+            payload = redact_finance(payload)
         return _no_store(Response(EventAnalyticsSerializer(payload).data))
 
 
@@ -341,11 +406,9 @@ class EventAttendeeListView(OrganizerView):
         responses={200: AttendeeRowSerializer(many=True)},
     )
     def get(self, request: Request, event_id: UUID) -> Response:
-        if not OrganizerRepository().owns_event(self.owner_id, event_id):
-            # NotFound, not PermissionDenied — see permissions.py. A 403 here
-            # would confirm the event exists to anyone guessing ids, and this
-            # list is somebody's attendees by name, email and phone.
-            raise NotFoundError("Event not found.")
+        # The host, or a co-host allowed to see attendees. Same 404 for anybody
+        # else: this list is somebody's attendees by name, email and phone.
+        resolve_event_access(self.owner_id, event_id, "attendees")
 
         sort = request.query_params.get("sort") or "recent"
         if sort not in self.PAGINATORS:
@@ -491,7 +554,8 @@ class OwnerEventTicketTypesView(OrganizerView):
 
     @extend_schema(responses={200: TicketTypeSerializer(many=True)})
     def get(self, request: Request, event_id: str) -> Response:
-        rows = selectors.get_owner_event_tiers(self.owner_id, UUID(str(event_id)))
+        host_id, _ = resolve_event_access(self.owner_id, UUID(str(event_id)), None)
+        rows = selectors.get_owner_event_tiers(host_id, UUID(str(event_id)))
         return _no_store(Response({"data": TicketTypeSerializer(rows, many=True).data}))
 
 

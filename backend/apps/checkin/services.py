@@ -30,7 +30,7 @@ from django.utils import timezone
 from apps.booking.models import TicketStatus
 from apps.booking.qr import verify_ticket_token
 from apps.booking.repositories import TicketRepository
-from apps.events.repositories import EventRepository
+from apps.events.repositories import EventCoHostRepository, EventRepository
 from apps.ticketing.repositories import TicketTypeRepository
 from core.events import TICKET_CHECKED_IN
 from core.ports.cache_port import CachePort
@@ -61,6 +61,7 @@ class VerifyResult:
     #: Assigned seating, shown to the scanner so the person is sent to the right
     #: place. Blank for general admission.
     seat_label: str = ""
+    gender: str = ""
     seat_section: str = ""
 
 
@@ -91,6 +92,7 @@ class LookupResult:
     gate: str | None = None
     attendee_name: str | None = None
     seat_label: str = ""
+    gender: str = ""
     seat_section: str = ""
 
 
@@ -106,7 +108,9 @@ class CheckinService:
         qr_secret: str,
         window_opens_before_minutes: int,
         window_grace_after_minutes: int,
+        cohosts: EventCoHostRepository | None = None,
     ) -> None:
+        self._cohosts = cohosts or EventCoHostRepository()
         self._scans = scans
         self._tickets = tickets
         self._ticket_types = ticket_types
@@ -115,6 +119,17 @@ class CheckinService:
         self._qr_secret = qr_secret
         self._window_opens_before = window_opens_before_minutes
         self._window_grace_after = window_grace_after_minutes
+
+    def _may_check(self, event, user_id, is_admin: bool) -> bool:
+        """The host, an admin, or a co-host the host allowed to scan for this event.
+
+        The owner and admin cases cost nothing; only somebody else pays the one
+        indexed lookup, so the host's own scan budget is unchanged."""
+        if is_admin or str(event.organization.owner_id) == str(user_id):
+            return True
+        return self._cohosts.has_permission(
+            event_id=event.id, user_id=user_id, permission="checkin"
+        )
 
     # --- VerifyAndMarkUsed (the command) -----------------------------------
 
@@ -146,7 +161,7 @@ class CheckinService:
         event = self._events.get_for_checkin(event_id)
         if event is None:
             raise EventNotFoundForCheckinError(str(event_id))
-        if not is_admin and str(event.organization.owner_id) != str(scanned_by_id):
+        if not self._may_check(event, scanned_by_id, is_admin):
             raise NotEventCheckerError()
 
         # 3) Load the ticket (no lock) for the cheap, lock-free denials.
@@ -241,7 +256,7 @@ class CheckinService:
         event = self._events.get_for_checkin(event_id)
         if event is None:
             raise EventNotFoundForCheckinError(str(event_id))
-        if not is_admin and str(event.organization.owner_id) != str(actor_id):
+        if not self._may_check(event, actor_id, is_admin):
             raise NotEventCheckerError()
 
         ticket = self._tickets.get_for_lookup(payload.ticket_id)
@@ -279,6 +294,7 @@ class CheckinService:
             gate=ticket.gate or None,
             attendee_name=ticket.attendee_name or None,
             seat_label=ticket.seat_label,
+            gender=ticket.gender,
             seat_section=ticket.seat_section,
         )
 
@@ -297,7 +313,7 @@ class CheckinService:
         event = self._events.get_for_checkin(event_id)
         if event is None:
             raise EventNotFoundForCheckinError(str(event_id))
-        if not is_admin and str(event.organization.owner_id) != str(actor_id):
+        if not self._may_check(event, actor_id, is_admin):
             raise NotEventCheckerError()
         return _get_attendance_payload(
             event_id,
@@ -343,6 +359,7 @@ class CheckinService:
                     event_id=str(event_id),
                     ticket_type=summary,
                     seat_label=ticket.seat_label,
+                    gender=ticket.gender,
                     seat_section=ticket.seat_section,
                 )
 
@@ -374,6 +391,7 @@ class CheckinService:
             used_at=used_at,
             gate=gate,
             seat_label=ticket.seat_label,
+            gender=ticket.gender,
             seat_section=ticket.seat_section,
         )
 
@@ -401,6 +419,7 @@ class CheckinService:
             event_id=str(event_id),
             ticket_type=summary,
             seat_label=ticket.seat_label,
+            gender=ticket.gender,
             seat_section=ticket.seat_section,
         )
 
@@ -432,6 +451,7 @@ class CheckinService:
             used_at=ticket.used_at,
             gate=ticket.gate,
             seat_label=ticket.seat_label,
+            gender=ticket.gender,
             seat_section=ticket.seat_section,
         )
 

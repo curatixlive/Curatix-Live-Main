@@ -695,13 +695,22 @@ export function EventWizard({
             <SaveBadge state={wizard.state} error={wizard.error} savedAt={wizard.savedAt} />
           </div>
 
-          <h1 className="text-center text-h2 font-bold uppercase tracking-wide">
-            {editing ? 'Edit event' : 'Create event'}
-          </h1>
+          <header className="flex flex-col items-center gap-1 text-center">
+            <h1 className="text-h1 font-extrabold tracking-tight">
+              {editing ? 'Edit event' : 'Create event'}
+            </h1>
+            <p className="text-body-sm text-muted-foreground">
+              Everything for your event on one page. Your draft saves as you go.
+            </p>
+          </header>
 
-          <div className="flex flex-col gap-block-lg rounded-3xl border border-border bg-surface p-card-lg">
+          <div className="flex flex-col gap-block-lg">
             {SINGLE_PAGE_ORDER.map((member) => (
-              <section key={member} id={memberAnchor(member)} className="scroll-mt-20">
+              <section
+                key={member}
+                id={memberAnchor(member)}
+                className="scroll-mt-20 rounded-3xl border border-border bg-surface p-card-lg shadow-sm sm:p-6"
+              >
                 {renderMember(member)}
               </section>
             ))}
@@ -716,16 +725,21 @@ export function EventWizard({
             ) : null}
 
             {/* The form's only actions, exactly three: keep it, look at it, send it. */}
-            <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" size="lg" onClick={() => void wizard.saveNow()}>
+            <div className="sticky bottom-0 -mx-1 flex flex-col gap-3 rounded-3xl border border-border bg-surface/90 p-3 shadow-lg backdrop-blur sm:flex-row">
+              <Button
+                variant="outline"
+                size="lg"
+                className="flex-1"
+                onClick={() => void wizard.saveNow()}
+              >
                 Save Draft
               </Button>
-              <Button variant="outline" size="lg" onClick={openPreview}>
+              <Button variant="outline" size="lg" className="flex-1" onClick={openPreview}>
                 Preview Event
               </Button>
               <Button
                 size="lg"
-                className="col-span-2"
+                className="flex-[1.4]"
                 loading={publishing}
                 onClick={() => void publish()}
               >

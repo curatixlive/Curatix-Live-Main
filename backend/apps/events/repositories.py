@@ -138,6 +138,7 @@ _DETAIL_FIELDS = (
     "seo_title",
     "seo_description",
     "seating_enabled",
+    "invite_only",
     # Read by the card and detail serializers. Absent from this set it would
     # be a DEFERRED field, so every row would re-fetch it — one extra query
     # per card, which is precisely the N+1 the query budgets guard.
@@ -245,6 +246,19 @@ class EventRepository(BaseRepository[Event]):
             .only(*_DETAIL_FIELDS)
             .first()
         )
+
+    def access_info(self, event_id: uuid.UUID | str) -> tuple[bool, str, uuid.UUID] | None:
+        """`(invite_only, access_code, organization_id)` for a live event.
+
+        One narrow read of exactly the three columns the booking access rule
+        needs — the code is deliberately NOT in `_DETAIL_FIELDS`, so it can never
+        reach a public serializer by accident."""
+        row = (
+            Event.objects.filter(pk=event_id, status=EventStatus.LIVE, deleted_at__isnull=True)
+            .values_list("invite_only", "access_code", "organization_id")
+            .first()
+        )
+        return None if row is None else (bool(row[0]), str(row[1] or ""), row[2])
 
     def get_active_by_id(self, event_id: uuid.UUID | str) -> Event | None:
         """Detail-shaped load for ANY non-deleted status — used to render the
@@ -2168,3 +2182,84 @@ class EventEngagementRepository:
         )
         with connection.cursor() as cursor:
             cursor.execute(statement, params)
+
+
+class EventCoHostRepository:
+    """Co-hosts of an event, and what each may do."""
+
+    def list_for_event(self, event_id):
+        from .models import EventCoHost
+
+        return list(
+            EventCoHost.objects.filter(event_id=event_id)
+            .select_related("user")
+            .only("id", "permissions", "created_at", "user__id", "user__email", "user__full_name")
+            .order_by("created_at")
+        )
+
+    def count_for_event(self, event_id) -> int:
+        from .models import EventCoHost
+
+        return EventCoHost.objects.filter(event_id=event_id).count()
+
+    def get(self, *, event_id, cohost_id):
+        from .models import EventCoHost
+
+        return (
+            EventCoHost.objects.filter(pk=cohost_id, event_id=event_id)
+            .select_related("user")
+            .first()
+        )
+
+    def create(self, *, event_id, user_id, permissions: dict):
+        from .models import EventCoHost
+
+        return EventCoHost.objects.create(
+            event_id=event_id, user_id=user_id, permissions=permissions
+        )
+
+    def set_permissions(self, cohost_id, permissions: dict) -> None:
+        from .models import EventCoHost
+
+        EventCoHost.objects.filter(pk=cohost_id).update(permissions=permissions)
+
+    def delete(self, *, event_id, cohost_id) -> int:
+        from .models import EventCoHost
+
+        deleted, _ = EventCoHost.objects.filter(pk=cohost_id, event_id=event_id).delete()
+        return deleted
+
+    def permissions_for(self, *, event_id, user_id) -> dict | None:
+        """The user's permission set on this event, or None when they are no co-host."""
+        from .models import EventCoHost
+
+        row = (
+            EventCoHost.objects.filter(event_id=event_id, user_id=user_id)
+            .values_list("permissions", flat=True)
+            .first()
+        )
+        return None if row is None else dict(row)
+
+    def has_permission(self, *, event_id, user_id, permission: str) -> bool:
+        perms = self.permissions_for(event_id=event_id, user_id=user_id)
+        return bool(perms and perms.get(permission))
+
+    def events_for_user(self, user_id):
+        """Events somebody co-hosts, with their permissions — newest first."""
+        from .models import EventCoHost
+
+        return list(
+            EventCoHost.objects.filter(user_id=user_id, event__deleted_at__isnull=True)
+            .select_related("event", "event__organization")
+            .only(
+                "id",
+                "permissions",
+                "event__id",
+                "event__title",
+                "event__status",
+                "event__starts_at",
+                "event__city",
+                "event__organization__name",
+            )
+            .order_by("-event__starts_at")
+        )

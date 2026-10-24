@@ -122,6 +122,14 @@ class OrganizerRepository:
             deleted_at__isnull=True,
         )
 
+    def event_owner_id(self, event_id: UUID) -> UUID | None:
+        """The host (organisation owner) of a live-or-draft, non-deleted event."""
+        return (
+            Event.objects.filter(pk=event_id, deleted_at__isnull=True)
+            .values_list("organization__owner_id", flat=True)
+            .first()
+        )
+
     def owns_event(self, owner_id: UUID, event_id: UUID) -> bool:
         return self.owned_events(owner_id).filter(id=event_id).exists()
 
@@ -555,6 +563,7 @@ class OrganizerRepository:
                 "attendee_email",
                 "seat_label",
                 "seat_section",
+                "gender",
                 "created_at",
                 "booking__id",
                 "booking__user__id",

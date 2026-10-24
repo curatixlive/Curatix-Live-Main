@@ -24,6 +24,7 @@ frees inventory even if every best-effort signal is missed.
 from __future__ import annotations
 
 import base64
+import hmac
 import logging
 import uuid
 from dataclasses import dataclass
@@ -66,12 +67,13 @@ from .exceptions import (
     HoldNotLiveError,
     InvalidAttendeeAssignmentsError,
     InvalidBookingItemsError,
+    InviteRequiredError,
     NotBookingOwnerError,
     PaymentOrderFailedError,
 )
 from .models import Booking, BookingAnswer, BookingItem, BookingStatus, Ticket, TicketStatus
 from .qr import sign_ticket
-from .repositories import BookingRepository, TicketRepository
+from .repositories import BookingRepository, TicketRepository, relationship_with_organization
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +98,17 @@ _CURRENCY = "INR"
 #: event and the provider's reason, because the organizer's payout now depends
 #: on somebody fixing that account. Set to False to refuse the sale instead.
 ROUTE_TRANSFER_FALLBACK = True
+
+
+@dataclass(frozen=True)
+class AccessDecision:
+    """Whether a buyer may use the event's pre-sale / invite-only access.
+
+    `via` names the way in (`code`, `follower`, `attendee`) or is blank."""
+
+    invite_only: bool
+    granted: bool
+    via: str
 
 
 @dataclass(frozen=True)
@@ -299,6 +312,8 @@ class BookingService:
         #: Changing gateway after the fact is `set_payment_gateway`.
         gateway: str = "",
         seat_ids: list[str] | None = None,
+        seat_gender: str = "",
+        access_code: str = "",
     ) -> BookingCreationResult:
         if not items and not seat_ids:
             raise InvalidBookingItemsError("At least one item is required.")
@@ -325,6 +340,7 @@ class BookingService:
             raise InvalidBookingItemsError("Assigned seating is not available.")
         if seated:
             requested = []
+            seat_gender = self._clean_gender(seat_gender)
         else:
             tiers = {str(t.id): t for t in self._ticket_types.list_for_event(event_id)}
             requested = self._validate_items(items, tiers)
@@ -344,6 +360,9 @@ class BookingService:
         # declining to issue the ticket, which is the single outcome the
         # payments module exists to prevent.
         checked_answers = self._validate_answers(event_id, answers or {})
+        access = self.resolve_access(event_id=event_id, user_id=user_id, code=access_code)
+        if access.invite_only and not access.granted:
+            raise InviteRequiredError()
 
         if idempotency_key:
             existing = self._bookings.get_replayable_by_idempotency_key(user_id, idempotency_key)
@@ -386,6 +405,8 @@ class BookingService:
                     idempotency_key,
                     checked_answers,
                     seat_ids=seat_ids,
+                    seat_gender=seat_gender,
+                    presale_access=access.granted,
                 )
         else:
             booking = self._reserve_and_insert(
@@ -396,6 +417,8 @@ class BookingService:
                 None,
                 checked_answers,
                 seat_ids=seat_ids,
+                seat_gender=seat_gender,
+                presale_access=access.granted,
             )
 
         # OUTSIDE the transaction/lock: the external payment-order call.
@@ -475,35 +498,72 @@ class BookingService:
         """
         return (subtotal_minor * self._platform_fee_bps + 5_000) // 10_000
 
-    def _validate_items(self, items: list[dict], tiers: dict) -> list[tuple[uuid.UUID | str, int]]:
-        seen: set[str] = set()
-        requested: list[tuple[uuid.UUID | str, int]] = []
+    def resolve_access(
+        self, *, event_id: uuid.UUID | str, user_id: uuid.UUID | str | None, code: str = ""
+    ) -> AccessDecision:
+        """May this person use the event's pre-sale / invite-only access?
+
+        Three ways in, any one enough: the shared access code, following the
+        organiser, or having attended one of their events. The code is compared
+        in constant time. The decision is made HERE from the stored values — the
+        client only ever supplies the code it typed."""
+        info = self._events.access_info(event_id)
+        if info is None:
+            return AccessDecision(invite_only=False, granted=False, via="")
+        invite_only, stored_code, organization_id = info
+        typed = (code or "").strip().upper()
+        if typed and stored_code and hmac.compare_digest(typed, stored_code):
+            return AccessDecision(invite_only=invite_only, granted=True, via="code")
+        if user_id is not None:
+            via = relationship_with_organization(user_id, organization_id)
+            if via:
+                return AccessDecision(invite_only=invite_only, granted=True, via=via)
+        return AccessDecision(invite_only=invite_only, granted=False, via="")
+
+    @staticmethod
+    def _clean_gender(value: object) -> str:
+        """A self-declared gender, or `""` for none. Anything else is a client bug."""
+        text = str(value or "").strip().lower()
+        if text and text not in ("male", "female"):
+            raise InvalidBookingItemsError("Gender must be male or female, or left out.")
+        return text
+
+    def _validate_items(
+        self, items: list[dict], tiers: dict
+    ) -> list[tuple[uuid.UUID | str, int, str]]:
+        seen: set[tuple[str, str]] = set()
+        requested: list[tuple[uuid.UUID | str, int, str]] = []
         for item in items:
             tier_id = item["ticket_type_id"]
             quantity = item["quantity"]
             if quantity < 1:
                 raise InvalidBookingItemsError("Quantity must be positive.")
             key = str(tier_id)
-            if key in seen:
+            gender = self._clean_gender(item.get("gender"))
+            # One line per (ticket type, gender): two people on one tier at two
+            # prices are two lines, and the same pair twice is a client bug.
+            if (key, gender) in seen:
                 raise InvalidBookingItemsError("Each ticket type may appear only once.")
-            seen.add(key)
+            seen.add((key, gender))
             tier = tiers.get(key)
             if tier is None:
                 raise InvalidBookingItemsError(
                     "A requested ticket type doesn't belong to this event."
                 )
-            requested.append((tier_id, quantity))
+            requested.append((tier_id, quantity, gender))
         return requested
 
     def _reserve_and_insert(
         self,
         user_id,
         event_id,
-        requested: list[tuple[uuid.UUID | str, int]],
+        requested: list[tuple[uuid.UUID | str, int, str]],
         donation_minor: int,
         idempotency_key: str | None,
         answers: dict[str, str] | None = None,
         seat_ids: list[str] | None = None,
+        seat_gender: str = "",
+        presale_access: bool = False,
     ) -> Booking:
         booking_id = uuid.uuid4()
         hold_expires_at = timezone.now() + timedelta(minutes=self._hold_minutes)
@@ -536,7 +596,7 @@ class BookingService:
                 # disagreed, and the total is what payments' webhook
                 # amount-checks. An invoice that doesn't add up to the amount
                 # charged is not a display bug on the money path.
-                priced: list[tuple[uuid.UUID | str, int, int, str | None, int | None]] = []
+                priced: list[tuple[uuid.UUID | str, int, int, str | None, int | None, str]] = []
                 if seat_ids:
                     # SEATED: take the seats FIRST, in this same transaction. The
                     # conditional UPDATE inside `hold_for_booking` is the race
@@ -547,9 +607,14 @@ class BookingService:
                     held = self._seating.hold_for_booking(
                         event_id=event_id, booking_id=booking_id, seat_ids=seat_ids
                     )
-                    requested = list(held.lines)
-                for tier_id, quantity in requested:
-                    outcome = self._ticketing.reserve(ticket_type_id=tier_id, quantity=quantity)
+                    requested = [(tier, qty, seat_gender) for tier, qty in held.lines]
+                for tier_id, quantity, gender in requested:
+                    outcome = self._ticketing.reserve(
+                        ticket_type_id=tier_id,
+                        quantity=quantity,
+                        gender=gender,
+                        presale_access=presale_access,
+                    )
                     # reserve() always decides a price; the Optional on the
                     # outcome is for release/confirm, which decide none.
                     assert outcome.unit_price_minor is not None
@@ -560,6 +625,7 @@ class BookingService:
                             outcome.unit_price_minor,
                             outcome.phase_name,
                             outcome.group_min_quantity,
+                            outcome.gender,
                         )
                     )
 
@@ -577,7 +643,7 @@ class BookingService:
                 # locked prices as the subtotal. Computing it earlier from the
                 # unlocked read would let a sale phase change between the two
                 # and bill a percentage of a price nobody was charged.
-                subtotal = sum(q * price for _, q, price, _, _ in priced)
+                subtotal = sum(q * price for _, q, price, _, _, _ in priced)
                 platform_fee = self._platform_fee_for(subtotal)
                 total_amount = subtotal + platform_fee + donation_minor
 
@@ -601,8 +667,9 @@ class BookingService:
                             unit_price_minor=price,
                             phase_name=phase_name,
                             group_min_quantity=group_min,
+                            gender=line_gender,
                         )
-                        for tier_id, quantity, price, phase_name, group_min in priced
+                        for tier_id, quantity, price, phase_name, group_min, line_gender in priced
                     ]
                 )
                 # The questionnaire, in the SAME transaction as the reserve.
@@ -1659,6 +1726,7 @@ class BookingService:
                         seat_id=seat.id if seat else None,
                         seat_label=seat.label if seat else "",
                         seat_section=seat.section_name if seat else "",
+                        gender=item.gender,
                     )
                 )
         self._tickets.bulk_create(tickets)

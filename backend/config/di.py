@@ -945,6 +945,25 @@ def build_waitlist_service():
     )
 
 
+def build_event_cohost_service():
+    """The host adding co-hosts to one event and choosing what each may see."""
+    from apps.accounts.repositories import UserRepository
+    from apps.events.repositories import EventCoHostRepository, EventRepository
+    from apps.events.services import EventCoHostService
+
+    return EventCoHostService(
+        events=EventRepository(), users=UserRepository(), cohosts=EventCoHostRepository()
+    )
+
+
+def build_event_invite_service():
+    """Emails an event's access code to people the organiser names."""
+    from apps.events.repositories import EventRepository
+    from apps.events.services import EventInviteService
+
+    return EventInviteService(events=EventRepository(), notifier=build_notification_service())
+
+
 def build_event_moderation_service() -> EventModerationService:
     """A platform operator's decisions on submitted events. Staff-only —
     the view enforces that; this service asks no ownership question."""

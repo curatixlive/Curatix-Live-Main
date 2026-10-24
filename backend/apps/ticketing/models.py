@@ -120,6 +120,13 @@ class TicketType(models.Model):
     #:
     #: The default is the `list` CALLABLE, for the reason stated on `perks`.
     group_bands = models.JSONField(default=list, blank=True)
+    #: SELF-DECLARED GENDER PRICING: `{"male": 149900, "female": 129900}`, minor
+    #: units per ticket. A buyer who picks a gender here pays that gender's
+    #: price; a buyer who picks none pays `price_minor`. Either key may be
+    #: absent (a tier can discount one side only), and the chosen gender is
+    #: stored on the booking line and the ticket so the door can check it.
+    #: The default is the `dict` CALLABLE, for the reason stated on `perks`.
+    gender_prices = models.JSONField(default=dict, blank=True)
     #: The organiser's own order for the ticket panel.
     #:
     #: Tiers used to be listed by price alone, which is the right DEFAULT and
@@ -133,6 +140,10 @@ class TicketType(models.Model):
     sold = models.PositiveIntegerField(default=0)
     reserved = models.PositiveIntegerField(default=0)
     sale_start = models.DateTimeField(null=True, blank=True)
+    #: PRE-SALE: from this moment until `sale_start`, the tier is open to buyers
+    #: with access (the event's code, or a standing relationship with the
+    #: organiser). Null means no pre-sale. Must precede `sale_start`.
+    presale_starts_at = models.DateTimeField(null=True, blank=True)
     sale_end = models.DateTimeField(null=True, blank=True)
     max_per_order = models.PositiveIntegerField(default=10)
     version = models.PositiveIntegerField(default=1)

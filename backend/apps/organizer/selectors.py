@@ -689,6 +689,7 @@ def decorate_attendees(tickets: list[Any]) -> list[dict[str, Any]]:
                 "gate": ticket.gate,
                 "seat_label": ticket.seat_label,
                 "seat_section": ticket.seat_section,
+                "gender": ticket.gender,
                 "booking_id": str(ticket.booking_id),
                 "created_at": ticket.created_at.isoformat(),
             }

@@ -12,6 +12,10 @@ from .models import Booking, BookingItem, Ticket
 class BookingItemRequestSerializer(serializers.Serializer):
     ticket_type_id = serializers.UUIDField()
     quantity = serializers.IntegerField(min_value=1)
+    #: Self-declared, optional. Only affects the price where the tier sets one.
+    gender = serializers.ChoiceField(
+        choices=["male", "female"], required=False, allow_blank=True, default=""
+    )
 
 
 class CreateBookingRequestSerializer(serializers.Serializer):
@@ -27,6 +31,13 @@ class CreateBookingRequestSerializer(serializers.Serializer):
     # rejects the nonsensical, the service owns the policy — a maximum that
     # lives in settings does not belong in a serializer that cannot read it.
     donation_minor = serializers.IntegerField(min_value=0, required=False, default=0)
+    #: For a SEATED order: the one gender declared for the seats, where a section
+    #: prices by gender. General admission declares per line instead.
+    #: The event's access code, when the buyer has one. Checked server-side only.
+    access_code = serializers.CharField(required=False, allow_blank=True, default="", max_length=32)
+    seat_gender = serializers.ChoiceField(
+        choices=["male", "female"], required=False, allow_blank=True, default=""
+    )
     #: The questionnaire, as `{question_id: answer}`.
     #:
     #: A MAP rather than a list of `{question_id, answer}` objects, because one
@@ -114,7 +125,14 @@ class BookingItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BookingItem
-        fields = ["ticket_type_id", "ticket_type_name", "quantity", "unit_price", "phase_name"]
+        fields = [
+            "ticket_type_id",
+            "ticket_type_name",
+            "quantity",
+            "unit_price",
+            "phase_name",
+            "gender",
+        ]
         read_only_fields = fields
 
 
@@ -231,6 +249,7 @@ class BookingTicketSerializer(serializers.ModelSerializer):
             "attendee_email",
             "seat_label",
             "seat_section",
+            "gender",
         ]
         read_only_fields = fields
 
@@ -445,6 +464,7 @@ class TicketSerializer(serializers.ModelSerializer):
             # Assigned seating: blank for general admission. Printed beside the QR.
             "seat_label",
             "seat_section",
+            "gender",
             "qr_token",
             "created_at",
         ]

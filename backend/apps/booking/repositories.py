@@ -18,7 +18,7 @@ from .models import Booking, BookingAnswer, BookingItem, BookingStatus, Ticket, 
 # Columns the check-in gate path needs from a ticket — deliberately tiny so the
 # per-ticket locked section stays as small and fast as possible (see the
 # `checkin` module's verify contract in CLAUDE.md).
-_CHECKIN_LOCK_FIELDS = ("id", "status", "used_at", "gate", "seat_label", "seat_section")
+_CHECKIN_LOCK_FIELDS = ("id", "status", "used_at", "gate", "seat_label", "seat_section", "gender")
 
 
 def _replayable_q(now: datetime, replay_window: timedelta) -> Q:
@@ -400,6 +400,27 @@ class BookingRepository(BaseRepository[Booking]):
         return [(row[0], row[1], row[2]) for row in rows]
 
 
+def relationship_with_organization(
+    user_id: uuid.UUID | str, organization_id: uuid.UUID | str
+) -> str:
+    """How a person is already connected to an organiser: `follower`,
+    `attendee` (holds or held a valid ticket to one of their events), or `""`.
+
+    Two indexed existence checks, and only ever asked for an event that has a
+    pre-sale or is invite-only."""
+    from apps.organizations.models import OrganizationFollow
+
+    if OrganizationFollow.objects.filter(user_id=user_id, organization_id=organization_id).exists():
+        return "follower"
+    attended = Ticket.objects.filter(
+        booking__user_id=user_id,
+        booking__event__organization_id=organization_id,
+        booking__status=BookingStatus.PAID,
+        status__in=[TicketStatus.ACTIVE, TicketStatus.USED],
+    ).exists()
+    return "attendee" if attended else ""
+
+
 class TicketRepository(BaseRepository[Ticket]):
     model = Ticket
 
@@ -516,6 +537,7 @@ class TicketRepository(BaseRepository[Ticket]):
                 "attendee_name",
                 "seat_label",
                 "seat_section",
+                "gender",
                 "booking__event_id",
                 "booking__event__title",
                 "ticket_type__name",

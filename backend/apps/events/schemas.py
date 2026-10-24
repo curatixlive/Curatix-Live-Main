@@ -399,6 +399,12 @@ class UpdateEventRequestSerializer(_ScheduleAliasMixin, serializers.Serializer):
         choices=EventType.choices, required=False, allow_blank=True
     )
     tags = TagListField(required=False)
+    #: Booking needs the access code or a standing relationship with the organiser.
+    invite_only = serializers.BooleanField(required=False)
+    #: Letters, digits, dash — 4 to 32, stored upper-case. Blank removes the code.
+    access_code = serializers.RegexField(
+        r"^[A-Za-z0-9-]{4,32}$", required=False, allow_blank=True, max_length=32
+    )
 
     _EDITABLE = {
         "title",
@@ -420,6 +426,8 @@ class UpdateEventRequestSerializer(_ScheduleAliasMixin, serializers.Serializer):
         "address",
         "state",
         "postal_code",
+        "invite_only",
+        "access_code",
         "accessibility_notes",
         "seo_title",
         "seo_description",
@@ -674,6 +682,9 @@ class EventDetailSerializer(serializers.ModelSerializer):
             # True when the event sells assigned seats; the checkout draws the seat
             # map rather than a quantity picker.
             "seating_enabled",
+            # Whether booking needs an access code or a relationship. The code
+            # itself is never here.
+            "invite_only",
         ]
         read_only_fields = fields
 

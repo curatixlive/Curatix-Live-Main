@@ -628,6 +628,15 @@ export function fieldMessageId(id: string, error?: string): string {
  * wizard above this stack.
  */
 export function StepHeader({ title, step }: { title: string; step?: number }) {
+  const flat = React.useContext(FlatFormContext);
+  if (flat) {
+    return (
+      <header className="flex items-center gap-3">
+        <span aria-hidden className="h-6 w-1 rounded-full bg-primary" />
+        <h2 className="text-h3 font-bold tracking-tight">{title}</h2>
+      </header>
+    );
+  }
   return (
     <header className="flex flex-col gap-2 border-b border-border pb-block">
       <div className="flex items-center gap-2.5">
@@ -854,7 +863,7 @@ export function AccordionCard({
   if (flat) {
     return (
       <section className="flex flex-col gap-stack">
-        <h3 className="flex items-center gap-2 text-body font-semibold text-foreground">
+        <h3 className="flex items-center gap-2 text-body-sm font-semibold uppercase tracking-wide text-muted-foreground">
           {title}
           {required ? (
             <span className="text-destructive" aria-hidden>

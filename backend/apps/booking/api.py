@@ -9,8 +9,8 @@ from typing import cast
 
 from django.conf import settings
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import serializers, status
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,7 +23,7 @@ from apps.accounts.models import User
 # service instead of 400 from the boundary, for the same input.
 from apps.coupons.schemas import ApplyCouponRequestSerializer
 from config.di import build_booking_service, enabled_payment_gateways
-from core.throttling import ShareReceiptThrottle
+from core.throttling import AnonWriteThrottle, ShareReceiptThrottle
 
 from .exceptions import BookingNotFoundError, NotBookingOwnerError
 from .pagination import MyBookingsCursorPagination, MyTicketsCursorPagination
@@ -70,6 +70,8 @@ class BookingCreateView(APIView):
             answers=dict(data.get("answers") or {}),
             gateway=data.get("payment_gateway") or "",
             seat_ids=[str(s) for s in data.get("seat_ids") or []] or None,
+            seat_gender=data.get("seat_gender") or "",
+            access_code=data.get("access_code") or "",
         )
 
         # WHICH PROVIDER, STATED PLAINLY.
@@ -274,6 +276,44 @@ class BookingPaymentGatewayView(APIView):
             gateway=payload.validated_data["payment_gateway"],
         )
         return _no_store(Response(BookingSummarySerializer(booking).data))
+
+
+class EventAccessRequestSerializer(serializers.Serializer):
+    code = serializers.CharField(required=False, allow_blank=True, default="", max_length=32)
+
+
+class EventAccessView(APIView):
+    """POST /events/{id}/access — does this person get early or invited access?
+
+    Answers `{granted, via, invite_only}` without ever echoing the code. The
+    check is the same `resolve_access` the booking decision uses, so what the
+    page shows and what the reserve allows cannot disagree. Open to anonymous
+    callers (a code alone can unlock) but throttled per IP: a short code behind an
+    unthrottled endpoint is a guessing game.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonWriteThrottle]
+
+    @extend_schema(request=EventAccessRequestSerializer, responses={200: None})
+    def post(self, request: Request, event_id: str) -> Response:
+        payload = EventAccessRequestSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        user = request.user if request.user and request.user.is_authenticated else None
+        decision = build_booking_service().resolve_access(
+            event_id=event_id,
+            user_id=user.id if user else None,
+            code=payload.validated_data["code"],
+        )
+        return _no_store(
+            Response(
+                {
+                    "granted": decision.granted,
+                    "via": decision.via,
+                    "invite_only": decision.invite_only,
+                }
+            )
+        )
 
 
 class BookingCouponView(APIView):

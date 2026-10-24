@@ -33,6 +33,7 @@ _LOCK_FIELDS = (
     "sold",
     "reserved",
     "sale_start",
+    "presale_starts_at",
     "sale_end",
     "max_per_order",
     "price_minor",
@@ -41,6 +42,8 @@ _LOCK_FIELDS = (
     # with the locked row. Deferred, Django re-fetches it mid-critical-section,
     # which is exactly what holding the lock is meant to avoid.
     "group_bands",
+    # Gender prices ride the locked row for the identical reason.
+    "gender_prices",
 )
 
 # Columns the pricing rule needs from a phase row — the locked read stays lean.
@@ -181,12 +184,14 @@ class TicketTypeRepository(BaseRepository[TicketType]):
         quantity: int,
         sale_start=None,
         sale_end=None,
+        presale_starts_at=None,
         max_per_order: int = 10,
         slot_id: uuid.UUID | str | None = None,
         description: str = "",
         perks: list[str] | None = None,
         position: int = 0,
         group_bands: list[dict] | None = None,
+        gender_prices: dict | None = None,
     ) -> TicketType:
         return TicketType.objects.create(
             event_id=event_id,
@@ -198,11 +203,13 @@ class TicketTypeRepository(BaseRepository[TicketType]):
             perks=perks or [],
             # Same rule as `perks` above — a fresh list per row.
             group_bands=group_bands or [],
+            gender_prices=dict(gender_prices or {}),
             position=position,
             price_minor=price_minor,
             quantity=quantity,
             sale_start=sale_start,
             sale_end=sale_end,
+            presale_starts_at=presale_starts_at,
             max_per_order=max_per_order,
         )
 
@@ -293,12 +300,14 @@ class TicketTypeRepository(BaseRepository[TicketType]):
                 # dropped them sold the copy at full price per head, with no
                 # sign on either event that the offer had gone.
                 group_bands=[dict(band) for band in (src.group_bands or [])],
+                gender_prices=dict(src.gender_prices or {}),
                 position=src.position,
                 price_minor=src.price_minor,
                 quantity=src.quantity,
                 sold=0,
                 reserved=0,
                 sale_start=src.sale_start,
+                presale_starts_at=src.presale_starts_at,
                 sale_end=src.sale_end,
                 max_per_order=src.max_per_order,
             )

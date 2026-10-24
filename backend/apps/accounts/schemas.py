@@ -128,6 +128,7 @@ class UserSerializer(serializers.ModelSerializer):
             "gender",
             "gender_self_described",
             "gender_display",
+            "city",
             # Whether the welcome flow has been ANSWERED — filled in or
             # skipped. The frontend needs it to decide whether to open
             # onboarding, and it cannot decide that from a flag it never
@@ -222,6 +223,9 @@ class UpdateProfileSerializer(serializers.Serializer):
     gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_blank=True)
     gender_self_described = serializers.CharField(
         max_length=60, required=False, allow_blank=True, trim_whitespace=True
+    )
+    city = serializers.CharField(
+        max_length=120, required=False, allow_blank=True, trim_whitespace=True
     )
 
     def validate_date_of_birth(self, value):

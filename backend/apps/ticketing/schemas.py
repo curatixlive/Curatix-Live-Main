@@ -117,6 +117,28 @@ class GroupBandWriteSerializer(serializers.Serializer):
     description = serializers.CharField(max_length=60, required=False, allow_blank=True, default="")
 
 
+#: The genders a ticket can be priced by. Self-declared at booking, so this is a
+#: pricing label and never an identity claim — and the list is closed on
+#: purpose: the door compares the stored value to the person in front of it.
+GENDERS = ("male", "female")
+
+
+class GenderPricesField(serializers.DictField):
+    """`{"male": 149900, "female": 129900}` — per-ticket minor units, either key optional."""
+
+    child = serializers.IntegerField(min_value=0)
+
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
+        unknown = sorted(set(value) - set(GENDERS))
+        if unknown:
+            raise serializers.ValidationError(
+                f"Gender prices can be set for {', '.join(GENDERS)} only, "
+                f"not {', '.join(unknown)}."
+            )
+        return {key: int(price) for key, price in value.items()}
+
+
 class CreateTicketTypeRequestSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=100)
     description = serializers.CharField(
@@ -131,10 +153,14 @@ class CreateTicketTypeRequestSerializer(serializers.Serializer):
     price = serializers.IntegerField(min_value=0)  # minor units
     quantity = serializers.IntegerField(min_value=1)
     sale_start = serializers.DateTimeField(required=False, allow_null=True)
+    #: Early access for buyers with the event's code or a relationship with the
+    #: organiser; must come before `sale_start`.
+    presale_starts_at = serializers.DateTimeField(required=False, allow_null=True)
     sale_end = serializers.DateTimeField(required=False, allow_null=True)
     max_per_order = serializers.IntegerField(min_value=1, default=10)
     phases = SalePhaseWriteSerializer(many=True, required=False)
     group_bands = GroupBandWriteSerializer(many=True, required=False)
+    gender_prices = GenderPricesField(required=False)
 
     def validate(self, attrs: dict) -> dict:
         start, end = attrs.get("sale_start"), attrs.get("sale_end")
@@ -155,6 +181,7 @@ class UpdateTicketTypeRequestSerializer(serializers.Serializer):
     price = serializers.IntegerField(min_value=0, required=False)  # minor units
     quantity = serializers.IntegerField(min_value=1, required=False)
     sale_start = serializers.DateTimeField(required=False, allow_null=True)
+    presale_starts_at = serializers.DateTimeField(required=False, allow_null=True)
     sale_end = serializers.DateTimeField(required=False, allow_null=True)
     max_per_order = serializers.IntegerField(min_value=1, required=False)
     # The whole schedule, replaced wholesale; an empty list CLEARS it.
@@ -163,6 +190,8 @@ class UpdateTicketTypeRequestSerializer(serializers.Serializer):
     #: prices. Wholesale rather than per-band because a band has no server
     #: identity to preserve — there is nothing to diff.
     group_bands = GroupBandWriteSerializer(many=True, required=False)
+    #: Replaced wholesale; `{}` CLEARS gender pricing.
+    gender_prices = GenderPricesField(required=False)
 
     _EDITABLE = {
         "name",
@@ -172,10 +201,12 @@ class UpdateTicketTypeRequestSerializer(serializers.Serializer):
         "price",
         "quantity",
         "sale_start",
+        "presale_starts_at",
         "sale_end",
         "max_per_order",
         "phases",
         "group_bands",
+        "gender_prices",
     }
 
     def validate(self, attrs: dict) -> dict:
@@ -239,10 +270,13 @@ class TicketTypeSerializer(serializers.ModelSerializer):
             # The CHARGED price is still decided under the row lock and
             # nowhere else. This is display.
             "group_bands",
+            # Display only, like the bands: the charge is decided under the lock.
+            "gender_prices",
             "quantity",
             "sold",
             "available",
             "sale_start",
+            "presale_starts_at",
             "sale_end",
             "max_per_order",
             "is_on_sale",

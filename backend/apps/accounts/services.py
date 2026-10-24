@@ -306,6 +306,7 @@ class ProfileService:
         date_of_birth=_UNSET,
         gender: str | None = None,
         gender_self_described: str | None = None,
+        city: str | None = None,
     ) -> User:
         """Change the display name and/or the phone number.
 
@@ -357,6 +358,8 @@ class ProfileService:
                 fields["gender_self_described"] = gender_self_described.strip()
         elif gender_self_described is not None:
             fields["gender_self_described"] = gender_self_described.strip()
+        if city is not None:
+            fields["city"] = city.strip()
         if phone is not None:
             # Stored as given, minus surrounding space. No normalisation to
             # E.164 here: the SMS adapter is what knows the provider's expected

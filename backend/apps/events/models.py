@@ -166,6 +166,14 @@ class Event(models.Model):
     address = models.CharField(max_length=255, blank=True, default="")
     state = models.CharField(max_length=120, blank=True, default="")
     postal_code = models.CharField(max_length=12, blank=True, default="")
+    #: INVITE-ONLY: booking needs the access code, or a standing relationship with
+    #: the organiser (a follower, or somebody who has attended one of their
+    #: events). The event is still listed and its page still shows — an
+    #: invite-only event that cannot be found cannot be asked about.
+    invite_only = models.BooleanField(default=False)
+    #: The shared code for invite-only access and for pre-sale tiers. Stored
+    #: upper-case; NEVER serialised on a public read. Blank means no code exists.
+    access_code = models.CharField(max_length=32, blank=True, default="")
     accessibility_notes = models.TextField(blank=True, default="")
 
     #: The ORGANISER's own rules for this event — entry conditions, prohibited
@@ -1204,3 +1212,41 @@ class EventEngagementDay(models.Model):
 
     def __str__(self) -> str:
         return f"{self.event_id} on {self.date}: {self.views} views"
+
+
+#: What a co-host can be allowed to do on ONE event. A closed list: every key is
+#: wired to a real check, and a permission nothing enforces would be a switch
+#: that reads as protection.
+COHOST_PERMISSIONS = ("analytics", "attendees", "checkin", "finance")
+
+#: What a new co-host gets: everything except money. Payouts, refunds and every
+#: revenue figure stay with the host unless they are switched on, per person.
+COHOST_DEFAULTS = {"analytics": True, "attendees": True, "checkin": True, "finance": False}
+
+
+class EventCoHost(models.Model):
+    """Somebody the host lets help run ONE event, with a per-person permission set.
+
+    Scoped to the EVENT, not the organisation: a co-host of one night learns
+    nothing about the host's other events. The host (the organisation's owner)
+    is never a row here — ownership is not a permission.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="cohosts")
+    user = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="cohosted_events"
+    )
+    #: `{"analytics": bool, "attendees": bool, "checkin": bool, "finance": bool}`.
+    permissions = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "events_event_cohost"
+        constraints = [
+            models.UniqueConstraint(fields=["event", "user"], name="event_cohost_unique"),
+        ]
+        indexes = [models.Index(fields=["user"], name="event_cohost_user_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} on {self.event_id}"

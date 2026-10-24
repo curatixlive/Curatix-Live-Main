@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import cast
 
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.request import Request
@@ -43,7 +43,7 @@ from .engagement import is_automated
 from .exceptions import EventNotFoundError
 from .models import MediaKind
 from .pagination import EventCursorPagination, OrganizerEventCursorPagination
-from .repositories import EventWaitlistRepository, SavedEventRepository
+from .repositories import EventRepository, EventWaitlistRepository, SavedEventRepository
 from .schemas import (
     CancelEventRequestSerializer,
     CancelEventResultSerializer,
@@ -370,8 +370,162 @@ class OwnerEventDetailView(APIView):
     @extend_schema(responses={200: EventDetailSerializer})
     def get(self, request: Request, event_id: str) -> Response:
         service = build_event_service()
-        event = service.get_owned_event(event_id=event_id, actor_id=cast(User, request.user).id)
-        return _no_store(Response(EventDetailSerializer(event).data))
+        actor_id = cast(User, request.user).id
+        try:
+            event = service.get_owned_event(event_id=event_id, actor_id=actor_id)
+        except EventNotFoundError:
+            # A co-host may READ the event they help run — never the access code.
+            from .repositories import EventCoHostRepository
+
+            if EventCoHostRepository().permissions_for(event_id=event_id, user_id=actor_id) is None:
+                raise
+            found = EventRepository().get_active_by_id(event_id)
+            if found is None:
+                raise
+            return _no_store(Response(EventDetailSerializer(found).data))
+        # The access code is the organiser's to read and share; it is never part
+        # of the public detail payload.
+        return _no_store(
+            Response({**EventDetailSerializer(event).data, "access_code": event.access_code})
+        )
+
+
+class InviteRequestSerializer(serializers.Serializer):
+    emails = serializers.ListField(child=serializers.CharField(max_length=254), max_length=50)
+
+
+class EventInviteView(APIView):
+    """POST /events/{id}/invites — email the access code to people the organiser names.
+
+    Owner only (the service checks). Returns who it sent to and who it skipped
+    (malformed or failed), so a pasted list with one typo is not a silent loss.
+    """
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [WriteThrottle]
+
+    @extend_schema(request=InviteRequestSerializer, responses={200: None})
+    def post(self, request: Request, event_id: str) -> Response:
+        payload = InviteRequestSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        from config.di import build_event_invite_service
+
+        result = build_event_invite_service().invite(
+            event_id=event_id,
+            actor_id=cast(User, request.user).id,
+            emails=list(payload.validated_data["emails"]),
+        )
+        return _no_store(Response(result))
+
+
+class CoHostWriteSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    permissions = serializers.DictField(child=serializers.BooleanField(), required=False)
+
+
+class CoHostUpdateSerializer(serializers.Serializer):
+    permissions = serializers.DictField(child=serializers.BooleanField())
+
+
+def _present_cohost(row) -> dict:
+    return {
+        "id": str(row.id),
+        "user_id": str(row.user_id),
+        "email": row.user.email,
+        "name": row.user.full_name,
+        "permissions": dict(row.permissions or {}),
+        "created_at": row.created_at.isoformat(),
+    }
+
+
+class EventCoHostListView(APIView):
+    """GET/POST /events/{id}/cohosts — the host's co-host list. Host only."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [WriteThrottle]
+
+    @extend_schema(responses={200: None})
+    def get(self, request: Request, event_id: str) -> Response:
+        from config.di import build_event_cohost_service
+
+        rows = build_event_cohost_service().list(
+            event_id=event_id, actor_id=cast(User, request.user).id
+        )
+        return _no_store(Response({"data": [_present_cohost(row) for row in rows]}))
+
+    @extend_schema(request=CoHostWriteSerializer, responses={201: None})
+    def post(self, request: Request, event_id: str) -> Response:
+        from config.di import build_event_cohost_service
+
+        payload = CoHostWriteSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        row = build_event_cohost_service().add(
+            event_id=event_id,
+            actor_id=cast(User, request.user).id,
+            email=payload.validated_data["email"],
+            permissions=dict(payload.validated_data.get("permissions") or {}),
+        )
+        return _no_store(Response(_present_cohost(row), status=status.HTTP_201_CREATED))
+
+
+class EventCoHostDetailView(APIView):
+    """PATCH/DELETE /events/{id}/cohosts/{cohost_id} — change what a co-host may see, or remove."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [WriteThrottle]
+
+    @extend_schema(request=CoHostUpdateSerializer, responses={200: None})
+    def patch(self, request: Request, event_id: str, cohost_id: str) -> Response:
+        from config.di import build_event_cohost_service
+
+        payload = CoHostUpdateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        row = build_event_cohost_service().update(
+            event_id=event_id,
+            actor_id=cast(User, request.user).id,
+            cohost_id=cohost_id,
+            permissions=dict(payload.validated_data["permissions"]),
+        )
+        return _no_store(Response(_present_cohost(row)))
+
+    @extend_schema(responses={204: None})
+    def delete(self, request: Request, event_id: str, cohost_id: str) -> Response:
+        from config.di import build_event_cohost_service
+
+        build_event_cohost_service().remove(
+            event_id=event_id, actor_id=cast(User, request.user).id, cohost_id=cohost_id
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CoHostedEventsView(APIView):
+    """GET /organizer/cohosted-events — the events somebody else lets me help run."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses={200: None})
+    def get(self, request: Request) -> Response:
+        from .repositories import EventCoHostRepository
+
+        rows = EventCoHostRepository().events_for_user(cast(User, request.user).id)
+        return _no_store(
+            Response(
+                {
+                    "data": [
+                        {
+                            "event_id": str(row.event_id),
+                            "title": row.event.title,
+                            "status": row.event.status,
+                            "starts_at": row.event.starts_at.isoformat(),
+                            "city": row.event.city,
+                            "host": row.event.organization.name,
+                            "permissions": dict(row.permissions or {}),
+                        }
+                        for row in rows
+                    ]
+                }
+            )
+        )
 
 
 class OrganizerEventListView(APIView):

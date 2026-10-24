@@ -195,6 +195,9 @@ class BookingItem(models.Model):
     # ever set: the buyer pays the lower of the two prices and only the winner
     # is recorded, or the receipt would claim a discount they did not get.
     group_min_quantity = models.PositiveIntegerField(null=True, blank=True)
+    #: The self-declared gender this line was priced at (`male`/`female`), blank
+    #: when no gender price applied. Copied onto each ticket so the door can check it.
+    gender = models.CharField(max_length=8, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -242,6 +245,9 @@ class Ticket(models.Model):
     )
     seat_label = models.CharField(max_length=10, blank=True, default="")
     seat_section = models.CharField(max_length=40, blank=True, default="")
+    #: The gender the buyer declared when this ticket was priced by gender —
+    #: shown at the door beside the seat. Blank means no gender price applied.
+    gender = models.CharField(max_length=8, blank=True, default="")
     attendee_name = models.CharField(max_length=120, blank=True, default="")
     attendee_email = models.EmailField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)

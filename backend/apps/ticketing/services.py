@@ -68,6 +68,7 @@ _EDITABLE_TIER_FIELDS = (
     "price_minor",
     "quantity",
     "sale_start",
+    "presale_starts_at",
     "sale_end",
     "max_per_order",
     # Content, not inventory. None of these three can affect what is sold —
@@ -86,6 +87,7 @@ _EDITABLE_TIER_FIELDS = (
     # error, and nothing is written. That is the exact failure CLAUDE.md
     # records under "four organizer controls wrote NOTHING".
     "group_bands",
+    "gender_prices",
 )
 
 MAX_PHASES = 5
@@ -93,6 +95,30 @@ MAX_PHASES = 5
 #: The same handful `MAX_PHASES` allows, for the same reason: group pricing is
 #: a few named steps ("pairs", "groups of four"), not a curve.
 MAX_GROUP_BANDS = 5
+
+
+def _validate_presale(presale_starts_at: datetime | None, sale_start: datetime | None) -> None:
+    """A pre-sale is early access to a sale that opens LATER, so it needs that
+    later date and must come before it. Without a general sale date there is
+    nothing for it to be early for."""
+    from core.errors import InvalidInputError
+
+    if presale_starts_at is None:
+        return
+    if sale_start is None:
+        raise InvalidInputError("Set when general sales open before adding a pre-sale.")
+    if presale_starts_at >= sale_start:
+        raise InvalidInputError("The pre-sale must start before general sales open.")
+
+
+def _validate_gender_prices(gender_prices: dict | None) -> None:
+    from core.errors import InvalidInputError
+
+    for key, price in (gender_prices or {}).items():
+        if key not in ("male", "female"):
+            raise InvalidInputError("Gender prices can be set for male and female only.")
+        if not isinstance(price, int) or isinstance(price, bool) or price < 0:
+            raise InvalidInputError("A gender price must be a whole number of paise.")
 
 
 def _validate_group_bands(
@@ -242,6 +268,7 @@ class TicketingService:
         price_minor: int,
         quantity: int,
         sale_start: datetime | None = None,
+        presale_starts_at: datetime | None = None,
         sale_end: datetime | None = None,
         max_per_order: int = 10,
         phases: list[dict] | None = None,
@@ -250,12 +277,15 @@ class TicketingService:
         perks: list[str] | None = None,
         position: int = 0,
         group_bands: list[dict] | None = None,
+        gender_prices: dict | None = None,
     ) -> TicketType:
         event = self._events.get_active_for_write(event_id)
         if event is None:
             raise EventNotFoundError(str(event_id))
         if str(event.organization.owner_id) != str(actor_id):
             raise NotTicketTypeOwnerError()
+        _validate_presale(presale_starts_at, sale_start)
+        _validate_gender_prices(gender_prices)
         if phases:
             _validate_phase_schedule(phases, face_price_minor=price_minor)
         if group_bands:
@@ -278,6 +308,7 @@ class TicketingService:
                 price_minor=price_minor,
                 quantity=quantity,
                 sale_start=sale_start,
+                presale_starts_at=presale_starts_at,
                 sale_end=sale_end,
                 max_per_order=max_per_order,
                 slot_id=slot_id,
@@ -285,6 +316,7 @@ class TicketingService:
                 perks=perks or [],
                 position=position,
                 group_bands=group_bands or [],
+                gender_prices=gender_prices or {},
             )
             if phases:
                 self._ticket_types.set_phases(ticket_type_id=tt.id, phases=phases)
@@ -334,6 +366,12 @@ class TicketingService:
         # row — cutting the face price below an existing phase's price is the
         # same error as submitting a phase priced above it.
         merged_price = applied.get("price_minor", tt.price_minor)
+        _validate_presale(
+            applied.get("presale_starts_at", tt.presale_starts_at),
+            applied.get("sale_start", tt.sale_start),
+        )
+        if "gender_prices" in applied:
+            _validate_gender_prices(applied["gender_prices"])
         merged_phases = (
             phases
             if phases is not None
@@ -519,7 +557,14 @@ class TicketingService:
 
     # --- reservation primitives (booking calls these) ----------------------
 
-    def reserve(self, *, ticket_type_id: uuid.UUID | str, quantity: int) -> ReservationOutcome:
+    def reserve(
+        self,
+        *,
+        ticket_type_id: uuid.UUID | str,
+        quantity: int,
+        gender: str = "",
+        presale_access: bool = False,
+    ) -> ReservationOutcome:
         """Hold `quantity` tickets: quantity moves into `reserved`. Raises
         SaleNotStarted/SaleClosed/ExceedsMaxPerOrder/SoldOut/TicketTypeNotFound.
         Atomic; decided under the tier's row lock.
@@ -535,7 +580,12 @@ class TicketingService:
             raise InvalidReservationQuantityError()
 
         with UnitOfWork() as uow:
-            outcome = self._reservation.reserve(ticket_type_id=ticket_type_id, quantity=quantity)
+            outcome = self._reservation.reserve(
+                ticket_type_id=ticket_type_id,
+                quantity=quantity,
+                gender=gender,
+                presale_access=presale_access,
+            )
             if outcome.became_sold_out:
                 uow.publish(
                     TICKET_TYPE_SOLD_OUT,

@@ -107,6 +107,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     #: service when it is not — a stale self-description sitting behind a
     #: changed answer is a value the owner believes they removed.
     gender_self_described = models.CharField(max_length=60, blank=True, default="")
+    #: The city they say they live in. Optional free text — used to show what is
+    #: near them and nothing else; blank means they did not say.
+    city = models.CharField(max_length=120, blank=True, default="")
 
     #: WHEN they finished the welcome flow, not whether.
     #:

@@ -260,6 +260,8 @@ class SeatingService:
                     "name": seat.section_name,
                     "ticket_type_id": str(seat.ticket_type_id),
                     "price_minor": tier.price_minor if tier else 0,
+                    # Self-declared gender prices for this section, display only.
+                    "gender_prices": dict(tier.gender_prices or {}) if tier else {},
                     "total": 0,
                     "available": 0,
                 },

@@ -134,6 +134,7 @@ CHANNEL_BY_TYPE: dict[str, str] = {
     # second channel and is a separate change: it needs its own type, its own
     # template and a decision about people who never subscribed a device.
     NotificationType.WAITLIST_AVAILABLE: NotificationChannel.EMAIL,
+    NotificationType.EVENT_INVITE: NotificationChannel.EMAIL,
 }
 
 
@@ -1382,6 +1383,56 @@ def _event_deleted_organizer(ctx: dict) -> RenderedMessage:
     )
 
 
+def _event_invite(ctx: dict) -> RenderedMessage:
+    """An organiser invites one person, and gives them the access code.
+
+    The code is the whole point of the message, so it is printed plainly and
+    the reason for the mail is stated first: this is unsolicited by nature, so
+    it says who sent it and why.
+    """
+    title = str(ctx["event_title"])
+    organiser = str(ctx.get("organiser") or "the organiser")
+    code = str(ctx["code"])
+    url = str(ctx.get("url") or "")
+    what = "invited you to book" if ctx.get("invite_only") else "invited you to the pre-sale for"
+    blocks = [
+        ui.heading(f"You are invited: {title}"),
+        ui.paragraph(f"{organiser} {what} {title}. Use this access code at checkout:"),
+        ui.heading(code),
+        ui.facts(
+            [
+                ("Event", title),
+                ("When", str(ctx["event_when"])),
+                ("Where", str(ctx["event_where"])),
+            ]
+        ),
+    ]
+    if url:
+        blocks.append(ui.button("Open the event", url))
+    blocks.append(
+        ui.paragraph(
+            "You are getting this because the organiser entered your address. "
+            "The code is yours to use; please do not forward it."
+        )
+    )
+    return RenderedMessage(
+        subject=f"You are invited: {title}",
+        body=(
+            f"{organiser} {what} {title}.\n\n"
+            f"Your access code: {code}\n\n"
+            f"When:  {ctx['event_when']}\n"
+            f"Where: {ctx['event_where']}\n" + (f"\n{url}\n" if url else "") + "\n"
+            "You are getting this because the organiser entered your address."
+        ),
+        html=ui.render_email(
+            title=f"You are invited: {title}",
+            preheader=f"{organiser} sent you an access code.",
+            masthead_label="Invitation",
+            blocks=blocks,
+        ),
+    )
+
+
 def _waitlist_available(ctx: dict) -> RenderedMessage:
     """A seat came back on a sold-out event and this person was waiting.
 
@@ -1485,6 +1536,7 @@ _TEMPLATES: dict[str, Callable[[dict], RenderedMessage]] = {
     NotificationType.ADMIN_HIRE_ENQUIRY: _admin_hire_enquiry,
     NotificationType.HIRE_ENQUIRY_RECEIVED: _hire_enquiry_received,
     NotificationType.WAITLIST_AVAILABLE: _waitlist_available,
+    NotificationType.EVENT_INVITE: _event_invite,
 }
 
 

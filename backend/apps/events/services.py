@@ -78,6 +78,7 @@ from .models import (
 from .publish_checks import run_publish_checks
 from .repositories import (
     CrewMemberRepository,
+    EventCoHostRepository,
     EventCrewRepository,
     EventRepository,
     EventSlotRepository,
@@ -206,6 +207,9 @@ _EDITABLE_FIELDS = (
     # set is a chip row that matches nothing for ever.
     "event_type",
     "tags",
+    # Access: who may book. The code is stored normalised (see `update_event`).
+    "invite_only",
+    "access_code",
 )
 
 
@@ -531,6 +535,10 @@ class EventService:
         )
 
         applied_changes = {k: v for k, v in changes.items() if k in _EDITABLE_FIELDS}
+        if "access_code" in applied_changes:
+            applied_changes["access_code"] = (
+                str(applied_changes["access_code"] or "").strip().upper()
+            )
         if "custom_category" in applied_changes:
             # The serializer hands over a uuid; the column is a foreign key, so
             # the write needs `custom_category_id`. Assigning a raw uuid to
@@ -2965,3 +2973,197 @@ class WaitlistService:
             self._waitlist.mark_notified(entry.id, when=now)
             told += 1
         return told
+
+
+# ── Invitations ─────────────────────────────────────────────────────────────
+
+#: The `notifications.NotificationType` an invitation renders as.
+INVITE_NOTIFICATION_TYPE = "event_invite"
+
+#: The most addresses one request may invite. A guest list pasted from a
+#: spreadsheet is the real use; an unbounded write is not.
+MAX_INVITES_PER_REQUEST = 50
+
+
+class EventInviteService:
+    """Email the event's access code to people the organiser chooses.
+
+    The organiser is the only caller who can read the code, so this is the one
+    path that puts it in somebody else's inbox — and only at an address the
+    organiser typed. Each address is sent at most once per event (the ledger
+    dedupes on a hash, not the address, so a long address cannot overflow the
+    key column). WhatsApp has no sender here: the frontend builds a `wa.me`
+    share link for the organiser to send themselves.
+    """
+
+    def __init__(self, *, events: EventRepository, notifier: WaitlistNotifier) -> None:
+        self._events = events
+        self._notifier = notifier
+
+    def invite(
+        self, *, event_id: uuid.UUID | str, actor_id: uuid.UUID | str, emails: list[str]
+    ) -> dict[str, list[str]]:
+        import hashlib
+
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from django.core.validators import validate_email
+
+        event = self._events.get_active_by_id(event_id)
+        if event is None:
+            raise EventNotFoundError(str(event_id))
+        if str(event.organization.owner_id) != str(actor_id):
+            raise NotEventOwnerError()
+        if not event.access_code:
+            raise InvalidInputError("Set an access code for this event before inviting people.")
+
+        wanted: list[str] = []
+        for raw in emails:
+            address = (raw or "").strip().lower()
+            if address and address not in wanted:
+                wanted.append(address)
+        if not wanted:
+            raise InvalidInputError("Add at least one email address.")
+        if len(wanted) > MAX_INVITES_PER_REQUEST:
+            raise InvalidInputError(f"Invite at most {MAX_INVITES_PER_REQUEST} people at a time.")
+
+        from apps.notifications.templates import format_when
+
+        site = str(getattr(settings, "PUBLIC_SITE_URL", "") or "").rstrip("/")
+        context = {
+            "event_title": event.title,
+            "event_when": format_when(event.starts_at),
+            "event_where": f"{event.venue}, {event.city}",
+            "organiser": event.organization.name,
+            "code": event.access_code,
+            "invite_only": bool(event.invite_only),
+            "url": f"{site}/events/{event.id}" if site else "",
+        }
+        sent: list[str] = []
+        skipped: list[str] = []
+        for address in wanted:
+            try:
+                validate_email(address)
+            except DjangoValidationError:
+                skipped.append(address)
+                continue
+            digest = hashlib.sha256(address.encode()).hexdigest()[:32]
+            try:
+                self._notifier.notify(
+                    notification_type=INVITE_NOTIFICATION_TYPE,
+                    recipient=address,
+                    context=dict(context),
+                    dedupe_key=f"invite:{event.id}:{digest}",
+                )
+                sent.append(address)
+            except Exception:
+                logger.exception("event_invite_failed", extra={"event_id": str(event.id)})
+                skipped.append(address)
+        record_audit(
+            actor_id=str(actor_id),
+            action="event.invites_sent",
+            target_type="event",
+            target_id=str(event.id),
+        )
+        return {"sent": sent, "skipped": skipped}
+
+
+# ── Co-hosts ────────────────────────────────────────────────────────────────
+
+MAX_COHOSTS_PER_EVENT = 10
+
+
+class EventCoHostService:
+    """The host adds people to help run one event, and chooses what each sees.
+
+    Only the HOST (the organisation's owner) can add, change or remove a
+    co-host. A co-host cannot grant anyone anything, including themselves — the
+    permission set is never writable by the person it describes.
+    """
+
+    def __init__(
+        self,
+        *,
+        events: EventRepository,
+        users: UserRepository,
+        cohosts: EventCoHostRepository,
+    ) -> None:
+        self._events = events
+        self._users = users
+        self._cohosts = cohosts
+
+    def _owned_event(self, event_id, actor_id):
+        event = self._events.get_active_by_id(event_id)
+        if event is None:
+            raise EventNotFoundError(str(event_id))
+        if str(event.organization.owner_id) != str(actor_id):
+            raise NotEventOwnerError()
+        return event
+
+    @staticmethod
+    def _normalise(requested: dict | None) -> dict:
+        """Start from the defaults, apply only known keys, coerce to bool."""
+        from .models import COHOST_DEFAULTS, COHOST_PERMISSIONS
+
+        merged = dict(COHOST_DEFAULTS)
+        for key, value in (requested or {}).items():
+            if key not in COHOST_PERMISSIONS:
+                raise InvalidInputError(f"Unknown permission: {key}.")
+            merged[key] = bool(value)
+        return merged
+
+    def list(self, *, event_id, actor_id) -> list:
+        self._owned_event(event_id, actor_id)
+        return self._cohosts.list_for_event(event_id)
+
+    def add(self, *, event_id, actor_id, email: str, permissions: dict | None = None):
+        event = self._owned_event(event_id, actor_id)
+        address = (email or "").strip().lower()
+        if not address:
+            raise InvalidInputError("Enter the co-host's email address.")
+        user = self._users.get_by_email(address)
+        if user is None:
+            raise InvalidInputError(
+                "There is no Curatix account with that email yet. Ask them to sign up first."
+            )
+        if str(user.id) == str(event.organization.owner_id):
+            raise InvalidInputError("You are already the host of this event.")
+        if self._cohosts.permissions_for(event_id=event.id, user_id=user.id) is not None:
+            raise InvalidInputError("They are already a co-host of this event.")
+        if self._cohosts.count_for_event(event.id) >= MAX_COHOSTS_PER_EVENT:
+            raise InvalidInputError(f"An event can have at most {MAX_COHOSTS_PER_EVENT} co-hosts.")
+        row = self._cohosts.create(
+            event_id=event.id, user_id=user.id, permissions=self._normalise(permissions)
+        )
+        record_audit(
+            actor_id=str(actor_id),
+            action="event.cohost_added",
+            target_type="event",
+            target_id=str(event.id),
+        )
+        return self._cohosts.get(event_id=event.id, cohost_id=row.id)
+
+    def update(self, *, event_id, actor_id, cohost_id, permissions: dict):
+        event = self._owned_event(event_id, actor_id)
+        row = self._cohosts.get(event_id=event.id, cohost_id=cohost_id)
+        if row is None:
+            raise EventNotFoundError(str(cohost_id))
+        merged = {**(row.permissions or {}), **self._normalise(permissions)}
+        self._cohosts.set_permissions(row.id, self._normalise(merged))
+        record_audit(
+            actor_id=str(actor_id),
+            action="event.cohost_updated",
+            target_type="event",
+            target_id=str(event.id),
+        )
+        return self._cohosts.get(event_id=event.id, cohost_id=row.id)
+
+    def remove(self, *, event_id, actor_id, cohost_id) -> None:
+        event = self._owned_event(event_id, actor_id)
+        if self._cohosts.delete(event_id=event.id, cohost_id=cohost_id) == 0:
+            raise EventNotFoundError(str(cohost_id))
+        record_audit(
+            actor_id=str(actor_id),
+            action="event.cohost_removed",
+            target_type="event",
+            target_id=str(event.id),
+        )

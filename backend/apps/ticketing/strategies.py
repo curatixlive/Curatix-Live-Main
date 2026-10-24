@@ -72,12 +72,22 @@ class ReservationOutcome:
     #: set: the buyer pays the lower of the two prices, and only the winner
     #: is named.
     group_min_quantity: int | None = None
+    #: The gender whose price this line was billed at — `""` when no gender was
+    #: chosen or the tier has no price for it. Recorded on the booking line and
+    #: the ticket, so only a line that ACTUALLY got gender pricing carries one.
+    gender: str = ""
 
 
 class ReservationStrategy(ABC):
     @abstractmethod
     def reserve(
-        self, *, ticket_type_id: uuid.UUID | str, quantity: int, now: datetime | None = None
+        self,
+        *,
+        ticket_type_id: uuid.UUID | str,
+        quantity: int,
+        now: datetime | None = None,
+        gender: str = "",
+        presale_access: bool = False,
     ) -> ReservationOutcome: ...
 
     @abstractmethod
@@ -100,14 +110,26 @@ class RowLockReservationStrategy(ReservationStrategy):
         return tt
 
     def reserve(
-        self, *, ticket_type_id: uuid.UUID | str, quantity: int, now: datetime | None = None
+        self,
+        *,
+        ticket_type_id: uuid.UUID | str,
+        quantity: int,
+        now: datetime | None = None,
+        gender: str = "",
+        presale_access: bool = False,
     ) -> ReservationOutcome:
         now = now or timezone.now()
         tt = self._lock(ticket_type_id)
 
         # Sale window — closed sales can't be reserved against.
         if tt.sale_start is not None and now < tt.sale_start:
-            raise SaleNotStartedError()
+            # Early access: a buyer with access (decided by booking, never by the
+            # client) may buy from `presale_starts_at` until general sales open.
+            early = (
+                presale_access and tt.presale_starts_at is not None and now >= tt.presale_starts_at
+            )
+            if not early:
+                raise SaleNotStartedError()
         if tt.sale_end is not None and now > tt.sale_end:
             raise SaleClosedError()
         # Per-order cap.
@@ -129,8 +151,15 @@ class RowLockReservationStrategy(ReservationStrategy):
         # The bands ride on the locked row itself (`_LOCK_FIELDS`), so adding
         # group pricing costs the critical section NOTHING — the phase
         # schedule is still the one extra statement it allows.
+        # SELF-DECLARED GENDER PRICE, from the same locked row: the face price a
+        # buyer who named a gender is quoted. No gender, an unknown one, or a tier
+        # with no price for it leaves the normal price — never an error, because
+        # picking nothing is a legitimate answer.
+        gender_prices = tt.gender_prices or {}
+        applied_gender = gender if gender in gender_prices else ""
+        face_price = int(gender_prices[applied_gender]) if applied_gender else tt.price_minor
         priced = decide_unit_price(
-            price_minor=tt.price_minor,
+            price_minor=face_price,
             phases=self._ticket_types.phases_for_pricing(tt.id),
             bands=group_bands_from_rows(tt.group_bands),
             quantity=quantity,
@@ -152,6 +181,7 @@ class RowLockReservationStrategy(ReservationStrategy):
             unit_price_minor=priced.price_minor,
             phase_name=priced.phase_name,
             group_min_quantity=priced.group_min_quantity,
+            gender=applied_gender,
         )
 
     def release(self, *, ticket_type_id: uuid.UUID | str, quantity: int) -> ReservationOutcome:

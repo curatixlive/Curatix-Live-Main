@@ -41,6 +41,7 @@ urlpatterns = [
         api.ShareReceiptView.as_view(),
         name="booking-share-receipt",
     ),
+    path("events/<uuid:event_id>/access", api.EventAccessView.as_view(), name="event-access"),
     path("me/bookings", api.MyBookingsView.as_view(), name="my-bookings"),
     path("me/tickets", api.MyTicketsView.as_view(), name="my-tickets"),
 ]
