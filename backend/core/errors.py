@@ -70,6 +70,29 @@ def _error_response(
     return response
 
 
+def _readable_validation(detail: object) -> tuple[str, dict]:
+    """Flatten DRF validation detail into one sentence plus `{field: [messages]}`."""
+    fields: dict[str, list[str]] = {}
+
+    def texts(value: object) -> list[str]:
+        if isinstance(value, dict):
+            return [t for item in value.values() for t in texts(item)]
+        if isinstance(value, list | tuple):
+            return [t for item in value for t in texts(item)]
+        return [str(value)]
+
+    if isinstance(detail, dict):
+        for field, value in detail.items():
+            fields[str(field)] = texts(value)
+        parts = [
+            f"{field}: {' '.join(messages)}" if field != "non_field_errors" else " ".join(messages)
+            for field, messages in fields.items()
+        ]
+        return " ".join(parts) or "That request was not valid.", {"fields": fields}
+    messages = texts(detail)
+    return " ".join(messages) or "That request was not valid.", {}
+
+
 def exception_handler(exc: Exception, context: dict) -> Response | None:
     if isinstance(exc, DomainError):
         return _error_response(
@@ -80,6 +103,13 @@ def exception_handler(exc: Exception, context: dict) -> Response | None:
     if response is not None:
         code = getattr(exc, "default_code", exc.__class__.__name__.lower())
         message = str(exc) if not isinstance(exc, drf_exceptions.APIException) else str(exc.detail)
+        details: dict = {}
+        if isinstance(exc, drf_exceptions.ValidationError):
+            # A sentence a person can read — never the Python repr of an
+            # `ErrorDetail` dict, which is what `str(exc.detail)` produces and
+            # what an organiser saw in the editor's banner. The per-field
+            # messages travel in `details` for a form that wants to place them.
+            message, details = _readable_validation(exc.detail)
         # DRF attaches protocol headers to some exceptions, and rebuilding the
         # body used to drop them. Two matter and both are part of the response's
         # MEANING, not decoration:
@@ -106,7 +136,7 @@ def exception_handler(exc: Exception, context: dict) -> Response | None:
             code=code,
             message=message,
             status_code=response.status_code,
-            details={},
+            details=details,
             headers=headers,
         )
 
