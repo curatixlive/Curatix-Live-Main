@@ -138,11 +138,19 @@ export function isCategorySlug(value: string | null | undefined): value is Categ
 }
 
 /**
- * Best-effort category for an event, from its title + venue. Returns null when
+ * Category for an event: the organiser's own, else a best-effort guess from its title + venue. Returns null when
  * nothing matches — a wrong chip is worse than no chip. Replace with the real
  * `event.category` as soon as the backend has one.
  */
-export function inferCategory(event: { title: string; venue?: string }): Category | null {
+export function inferCategory(event: {
+  title: string;
+  venue?: string;
+  category?: string | null;
+}): Category | null {
+  // The organiser's own choice always wins over a guess from the words in the
+  // title — "Jamming Session" at a lounge is not a workshop.
+  const chosen = categoryBySlug(event.category);
+  if (chosen) return chosen;
   const haystack = `${event.title} ${event.venue ?? ''}`.toLowerCase();
   for (const category of CATEGORIES) {
     if (category.match.some((needle) => haystack.includes(needle))) return category;

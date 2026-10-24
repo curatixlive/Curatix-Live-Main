@@ -908,7 +908,7 @@ function StepRail({
         </div>
       </div>
 
-      <ol className="flex items-start gap-x-0 lg:flex-col lg:gap-y-1">
+      <ol className="flex items-start gap-x-0 lg:flex-col lg:items-stretch lg:gap-y-1">
         {PHASES.map((phase, position) => {
           const state = phaseStatus(phase, status);
           const active = current === phase.id;
@@ -917,7 +917,7 @@ function StepRail({
           return (
             <li
               key={phase.id}
-              className="relative flex min-w-0 flex-1 items-center lg:flex-initial lg:flex-none"
+              className="relative flex min-w-0 flex-1 items-center lg:w-full lg:min-w-0 lg:flex-initial lg:flex-none"
             >
               {/* The connector INTO this phase. `aria-hidden` scenery, sitting
                   behind the dot so the join is covered by the dot's own fill. */}

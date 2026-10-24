@@ -143,6 +143,15 @@ export function BookingStep() {
   const search = params.toString();
   const reviewHref = `/booking/${event.id}/review${search ? `?${search}` : ''}`;
 
+  // The address bar at the moment of the press, not the last render: a seat tapped
+  // just before Proceed is in the URL a frame before React re-renders with it, and
+  // an href built from the render would silently drop that seat.
+  const liveReviewHref = () => {
+    const live = new URLSearchParams(window.location.search);
+    const text = live.toString();
+    return `/booking/${event.id}/review${text ? `?${text}` : ''}`;
+  };
+
   const [authOpen, setAuthOpen] = React.useState(false);
   const advance = () => {
     // ── THE QUESTIONNAIRE IS CHECKED BEFORE LEAVING THIS SCREEN ──────────
@@ -154,7 +163,7 @@ export function BookingStep() {
       setShowAnswerErrors(true);
       return;
     }
-    if (status === 'authenticated') router.push(reviewHref);
+    if (status === 'authenticated') router.push(liveReviewHref());
     else setAuthOpen(true);
   };
 
@@ -285,7 +294,7 @@ export function BookingStep() {
         // that raised it.
         onAuthenticated={() => {
           setAuthOpen(false);
-          router.push(reviewHref);
+          router.push(liveReviewHref());
         }}
         // Where an OAuth round trip returns to: the same place, with the same
         // selection, so a trip out to Google does not empty the basket.
