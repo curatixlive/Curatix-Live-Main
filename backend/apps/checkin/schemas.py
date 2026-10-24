@@ -30,6 +30,8 @@ class VerifyResultSerializer(serializers.Serializer):
     ticket_type = serializers.CharField(allow_null=True)
     used_at = serializers.DateTimeField(allow_null=True)
     gate = serializers.CharField(allow_null=True)
+    seat_label = serializers.CharField(allow_blank=True, default="")
+    seat_section = serializers.CharField(allow_blank=True, default="")
 
 
 class LookupRequestSerializer(serializers.Serializer):
@@ -63,6 +65,8 @@ class LookupResultSerializer(serializers.Serializer):
     status = serializers.CharField(allow_null=True)
     used_at = serializers.DateTimeField(allow_null=True)
     gate = serializers.CharField(allow_null=True)
+    seat_label = serializers.CharField(allow_blank=True, default="")
+    seat_section = serializers.CharField(allow_blank=True, default="")
     attendee_name = serializers.CharField(allow_null=True)
 
 

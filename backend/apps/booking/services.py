@@ -138,6 +138,7 @@ class BookingService:
         #: decision it makes is a database one under a lock this service's own
         #: transaction opened.
         coupons: CouponRedemptionService | None = None,
+        seating=None,
         payments: PaymentPort,
         cache: CachePort,
         qr_secret: str,
@@ -152,6 +153,9 @@ class BookingService:
         self._events = events
         self._event_content = event_content or EventContentRepository()
         self._coupons = coupons or CouponRedemptionService()
+        #: `seating.SeatingService`, or None where assigned seating is not wired
+        #: (every general-admission test builds the service without it).
+        self._seating = seating
         self._payments = payments
         self._cache = cache
         self._qr_secret = qr_secret
@@ -294,8 +298,9 @@ class BookingService:
         #: the derived key exists to provide, switched off on the money path.
         #: Changing gateway after the fact is `set_payment_gateway`.
         gateway: str = "",
+        seat_ids: list[str] | None = None,
     ) -> BookingCreationResult:
-        if not items:
+        if not items and not seat_ids:
             raise InvalidBookingItemsError("At least one item is required.")
         donation_minor = self._validate_donation(donation_minor)
 
@@ -307,8 +312,22 @@ class BookingService:
         # Deliberately NOT the price — nothing read here may reach the money.
         # The price comes from the locked reserve decision below, and there is
         # no face price carried forward for a later line to bill by mistake.
-        tiers = {str(t.id): t for t in self._ticket_types.list_for_event(event_id)}
-        requested = self._validate_items(items, tiers)
+        # ── SEATED EVENTS SELL SEATS, GENERAL ADMISSION SELLS QUANTITIES ───
+        # An event with assigned seating is bought by naming the seats, and the
+        # reverse is refused too: a quantity request against a seated event could
+        # never be given a seat. Either mismatch is a client bug, not a sale.
+        seated = bool(seat_ids)
+        if getattr(event, "seating_enabled", False) and not seated:
+            raise InvalidBookingItemsError("This event has assigned seating: choose your seats.")
+        if seated and not getattr(event, "seating_enabled", False):
+            raise InvalidBookingItemsError("This event does not have assigned seating.")
+        if seated and self._seating is None:
+            raise InvalidBookingItemsError("Assigned seating is not available.")
+        if seated:
+            requested = []
+        else:
+            tiers = {str(t.id): t for t in self._ticket_types.list_for_event(event_id)}
+            requested = self._validate_items(items, tiers)
 
         # ── THE QUESTIONNAIRE, CHECKED BEFORE ANY LOCK IS TAKEN ──────────
         #
@@ -366,10 +385,17 @@ class BookingService:
                     donation_minor,
                     idempotency_key,
                     checked_answers,
+                    seat_ids=seat_ids,
                 )
         else:
             booking = self._reserve_and_insert(
-                user_id, event_id, requested, donation_minor, None, checked_answers
+                user_id,
+                event_id,
+                requested,
+                donation_minor,
+                None,
+                checked_answers,
+                seat_ids=seat_ids,
             )
 
         # OUTSIDE the transaction/lock: the external payment-order call.
@@ -477,6 +503,7 @@ class BookingService:
         donation_minor: int,
         idempotency_key: str | None,
         answers: dict[str, str] | None = None,
+        seat_ids: list[str] | None = None,
     ) -> Booking:
         booking_id = uuid.uuid4()
         hold_expires_at = timezone.now() + timedelta(minutes=self._hold_minutes)
@@ -510,6 +537,17 @@ class BookingService:
                 # amount-checks. An invoice that doesn't add up to the amount
                 # charged is not a display bug on the money path.
                 priced: list[tuple[uuid.UUID | str, int, int, str | None, int | None]] = []
+                if seat_ids:
+                    # SEATED: take the seats FIRST, in this same transaction. The
+                    # conditional UPDATE inside `hold_for_booking` is the race
+                    # guard; a lost race raises and the whole booking — tiers
+                    # included — rolls back with it. The lines to reserve come from
+                    # the seats themselves (one per section), never from the client.
+                    assert self._seating is not None
+                    held = self._seating.hold_for_booking(
+                        event_id=event_id, booking_id=booking_id, seat_ids=seat_ids
+                    )
+                    requested = list(held.lines)
                 for tier_id, quantity in requested:
                     outcome = self._ticketing.reserve(ticket_type_id=tier_id, quantity=quantity)
                     # reserve() always decides a price; the Optional on the
@@ -1293,6 +1331,10 @@ class BookingService:
     def _release_items(self, booking_id: uuid.UUID | str) -> None:
         for item in self._bookings.list_items(booking_id):
             self._ticketing.release(ticket_type_id=item.ticket_type_id, quantity=item.quantity)
+        # The seats go back beside the inventory, in the same transaction, so a
+        # cancelled or lapsed hold can never leave a seat nobody can buy.
+        if self._seating is not None:
+            self._seating.release_for_booking(booking_id=booking_id)
 
     # --- ConfirmBooking (STAGE 2 — payments will call this) ----------------
 
@@ -1349,7 +1391,12 @@ class BookingService:
             booking.payment_ref = payment_ref
             self._bookings.save(booking)
 
-            tickets = self._issue_tickets(booking, items)
+            seats = (
+                self._seating.confirm_for_booking(booking_id=booking.id)
+                if self._seating is not None
+                else []
+            )
+            tickets = self._issue_tickets(booking, items, seats)
             ticket_ids = [str(t.id) for t in tickets]
             uow.publish(
                 BOOKING_CONFIRMED,
@@ -1574,10 +1621,21 @@ class BookingService:
             requested.append((ticket_id, name, email))
         return requested
 
-    def _issue_tickets(self, booking: Booking, items: list[BookingItem]) -> list[Ticket]:
+    def _issue_tickets(
+        self, booking: Booking, items: list[BookingItem], seats: list | None = None
+    ) -> list[Ticket]:
         tickets: list[Ticket] = []
+        # Seats waiting for a ticket, per section (one ticket type each), in seat
+        # order, so tickets are numbered the way the room is.
+        by_tier: dict[uuid.UUID, list] = {}
+        for seat in seats or []:
+            by_tier.setdefault(seat.ticket_type_id, []).append(seat)
         for item in items:
             for _ in range(item.quantity):
+                seat = None
+                pool = by_tier.get(uuid.UUID(str(item.ticket_type_id)))
+                if pool:
+                    seat = pool.pop(0)
                 ticket_id = uuid.uuid4()
                 token = sign_ticket(
                     ticket_id=ticket_id, event_id=booking.event_id, secret=self._qr_secret
@@ -1589,6 +1647,9 @@ class BookingService:
                         ticket_type_id=item.ticket_type_id,
                         qr_token=token,
                         status=TicketStatus.ACTIVE,
+                        seat_id=seat.id if seat else None,
+                        seat_label=seat.label if seat else "",
+                        seat_section=seat.section_name if seat else "",
                     )
                 )
         self._tickets.bulk_create(tickets)

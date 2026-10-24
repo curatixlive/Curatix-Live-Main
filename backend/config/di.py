@@ -998,6 +998,7 @@ def build_booking_service() -> BookingService:
         ticketing=build_ticketing_service(),
         events=EventRepository(),
         coupons=build_coupon_redemption_service(),
+        seating=build_seating_service(),
         event_content=EventContentRepository(),
         payments=payment_port(),
         cache=cache_port(),
@@ -1215,4 +1216,20 @@ def build_mcp_server():
             event_repo=EventRepository(),
             org_repo=OrganizationRepository(),
         )
+    )
+
+
+def build_seating_service():
+    """Venue seating layouts, per-event seat inventory and seat holds."""
+    from apps.events.repositories import EventRepository
+    from apps.seating.repositories import EventSeatRepository, VenueLayoutRepository
+    from apps.seating.services import SeatingService
+    from apps.ticketing.repositories import TicketTypeRepository
+
+    return SeatingService(
+        layouts=VenueLayoutRepository(),
+        seats=EventSeatRepository(),
+        events=EventRepository(),
+        ticket_types=TicketTypeRepository(),
+        ticketing=build_ticketing_service(),
     )

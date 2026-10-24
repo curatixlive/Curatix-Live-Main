@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "apps.announcements",
     "apps.support",
     "apps.agents",
+    "apps.seating",
     "apps.reviews",
     # Organizer-funded promotional codes. Downstream of events, booking and
     # ticketing; nothing depends on it.

@@ -134,6 +134,7 @@ _DETAIL_FIELDS = (
     "tags",
     "seo_title",
     "seo_description",
+    "seating_enabled",
     # Read by the card and detail serializers. Absent from this set it would
     # be a DEFERRED field, so every row would re-fetch it — one extra query
     # per card, which is precisely the N+1 the query budgets guard.
@@ -699,6 +700,9 @@ class EventRepository(BaseRepository[Event]):
             rating_sum=Greatest(F("rating_sum") + sum_delta, Value(0)),
             rating_count=Greatest(F("rating_count") + count_delta, Value(0)),
         )
+
+    def set_seating_enabled(self, event_id: uuid.UUID | str, enabled: bool) -> None:
+        Event.objects.filter(pk=event_id).update(seating_enabled=enabled)
 
     def set_ticketing_fields(
         self,

@@ -660,6 +660,9 @@ class EventDetailSerializer(serializers.ModelSerializer):
             "tags",
             "seo_title",
             "seo_description",
+            # True when the event sells assigned seats; the checkout draws the seat
+            # map rather than a quantity picker.
+            "seating_enabled",
         ]
         read_only_fields = fields
 

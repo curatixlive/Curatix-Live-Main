@@ -58,6 +58,10 @@ class VerifyResult:
     ticket_type: str | None = None
     used_at: datetime | None = None
     gate: str | None = None
+    #: Assigned seating, shown to the scanner so the person is sent to the right
+    #: place. Blank for general admission.
+    seat_label: str = ""
+    seat_section: str = ""
 
 
 @dataclass(frozen=True)
@@ -86,6 +90,8 @@ class LookupResult:
     used_at: datetime | None = None
     gate: str | None = None
     attendee_name: str | None = None
+    seat_label: str = ""
+    seat_section: str = ""
 
 
 class CheckinService:
@@ -272,6 +278,8 @@ class CheckinService:
             # name rather than an empty row labelled "Attendee".
             gate=ticket.gate or None,
             attendee_name=ticket.attendee_name or None,
+            seat_label=ticket.seat_label,
+            seat_section=ticket.seat_section,
         )
 
     # --- get_attendance (the selector, gated by ownership) -----------------
@@ -334,6 +342,8 @@ class CheckinService:
                     ticket_id=ticket_id,
                     event_id=str(event_id),
                     ticket_type=summary,
+                    seat_label=ticket.seat_label,
+                    seat_section=ticket.seat_section,
                 )
 
             used_at = timezone.now()
@@ -363,6 +373,8 @@ class CheckinService:
             ticket_type=summary,
             used_at=used_at,
             gate=gate,
+            seat_label=ticket.seat_label,
+            seat_section=ticket.seat_section,
         )
 
     def _deny(
@@ -388,6 +400,8 @@ class CheckinService:
             ticket_id=str(ticket.id),
             event_id=str(event_id),
             ticket_type=summary,
+            seat_label=ticket.seat_label,
+            seat_section=ticket.seat_section,
         )
 
     def _already_used(
@@ -417,6 +431,8 @@ class CheckinService:
             ticket_type=summary,
             used_at=ticket.used_at,
             gate=ticket.gate,
+            seat_label=ticket.seat_label,
+            seat_section=ticket.seat_section,
         )
 
     def _within_window(self, event, ticket=None) -> bool:

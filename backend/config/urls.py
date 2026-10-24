@@ -42,6 +42,7 @@ urlpatterns = [
     path("api/v1/", include("apps.announcements.urls")),
     path("api/v1/", include("apps.support.urls")),
     path("api/v1/", include("apps.agents.urls")),
+    path("api/v1/", include("apps.seating.urls")),
     path("api/v1/", include("apps.reviews.urls")),
     # Promotional codes: the organizer's list, and the offers a checkout may
     # advertise. The code a customer TYPES applies to a booking, so it lives

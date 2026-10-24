@@ -18,7 +18,7 @@ from .models import Booking, BookingAnswer, BookingItem, BookingStatus, Ticket, 
 # Columns the check-in gate path needs from a ticket — deliberately tiny so the
 # per-ticket locked section stays as small and fast as possible (see the
 # `checkin` module's verify contract in CLAUDE.md).
-_CHECKIN_LOCK_FIELDS = ("id", "status", "used_at", "gate")
+_CHECKIN_LOCK_FIELDS = ("id", "status", "used_at", "gate", "seat_label", "seat_section")
 
 
 def _replayable_q(now: datetime, replay_window: timedelta) -> Q:
@@ -514,6 +514,8 @@ class TicketRepository(BaseRepository[Ticket]):
                 "used_at",
                 "gate",
                 "attendee_name",
+                "seat_label",
+                "seat_section",
                 "booking__event_id",
                 "booking__event__title",
                 "ticket_type__name",

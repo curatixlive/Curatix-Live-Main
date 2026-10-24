@@ -228,6 +228,10 @@ class Event(models.Model):
     #: on a JSONB column in this codebase. It ships in the same migration as
     #: the query that needs it (see 0015), not before.
     tags = models.JSONField(default=list, blank=True)
+    #: True once the organiser has given the event assigned seating (see the
+    #: `seating` app). A DISPLAY flag so the public pages know which picker to
+    #: draw without importing seating; the seats themselves are the truth.
+    seating_enabled = models.BooleanField(default=False)
 
     #: SEO. Blank means "derive from the title/description", which is what the
     #: frontend already does — these only exist to OVERRIDE that.

@@ -69,6 +69,7 @@ class BookingCreateView(APIView):
             idempotency_key=idempotency_key,
             answers=dict(data.get("answers") or {}),
             gateway=data.get("payment_gateway") or "",
+            seat_ids=[str(s) for s in data.get("seat_ids") or []] or None,
         )
 
         # WHICH PROVIDER, STATED PLAINLY.

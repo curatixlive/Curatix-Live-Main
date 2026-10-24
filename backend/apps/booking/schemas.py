@@ -16,7 +16,12 @@ class BookingItemRequestSerializer(serializers.Serializer):
 
 class CreateBookingRequestSerializer(serializers.Serializer):
     event_id = serializers.UUIDField()
-    items = BookingItemRequestSerializer(many=True, allow_empty=False)
+    #: A general-admission order names quantities; a SEATED order names seats and
+    #: leaves `items` empty. The service refuses a mismatch with the event.
+    items = BookingItemRequestSerializer(many=True, required=False, default=list)
+    seat_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False, default=list, max_length=10
+    )
     # An optional donation, in minor units, added to what the customer pays.
     # `min_value=0` here and a configured ceiling in the service: the boundary
     # rejects the nonsensical, the service owns the policy — a maximum that
@@ -46,6 +51,15 @@ class CreateBookingRequestSerializer(serializers.Serializer):
     payment_gateway = serializers.CharField(
         required=False, allow_blank=True, default="", max_length=32
     )
+
+    def validate(self, attrs):
+        # A general-admission order needs items; a seated order needs seats.
+        # Neither is a 400 at the boundary, where this can be said in one place.
+        if not attrs.get("items") and not attrs.get("seat_ids"):
+            raise serializers.ValidationError("Choose tickets or seats to book.")
+        if attrs.get("items") and attrs.get("seat_ids"):
+            raise serializers.ValidationError("Send either items or seat_ids, not both.")
+        return attrs
 
 
 class SetPaymentGatewayRequestSerializer(serializers.Serializer):
@@ -215,6 +229,8 @@ class BookingTicketSerializer(serializers.ModelSerializer):
             "status",
             "attendee_name",
             "attendee_email",
+            "seat_label",
+            "seat_section",
         ]
         read_only_fields = fields
 
@@ -426,6 +442,9 @@ class TicketSerializer(serializers.ModelSerializer):
             # Who this ticket admits, blank when that's the buyer themselves.
             "attendee_name",
             "attendee_email",
+            # Assigned seating: blank for general admission. Printed beside the QR.
+            "seat_label",
+            "seat_section",
             "qr_token",
             "created_at",
         ]

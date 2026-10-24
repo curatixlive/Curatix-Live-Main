@@ -230,6 +230,18 @@ class Ticket(models.Model):
     #
     # No index: nothing queries by attendee. Every read of these reaches them
     # through the booking, which `ticket_booking_created_idx` already covers.
+    #: Assigned seating. Copied onto the ticket at issuance, so the printed seat and
+    #: the door's screen are a fixed record even if the seat row is ever touched.
+    #: Both blank for general admission.
+    seat = models.OneToOneField(
+        "seating.EventSeat",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="ticket",
+    )
+    seat_label = models.CharField(max_length=10, blank=True, default="")
+    seat_section = models.CharField(max_length=40, blank=True, default="")
     attendee_name = models.CharField(max_length=120, blank=True, default="")
     attendee_email = models.EmailField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
