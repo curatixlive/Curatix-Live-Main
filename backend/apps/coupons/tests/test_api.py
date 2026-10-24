@@ -172,6 +172,7 @@ class TestTheOffersList:
             "max_discount_minor",
             "expires_at",
             "applies_to",
+            "ticket_type_ids",
         }
 
     def test_it_is_edge_cacheable(self, api_client, event, make_coupon):

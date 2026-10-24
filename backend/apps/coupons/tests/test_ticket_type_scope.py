@@ -141,3 +141,27 @@ def test_a_deleted_scoped_tier_never_widens_the_coupon(
             code="VIP20",
             lines={str(general.id): 50_000},
         )
+
+
+def test_an_advertised_scoped_offer_names_its_ticket_types(make_coupon, event, organization, tiers):
+    from django.utils import timezone
+
+    from apps.coupons.selectors import public_offers_for_event
+
+    vip, _ = tiers
+    make_coupon(
+        code="VIPONLY",
+        event_id=event.id,
+        visible_at_checkout=True,
+        ticket_type_ids=[vip.id],
+    )
+    make_coupon(code="EVERYONE", visible_at_checkout=True)
+    offers = {
+        o.code: o
+        for o in public_offers_for_event(
+            organization_id=organization.id, event_id=event.id, now=timezone.now()
+        )
+    }
+    assert offers["VIPONLY"].applies_to == ["VIP"]
+    assert offers["VIPONLY"].ticket_type_ids == [str(vip.id)]
+    assert offers["EVERYONE"].applies_to == []

@@ -48,6 +48,8 @@ class PublicOffer:
     expires_at: dt.datetime | None
     #: Names of the ticket types it is limited to; empty means every type.
     applies_to: list[str]
+    #: The same types by id, so a checkout can price the saving on eligible lines only.
+    ticket_type_ids: list[str]
 
 
 def public_offers_for_event(
@@ -76,17 +78,17 @@ def public_offers_for_event(
     return [_offer(row, names.get(str(row.id), [])) for row in live]
 
 
-def _scope_names(coupon_ids: list) -> dict[str, list[str]]:
+def _scope_names(coupon_ids: list) -> dict[str, list[tuple[str, str]]]:
     """Ticket-type names per restricted coupon — one query, none if none."""
     if not coupon_ids:
         return {}
     from .models import CouponTicketType
 
-    out: dict[str, list[str]] = {}
-    for coupon_id, name in CouponTicketType.objects.filter(coupon_id__in=coupon_ids).values_list(
-        "coupon_id", "ticket_type__name"
-    ):
-        out.setdefault(str(coupon_id), []).append(name)
+    out: dict[str, list[tuple[str, str]]] = {}
+    for coupon_id, tier_id, name in CouponTicketType.objects.filter(
+        coupon_id__in=coupon_ids
+    ).values_list("coupon_id", "ticket_type_id", "ticket_type__name"):
+        out.setdefault(str(coupon_id), []).append((str(tier_id), name))
     return out
 
 
@@ -96,7 +98,7 @@ def _is_exhausted(coupon: Coupon, usage: dict[str, int]) -> bool:
     return usage.get(str(coupon.id), 0) >= coupon.max_redemptions
 
 
-def _offer(coupon: Coupon, applies_to: list[str]) -> PublicOffer:
+def _offer(coupon: Coupon, scope: list[tuple[str, str]]) -> PublicOffer:
     return PublicOffer(
         id=coupon.id,
         code=coupon.code,
@@ -104,5 +106,6 @@ def _offer(coupon: Coupon, applies_to: list[str]) -> PublicOffer:
         value=coupon.value,
         max_discount_minor=coupon.max_discount_minor,
         expires_at=coupon.ends_at,
-        applies_to=applies_to,
+        applies_to=[name for _, name in scope],
+        ticket_type_ids=[tier_id for tier_id, _ in scope],
     )

@@ -130,6 +130,7 @@ class PublicOfferSerializer(serializers.Serializer):
     expires_at = serializers.DateTimeField(read_only=True, allow_null=True)
     #: Ticket types it is limited to, with names so a checkout can say so.
     applies_to = serializers.ListField(child=serializers.CharField(), read_only=True)
+    ticket_type_ids = serializers.ListField(child=serializers.UUIDField(), read_only=True)
 
 
 class AppliedCouponSerializer(serializers.Serializer):
