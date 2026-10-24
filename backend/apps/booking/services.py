@@ -1160,6 +1160,14 @@ class BookingService:
             item.unit_price_minor * item.quantity for item in self._bookings.list_items(booking_id)
         )
 
+    def _line_subtotals(self, booking_id) -> dict[str, int]:
+        """What each ticket type contributes — for coupons limited to some tiers."""
+        out: dict[str, int] = {}
+        for item in self._bookings.list_items(booking_id):
+            key = str(item.ticket_type_id)
+            out[key] = out.get(key, 0) + item.unit_price_minor * item.quantity
+        return out
+
     def _reprice(self, booking: Booking, *, subtotal_minor: int, discount_minor: int) -> None:
         """Rewrite the money on a live hold. Caller holds the booking's lock.
 
@@ -1236,6 +1244,7 @@ class BookingService:
                 code=code,
                 subtotal_minor=subtotal,
                 donation_minor=booking.donation_amount_minor,
+                line_subtotals=self._line_subtotals(booking.id),
             )
             self._reprice(
                 booking, subtotal_minor=subtotal, discount_minor=redemption.discount_minor

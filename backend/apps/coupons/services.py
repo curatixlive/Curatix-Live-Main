@@ -53,6 +53,7 @@ from .exceptions import (
     CouponExhaustedError,
     CouponExpiredError,
     CouponLeavesNothingToChargeError,
+    CouponNotForTheseTicketsError,
     CouponNotFoundError,
     CouponNotStartedError,
     CouponUnknownError,
@@ -64,6 +65,7 @@ from .models import Coupon, CouponKind, CouponRedemption
 from .repositories import (
     CouponRedemptionRepository,
     CouponRepository,
+    CouponTicketTypeRepository,
     normalize_code,
     window_is_open,
 )
@@ -159,11 +161,13 @@ class CouponService:
         coupons: CouponRepository | None = None,
         redemptions: CouponRedemptionRepository | None = None,
         events: EventRepository | None = None,
+        scopes: CouponTicketTypeRepository | None = None,
     ) -> None:
         self._organizations = organizations
         self._coupons = coupons or CouponRepository()
         self._redemptions = redemptions or CouponRedemptionRepository()
         self._events = events or EventRepository()
+        self._scopes = scopes or CouponTicketTypeRepository()
 
     # ── authorisation ───────────────────────────────────────────────────────
 
@@ -188,6 +192,31 @@ class CouponService:
             raise CouponNotFoundError("Event not found.")
         return event.id
 
+    def _checked_ticket_type_ids(self, *, event_id, ticket_type_ids) -> list[str]:
+        """Ticket types a coupon may be limited to — all of them THIS event's.
+
+        A ticket-category scope only means something against ONE event's
+        tiers, so it needs an event scope; and every id arrives from a browser,
+        so each is verified to belong to that event (a stranger's id would let
+        one promoter shape a discount on another's tickets).
+        """
+        wanted = list(dict.fromkeys(str(t) for t in ticket_type_ids))
+        if not wanted:
+            return []
+        if event_id is None:
+            raise InvalidCouponError("Choose an event before limiting a code to ticket types.")
+        found = self._scopes.ids_of_event(event_id, wanted)
+        if found != set(wanted):
+            raise InvalidCouponError("One of those ticket types doesn’t belong to this event.")
+        return wanted
+
+    def _with_scopes(self, coupons: list[Coupon]) -> list[Coupon]:
+        """Attach `ticket_type_ids` to each row — ONE query for the page."""
+        scopes = self._scopes.ids_by_coupon([c.id for c in coupons])
+        for coupon in coupons:
+            coupon.ticket_type_ids = scopes.get(str(coupon.id), [])  # type: ignore[attr-defined]
+        return coupons
+
     # ── reads ───────────────────────────────────────────────────────────────
 
     def list_coupons(self, *, organization_id, actor_id) -> tuple[list[Coupon], dict[str, int]]:
@@ -199,7 +228,7 @@ class CouponService:
         — asking per row is the N+1 the performance checklist exists to stop.
         """
         self._owned_organization(organization_id=organization_id, actor_id=actor_id)
-        rows = list(self._coupons.list_for_organization(organization_id))
+        rows = self._with_scopes(list(self._coupons.list_for_organization(organization_id)))
         usage = self._redemptions.usage_by_coupon([row.id for row in rows])
         return rows, usage
 
@@ -208,6 +237,7 @@ class CouponService:
         coupon = self._coupons.get_owned(organization_id=organization_id, coupon_id=coupon_id)
         if coupon is None:
             raise CouponNotFoundError()
+        self._with_scopes([coupon])
         return coupon, self._redemptions.count_for_coupon(coupon.id)
 
     # ── writes ──────────────────────────────────────────────────────────────
@@ -227,6 +257,7 @@ class CouponService:
         max_per_user: int = 1,
         visible_at_checkout: bool = False,
         event_id=None,
+        ticket_type_ids: list | None = None,
     ) -> Coupon:
         organization = self._owned_organization(organization_id=organization_id, actor_id=actor_id)
         stored_code = validate_code(code)
@@ -246,6 +277,9 @@ class CouponService:
             raise InvalidCouponError("That coupon would already have expired.")
 
         scoped_event_id = self._owned_event_id(organization_id=organization.id, event_id=event_id)
+        scoped_tiers = self._checked_ticket_type_ids(
+            event_id=scoped_event_id, ticket_type_ids=ticket_type_ids or []
+        )
 
         if self._coupons.list_for_organization(organization.id).count() >= (
             MAX_COUPONS_PER_ORGANIZATION
@@ -268,7 +302,10 @@ class CouponService:
                 max_redemptions=max_redemptions,
                 max_per_user=int(max_per_user),
                 visible_at_checkout=bool(visible_at_checkout),
+                restricted_to_ticket_types=bool(scoped_tiers),
             )
+            if scoped_tiers:
+                self._scopes.replace(coupon.id, scoped_tiers)
         except IntegrityError:
             # `coupon_code_unique_per_org` is the real guard; the check above is
             # only there so the common case reads as a sentence about the code.
@@ -279,6 +316,7 @@ class CouponService:
             "coupon_created",
             extra={"coupon_id": str(coupon.id), "organization_id": str(organization.id)},
         )
+        self._with_scopes([coupon])
         return coupon
 
     #: What a PATCH may carry. `organization` is absent because moving a coupon
@@ -294,6 +332,7 @@ class CouponService:
         "max_per_user",
         "visible_at_checkout",
         "is_active",
+        "restricted_to_ticket_types",
     )
 
     def update_coupon(
@@ -323,6 +362,15 @@ class CouponService:
                 organization_id=organization_id, event_id=changes["event_id"]
             )
 
+        # `None` means "not mentioned"; an empty list lifts the restriction.
+        new_tiers: list[str] | None = None
+        if changes.get("ticket_type_ids") is not None:
+            effective_event = fields.get("event_id", coupon.event_id)
+            new_tiers = self._checked_ticket_type_ids(
+                event_id=effective_event, ticket_type_ids=changes["ticket_type_ids"]
+            )
+            fields["restricted_to_ticket_types"] = bool(new_tiers)
+
         if "code" in changes:
             stored_code = validate_code(changes["code"])
             if stored_code != coupon.code:
@@ -338,6 +386,7 @@ class CouponService:
                 fields["code"] = stored_code
 
         if not fields:
+            self._with_scopes([coupon])
             return coupon, self._redemptions.count_for_coupon(coupon.id)
 
         # THE MERGED ROW, not the submitted fields. `kind`, `value` and
@@ -346,6 +395,16 @@ class CouponService:
         # to fixed" slips a value of 20 through as 20 paise.
         merged = {key: getattr(coupon, key) for key in self._EDITABLE}
         merged.update({key: value for key, value in fields.items() if key in self._EDITABLE})
+        # Moving a restricted coupon to another event orphans its tier scope.
+        if (
+            "event_id" in fields
+            and str(fields["event_id"]) != str(coupon.event_id)
+            and coupon.restricted_to_ticket_types
+            and new_tiers is None
+        ):
+            raise InvalidCouponError(
+                "This code is limited to ticket types of its event — pick new ones to move it."
+            )
         validate_terms(
             kind=merged["kind"],
             value=merged["value"],
@@ -360,9 +419,12 @@ class CouponService:
             self._coupons.update(coupon.id, **fields)
         except IntegrityError:
             raise CouponCodeTakenError(str(fields.get("code", coupon.code))) from None
+        if new_tiers is not None:
+            self._scopes.replace(coupon.id, new_tiers)
 
         updated = self._coupons.get_owned(organization_id=organization_id, coupon_id=coupon.id)
         assert updated is not None  # it was there a statement ago, and nothing deletes here
+        self._with_scopes([updated])
         return updated, self._redemptions.count_for_coupon(updated.id)
 
     def delete_coupon(self, *, organization_id, actor_id, coupon_id) -> None:
@@ -438,10 +500,12 @@ class CouponRedemptionService:
         coupons: CouponRepository | None = None,
         redemptions: CouponRedemptionRepository | None = None,
         events: EventRepository | None = None,
+        scopes: CouponTicketTypeRepository | None = None,
     ) -> None:
         self._coupons = coupons or CouponRepository()
         self._redemptions = redemptions or CouponRedemptionRepository()
         self._events = events or EventRepository()
+        self._scopes = scopes or CouponTicketTypeRepository()
 
     # ── the rules ───────────────────────────────────────────────────────────
 
@@ -529,6 +593,7 @@ class CouponRedemptionService:
         code: str,
         subtotal_minor: int,
         donation_minor: int = 0,
+        line_subtotals: dict[str, int] | None = None,
     ) -> Redemption:
         """Take one redemption of this code for this booking, under its lock.
 
@@ -556,7 +621,21 @@ class CouponRedemptionService:
             redeemed=self._redemptions.count_for_coupon(locked.id),
         )
 
-        discount = discount_on(self._terms_of(locked), subtotal_minor=subtotal_minor)
+        # A coupon limited to some ticket types discounts only THOSE lines. The
+        # per-line totals come from the booking's own items (priced under the
+        # tier locks); no figure here is supplied by the client.
+        eligible = subtotal_minor
+        if locked.restricted_to_ticket_types:
+            allowed = self._scopes.ids_for(locked.id)
+            eligible = sum(
+                amount
+                for tier_id, amount in (line_subtotals or {}).items()
+                if str(tier_id) in allowed
+            )
+            if eligible <= 0:
+                raise CouponNotForTheseTicketsError()
+
+        discount = discount_on(self._terms_of(locked), subtotal_minor=eligible)
         if discount <= 0:
             # A code worth nothing is refused rather than recorded. It keeps
             # `discount_amount_minor > 0` and "a redemption exists" the SAME

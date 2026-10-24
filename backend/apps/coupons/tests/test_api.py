@@ -164,7 +164,15 @@ class TestTheOffersList:
         race."""
         make_coupon(code="PUBLIC20", visible_at_checkout=True, max_redemptions=3)
         row = api_client.get(self.url(event)).json()["data"][0]
-        assert set(row) == {"id", "code", "kind", "value", "max_discount_minor", "expires_at"}
+        assert set(row) == {
+            "id",
+            "code",
+            "kind",
+            "value",
+            "max_discount_minor",
+            "expires_at",
+            "applies_to",
+        }
 
     def test_it_is_edge_cacheable(self, api_client, event, make_coupon):
         make_coupon(visible_at_checkout=True)

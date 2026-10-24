@@ -39,6 +39,7 @@ __all__ = [
     "CouponExpiredError",
     "CouponLeavesNothingToChargeError",
     "CouponNotFoundError",
+    "CouponNotForTheseTicketsError",
     "CouponNotStartedError",
     "CouponRejectedError",
     "CouponUnknownError",
@@ -220,3 +221,12 @@ class CouponWorthNothingError(CouponRejectedError):
 
     def __init__(self) -> None:
         super().__init__("That code takes nothing off this order.")
+
+
+class CouponNotForTheseTicketsError(CouponRejectedError):
+    """The code is limited to other ticket types than the ones in this order."""
+
+    code = "coupon_not_for_these_tickets"
+
+    def __init__(self) -> None:
+        super().__init__("That code doesn’t apply to the tickets in this order.")

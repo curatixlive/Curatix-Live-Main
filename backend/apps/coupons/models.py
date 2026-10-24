@@ -96,6 +96,11 @@ class Coupon(models.Model):
     #: Per person. Defaults to 1, which is what a promo code almost always
     #: means — an unlimited-per-user code is one person's discount forever.
     max_per_user = models.PositiveIntegerField(default=1)
+    #: True when the discount applies only to the ticket types listed in
+    #: `CouponTicketType`. A flag rather than "has rows": if a scoped tier is
+    #: later deleted its row cascades away, and an empty list must then mean
+    #: "applies to nothing" — never silently "applies to everything".
+    restricted_to_ticket_types = models.BooleanField(default=False)
     #: Whether the code may be ADVERTISED on the checkout.
     #:
     #: False is the default because the commonest use is a private code given
@@ -131,6 +136,32 @@ class Coupon(models.Model):
 
     def __str__(self) -> str:
         return self.code
+
+
+class CouponTicketType(models.Model):
+    """One ticket type a restricted coupon applies to.
+
+    A join table rather than a `ManyToManyField` — there is none anywhere in
+    this codebase, and a descriptor would put an unscoped `coupon.ticket_types`
+    query within reach of a serializer.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name="ticket_scopes")
+    ticket_type = models.ForeignKey(
+        "ticketing.TicketType", on_delete=models.CASCADE, related_name="coupon_scopes"
+    )
+
+    class Meta:
+        db_table = "coupons_coupon_ticket_type"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["coupon", "ticket_type"], name="coupon_ticket_type_unique"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.coupon_id} -> {self.ticket_type_id}"
 
 
 class CouponRedemption(models.Model):

@@ -41,6 +41,10 @@ class CouponSerializer(serializers.Serializer):
     max_redemptions = serializers.IntegerField(read_only=True, allow_null=True)
     max_per_user = serializers.IntegerField(read_only=True)
     visible_at_checkout = serializers.BooleanField(read_only=True)
+    restricted_to_ticket_types = serializers.BooleanField(read_only=True)
+    ticket_type_ids = serializers.ListField(
+        child=serializers.UUIDField(), read_only=True, default=list
+    )
     is_active = serializers.BooleanField(read_only=True)
     redeemed_count = serializers.IntegerField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
@@ -65,6 +69,11 @@ class CreateCouponRequestSerializer(serializers.Serializer):
     #: checked against the organization in the service — a cross-tenant check
     #: on a value that arrives from a browser, so it cannot live here.
     event_id = serializers.UUIDField(required=False, allow_null=True)
+    #: Limit the discount to these ticket types of the event. Absent or empty:
+    #: every ticket type.
+    ticket_type_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False, allow_empty=True, max_length=50
+    )
 
 
 class UpdateCouponRequestSerializer(serializers.Serializer):
@@ -88,6 +97,10 @@ class UpdateCouponRequestSerializer(serializers.Serializer):
     visible_at_checkout = serializers.BooleanField(required=False)
     is_active = serializers.BooleanField(required=False)
     event_id = serializers.UUIDField(required=False, allow_null=True)
+    #: `[]` lifts a ticket-type restriction; absent leaves it unchanged.
+    ticket_type_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False, allow_empty=True, max_length=50
+    )
 
 
 class ApplyCouponRequestSerializer(serializers.Serializer):
@@ -115,6 +128,8 @@ class PublicOfferSerializer(serializers.Serializer):
     value = serializers.IntegerField(read_only=True)
     max_discount_minor = serializers.IntegerField(read_only=True, allow_null=True)
     expires_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    #: Ticket types it is limited to, with names so a checkout can say so.
+    applies_to = serializers.ListField(child=serializers.CharField(), read_only=True)
 
 
 class AppliedCouponSerializer(serializers.Serializer):

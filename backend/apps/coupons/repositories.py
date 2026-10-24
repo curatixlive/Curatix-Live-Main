@@ -25,7 +25,7 @@ from django.db.models import Q, QuerySet
 
 from core.base_repository import BaseRepository
 
-from .models import Coupon, CouponRedemption
+from .models import Coupon, CouponRedemption, CouponTicketType
 
 #: The columns the locked decision needs. Everything on the row is read while
 #: deciding — the window, the caps, the terms — so this is the whole row minus
@@ -44,6 +44,7 @@ _LOCK_FIELDS = (
     "max_redemptions",
     "max_per_user",
     "is_active",
+    "restricted_to_ticket_types",
 )
 
 
@@ -162,6 +163,7 @@ class CouponRepository(BaseRepository[Coupon]):
                 "max_discount_minor",
                 "ends_at",
                 "max_redemptions",
+                "restricted_to_ticket_types",
             )
             .order_by("code")
         )
@@ -261,3 +263,43 @@ def window_is_open(coupon: Coupon, *, now: dt.datetime) -> tuple[bool, bool]:
     started = coupon.starts_at is None or coupon.starts_at <= now
     ended = coupon.ends_at is not None and coupon.ends_at <= now
     return started, ended
+
+
+class CouponTicketTypeRepository:
+    """Which ticket types a restricted coupon applies to."""
+
+    def ids_by_coupon(self, coupon_ids: list) -> dict[str, list[str]]:
+        """One query for a whole page of coupons."""
+        out: dict[str, list[str]] = {}
+        if not coupon_ids:
+            return out
+        for coupon_id, tier_id in CouponTicketType.objects.filter(
+            coupon_id__in=coupon_ids
+        ).values_list("coupon_id", "ticket_type_id"):
+            out.setdefault(str(coupon_id), []).append(str(tier_id))
+        return out
+
+    def ids_for(self, coupon_id: uuid.UUID | str) -> set[str]:
+        return {
+            str(x)
+            for x in CouponTicketType.objects.filter(coupon_id=coupon_id).values_list(
+                "ticket_type_id", flat=True
+            )
+        }
+
+    def replace(self, coupon_id: uuid.UUID | str, ticket_type_ids: list[str]) -> None:
+        CouponTicketType.objects.filter(coupon_id=coupon_id).delete()
+        CouponTicketType.objects.bulk_create(
+            [CouponTicketType(coupon_id=coupon_id, ticket_type_id=t) for t in ticket_type_ids]
+        )
+
+    def ids_of_event(self, event_id: uuid.UUID | str, candidates: list[str]) -> set[str]:
+        """Which of `candidates` really are ticket types of THIS event."""
+        from apps.ticketing.models import TicketType
+
+        return {
+            str(x)
+            for x in TicketType.objects.filter(event_id=event_id, id__in=candidates).values_list(
+                "id", flat=True
+            )
+        }
