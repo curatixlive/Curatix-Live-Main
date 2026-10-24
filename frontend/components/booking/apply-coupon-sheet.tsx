@@ -4,7 +4,12 @@ import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { ArrowLeft, Loader2, TicketPercent } from 'lucide-react';
 import type { PublicOffer } from '@/lib/api/types';
-import { MAX_CODE_LENGTH, MIN_CODE_LENGTH, offerOutcome } from '@/lib/booking/coupons';
+import {
+  MAX_CODE_LENGTH,
+  MIN_CODE_LENGTH,
+  offerOutcome,
+  type OrderLine,
+} from '@/lib/booking/coupons';
 import { cn } from '@/lib/utils/cn';
 import { CouponTicket } from './coupon-ticket';
 
@@ -38,6 +43,7 @@ export function ApplyCouponSheet({
   offers,
   appliedCode,
   subtotal,
+  lines,
   donation,
   pending,
   error,
@@ -50,6 +56,8 @@ export function ApplyCouponSheet({
   appliedCode: string | null;
   /** The TICKET subtotal the server prices a code against, in minor units. */
   subtotal: number;
+  /** The order by ticket type, so a code limited to some types is priced on those. */
+  lines?: OrderLine[];
   donation: number;
   pending: boolean;
   /** The server's sentence for the last refusal, shown verbatim. */
@@ -96,7 +104,7 @@ export function ApplyCouponSheet({
     apply(code);
   };
 
-  const order = { subtotalMinor: subtotal, donationMinor: donation };
+  const order = { subtotalMinor: subtotal, donationMinor: donation, lines };
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -106,7 +114,7 @@ export function ApplyCouponSheet({
           aria-describedby="apply-coupon-description"
           className={cn(
             'fixed inset-0 z-modal flex flex-col bg-background text-foreground',
-            'animate-in fade-in-0 slide-in-from-bottom-4 duration-fast data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-4',
+            'duration-fast animate-in fade-in-0 slide-in-from-bottom-4 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-4',
             'sm:inset-auto sm:left-1/2 sm:top-1/2 sm:h-[85vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:overflow-hidden sm:rounded-2xl sm:border sm:border-border sm:shadow-xl',
           )}
           // Focus the FIELD, not the back arrow: somebody who opened a sheet
@@ -173,7 +181,11 @@ export function ApplyCouponSheet({
                   (`ui/notice.tsx`). `role="alert"` only for the server's
                   refusal: that is the answer to a press. */}
               {error ? (
-                <p id="apply-coupon-note" role="alert" className="px-5 text-caption text-muted-foreground">
+                <p
+                  id="apply-coupon-note"
+                  role="alert"
+                  className="px-5 text-caption text-muted-foreground"
+                >
                   {error}
                 </p>
               ) : tooShort ? (

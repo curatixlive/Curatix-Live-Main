@@ -599,9 +599,7 @@ export function restoreDraft(
           // `{key, minQuantity, price}` and the first `band.description.trim()`
           // threw into the error boundary — "This screen didn't load", on the
           // Create event page, for anybody with a draft in progress.
-          groupBands: Array.isArray(tier.groupBands)
-            ? tier.groupBands.map(normaliseBand)
-            : [],
+          groupBands: Array.isArray(tier.groupBands) ? tier.groupBands.map(normaliseBand) : [],
         }))
       : [],
     // Same reason as `tiers`, and it is NOT covered by the spread above: an
@@ -663,7 +661,9 @@ function normaliseBand(band: Partial<DraftGroupBand> & { price?: unknown }): Dra
 
 /** A stored value we can safely treat as a list of strings. */
 export function asStrings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
 }
 
 export function newTier(index: number): DraftTier {
@@ -905,7 +905,6 @@ export function groupBandIssues(tier: DraftTier): string[] {
 
   return problems;
 }
-
 
 export function phaseIssues(tier: DraftTier): string[] {
   const problems: string[] = [];
@@ -1380,7 +1379,12 @@ export function cloneDraftFrom(
   tiers: readonly TicketTier[],
   content: {
     faqs?: readonly { question: string; answer: string }[];
-    timeline?: readonly { kind: string; label: string; description: string; starts_at: string | null }[];
+    timeline?: readonly {
+      kind: string;
+      label: string;
+      description: string;
+      starts_at: string | null;
+    }[];
     slots?: readonly { starts_at: string; ends_at: string | null; label: string }[];
     crewIds?: readonly string[];
   },
@@ -1496,6 +1500,51 @@ function toCoordinate(value: number | string | null | undefined): number | null 
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/** Server tier rows as editable draft tiers (also used after seating changes them). */
+export function tiersToDraft(tiers: readonly TicketTier[]): DraftTier[] {
+  return tiers.map((tier) => ({
+    // The server id doubles as the React key: it is stable across renders and
+    // unique, which is the whole contract, and it means a hydrated row cannot
+    // collide with a locally-added one (`tier-N-random`).
+    key: tier.id,
+    serverId: tier.id,
+    version: tier.version,
+    name: tier.name,
+    description: tier.description ?? '',
+    perks: tier.perks ?? [],
+    slotId: tier.slot_id ?? '',
+    // The FACE price, never `effective_price`. A tier inside a live early-bird
+    // phase is discounted TODAY; loading the discount into the price field and
+    // saving would make the discount permanent and lose the real price.
+    price: toMajorInput(tier.price),
+    quantity: String(tier.quantity),
+    maxPerOrder: String(tier.max_per_order),
+    saleStart: toLocalInput(tier.sale_start),
+    saleEnd: toLocalInput(tier.sale_end),
+    // `?? []` is load-bearing: a backend that predates the column sends
+    // nothing, and `undefined.map` in the ticket builder is a white screen
+    // over a real event.
+    groupBands: (tier.group_bands ?? []).map((band, index) => ({
+      key: `band-${index}-${band.min_quantity}`,
+      minQuantity: String(band.min_quantity),
+      // Back to a TOTAL, because that is what the form asks for. The
+      // round trip is lossless for every band the form can produce: the
+      // stored per-unit price was floored from this same product, so
+      // multiplying it back can only differ by the paise that were
+      // dropped — and it re-divides to the same figure.
+      totalPrice: toMajorInput(band.price_minor * (band.min_quantity || 1)),
+      description: band.description ?? '',
+    })),
+    phases: (tier.phases ?? []).map((phase) => ({
+      key: phase.id,
+      name: phase.name,
+      price: toMajorInput(phase.price),
+      endsAt: toLocalInput(phase.ends_at),
+      quantity: phase.quantity === null ? '' : String(phase.quantity),
+    })),
+  }));
+}
+
 /**
  * An existing event, as a draft the wizard can edit.
  *
@@ -1585,47 +1634,7 @@ export function draftFromEvent(
     tags: event.tags ?? [],
     seoTitle: event.seo_title ?? '',
     seoDescription: event.seo_description ?? '',
-    tiers: tiers.map((tier) => ({
-      // The server id doubles as the React key: it is stable across renders and
-      // unique, which is the whole contract, and it means a hydrated row cannot
-      // collide with a locally-added one (`tier-N-random`).
-      key: tier.id,
-      serverId: tier.id,
-      version: tier.version,
-      name: tier.name,
-      description: tier.description ?? '',
-      perks: tier.perks ?? [],
-      slotId: tier.slot_id ?? '',
-      // The FACE price, never `effective_price`. A tier inside a live early-bird
-      // phase is discounted TODAY; loading the discount into the price field and
-      // saving would make the discount permanent and lose the real price.
-      price: toMajorInput(tier.price),
-      quantity: String(tier.quantity),
-      maxPerOrder: String(tier.max_per_order),
-      saleStart: toLocalInput(tier.sale_start),
-      saleEnd: toLocalInput(tier.sale_end),
-      // `?? []` is load-bearing: a backend that predates the column sends
-      // nothing, and `undefined.map` in the ticket builder is a white screen
-      // over a real event.
-      groupBands: (tier.group_bands ?? []).map((band, index) => ({
-        key: `band-${index}-${band.min_quantity}`,
-        minQuantity: String(band.min_quantity),
-        // Back to a TOTAL, because that is what the form asks for. The
-        // round trip is lossless for every band the form can produce: the
-        // stored per-unit price was floored from this same product, so
-        // multiplying it back can only differ by the paise that were
-        // dropped — and it re-divides to the same figure.
-        totalPrice: toMajorInput(band.price_minor * (band.min_quantity || 1)),
-        description: band.description ?? '',
-      })),
-      phases: (tier.phases ?? []).map((phase) => ({
-        key: phase.id,
-        name: phase.name,
-        price: toMajorInput(phase.price),
-        endsAt: toLocalInput(phase.ends_at),
-        quantity: phase.quantity === null ? '' : String(phase.quantity),
-      })),
-    })),
+    tiers: tiersToDraft(tiers),
   };
 }
 
@@ -1838,9 +1847,7 @@ export function toTierInput(tier: DraftTier, position: number): CreateTicketType
     // A server-backed tier is an EDIT, so `[]` is a real instruction and is
     // sent. A tier with no id is a CREATE, where the old reasoning still
     // holds. The same rule governs the group bands below.
-    ...(tier.serverId || tier.phases.length
-      ? { phases: tier.phases.map(toPhaseInput) }
-      : {}),
+    ...(tier.serverId || tier.phases.length ? { phases: tier.phases.map(toPhaseInput) } : {}),
     ...(tier.serverId || tier.groupBands.length
       ? { group_bands: tier.groupBands.map(toGroupBandInput) }
       : {}),

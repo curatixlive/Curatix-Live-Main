@@ -43,9 +43,7 @@ function read(): Store {
     const parsed: unknown = JSON.parse(raw);
     // A hand-edited or half-written value must not crash a checkout. Anything
     // that is not a plain object reads as "nothing stored".
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Store)
-      : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Store) : {};
   } catch {
     return {};
   }

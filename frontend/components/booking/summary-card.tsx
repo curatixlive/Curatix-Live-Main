@@ -229,7 +229,10 @@ export function SummaryCard({ className }: { className?: string }) {
 
       {/* Also desktop-only: every step body ends with its own `TrustStrip`,
           so on a phone this was the same four marks twice on one screen. */}
-      <TrustList marks={CHECKOUT_TRUST} className="hidden border-t border-border pt-stack-lg lg:flex" />
+      <TrustList
+        marks={CHECKOUT_TRUST}
+        className="hidden border-t border-border pt-stack-lg lg:flex"
+      />
     </motion.aside>
   );
 }

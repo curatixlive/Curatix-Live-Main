@@ -526,4 +526,8 @@ export type PublicOffer = {
   max_discount_minor: number | null;
   /** Null when the organizer set no end date. */
   expires_at: string | null;
+  /** Names of the ticket types it is limited to; empty means every type. */
+  applies_to?: string[];
+  /** The same types by id — lets the checkout price the saving on eligible lines. */
+  ticket_type_ids?: string[];
 };

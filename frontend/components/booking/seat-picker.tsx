@@ -104,7 +104,10 @@ export function SeatPicker({ className }: { className?: string }) {
                         ? 'border-primary bg-primary text-primary-foreground'
                         : taken
                           ? 'cursor-not-allowed border-border bg-muted text-muted-foreground line-through'
-                          : cn('bg-surface text-foreground hover:bg-muted', TINTS[idx % TINTS.length]),
+                          : cn(
+                              'bg-surface text-foreground hover:bg-muted',
+                              TINTS[idx % TINTS.length],
+                            ),
                     )}
                   >
                     {seat.label.replace(/^\D+/, '') || seat.label}

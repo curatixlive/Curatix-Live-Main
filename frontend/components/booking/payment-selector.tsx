@@ -111,7 +111,7 @@ export function PaymentSelector({
       disabled={disabled}
       aria-label={`Pay using ${label}. Change payment method`}
       className={cn(
-        'group flex min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 -mx-2 text-left',
+        'group -mx-2 flex min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left',
         // A real touch target. `min-h-control` IS the 44px floor, named in
         // tokens so it cannot drift; the padding above takes the pressable box
         // there without moving the layout.
@@ -173,7 +173,7 @@ export function PaymentSelector({
             'sm:inset-x-auto sm:bottom-payment-menu',
             'sm:left-1/2 sm:w-[min(22rem,calc(100vw-2rem))] sm:-translate-x-1/2',
             'sm:rounded-2xl sm:border',
-            'sm:data-[state=open]:slide-in-from-bottom-2 sm:data-[state=closed]:slide-out-to-bottom-2',
+            'sm:data-[state=closed]:slide-out-to-bottom-2 sm:data-[state=open]:slide-in-from-bottom-2',
             'duration-200 ease-out',
           )}
         >
@@ -221,7 +221,7 @@ export function PaymentSelector({
                     // `min-h-control-lg` then guarantees even for a row whose
                     // blurb is missing. This is a control somebody presses once
                     // while holding a phone in one hand, on a train.
-                    'min-h-control-lg py-3 touch-manipulation',
+                    'min-h-control-lg touch-manipulation py-3',
                     'transition-colors duration-150',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     active ? 'bg-muted' : 'hover:bg-muted/60',
@@ -245,8 +245,8 @@ export function PaymentSelector({
                       'ml-auto flex size-6 shrink-0 items-center justify-center rounded-full',
                       'transition-all duration-200',
                       active
-                        ? 'bg-foreground text-background scale-100'
-                        : 'border border-border-strong scale-90 opacity-0',
+                        ? 'scale-100 bg-foreground text-background'
+                        : 'scale-90 border border-border-strong opacity-0',
                     )}
                   >
                     {active ? <Check className="size-3.5" aria-hidden strokeWidth={3} /> : null}

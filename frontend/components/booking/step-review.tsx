@@ -296,7 +296,8 @@ export function ReviewStep() {
     // FALLBACK for a booking adopted from elsewhere (the confirmation screen
     // publishes the one it polled). Still worth having: it catches a replay
     // whose lines genuinely differ.
-    if (booking.items?.length) return bookingItemsSignature(booking.items) !== tierSignature(selection);
+    if (booking.items?.length)
+      return bookingItemsSignature(booking.items) !== tierSignature(selection);
     // Neither available: do NOT guess. Cancelling a hold on a hunch is worse
     // than showing one, and the picker cancels anything left over anyway.
     return false;
@@ -1041,6 +1042,10 @@ export function ReviewStep() {
             discount={discount}
             offers={offers}
             subtotal={orderAmount}
+            lines={lines.map((line) => ({
+              ticketTypeId: line.ticket_type_id,
+              amount: line.unit_price * line.quantity,
+            }))}
             donation={donation}
             pending={couponPending}
             error={couponError}

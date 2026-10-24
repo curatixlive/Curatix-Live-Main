@@ -167,8 +167,7 @@ export function HoldTimer({
         <span>Your hold has expired — these tickets have been released.</span>
       ) : (
         <span>
-          Complete your booking in{' '}
-          <span className="font-semibold tabular-nums">{label}</span> mins
+          Complete your booking in <span className="font-semibold tabular-nums">{label}</span> mins
         </span>
       )}
     </>
@@ -179,7 +178,11 @@ export function HoldTimer({
       <div
         role="status"
         aria-live="polite"
-        className={cn('flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-body-sm', tone, className)}
+        className={cn(
+          'flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-body-sm',
+          tone,
+          className,
+        )}
       >
         {body}
       </div>

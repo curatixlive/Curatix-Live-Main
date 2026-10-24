@@ -788,7 +788,11 @@ function when(startsAt: string, endsAt: string | null): string {
     month: 'short',
     year: 'numeric',
   });
-  const from = start.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const from = start.toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
   // A blank `ends_at` means "the organiser did not say" — omitted, not guessed.
   if (!endsAt) return `${date} · ${from}`;
   const to = new Date(endsAt).toLocaleTimeString('en-IN', {
@@ -847,7 +851,9 @@ function CopyableRef({ value, shown }: { value: string; shown: string }) {
       ) : (
         <Copy className="size-4 text-ink-500" aria-hidden />
       )}
-      <span className="sr-only">{copied ? 'Booking reference copied' : 'Copy booking reference'}</span>
+      <span className="sr-only">
+        {copied ? 'Booking reference copied' : 'Copy booking reference'}
+      </span>
     </button>
   );
 }

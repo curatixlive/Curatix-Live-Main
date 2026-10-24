@@ -258,8 +258,8 @@ function BackControl() {
             <div className="flex flex-col gap-2">
               <DrawerTitle>Cancel this booking?</DrawerTitle>
               <DrawerDescription>
-                Your tickets go back on sale straight away, so they may be gone if you come
-                back. Nothing has been charged.
+                Your tickets go back on sale straight away, so they may be gone if you come back.
+                Nothing has been charged.
               </DrawerDescription>
             </div>
             {/* The SAFE action is the primary one and sits under the thumb.

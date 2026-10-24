@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { TicketTier } from '@/lib/api/types';
-import { SELECTION_PARAM, SESSION_PARAM, parseSelection, totalsFor } from './selection';
+import {
+  SELECTION_PARAM,
+  SESSION_PARAM,
+  idempotencyKeyFor,
+  parseSeatIds,
+  parseSelection,
+  selectionSignature,
+  tierSignature,
+  toSeatIds,
+  totalsFor,
+} from './selection';
 
 /**
  * The basket arithmetic, and the guard that stops one booking spanning two
@@ -82,10 +92,7 @@ describe('totalsFor', () => {
     });
 
     it('is false when every line belongs to the SAME session', () => {
-      const tiers = [
-        tier({ id: 'ga-6', slot_id: 'six' }),
-        tier({ id: 'vip-6', slot_id: 'six' }),
-      ];
+      const tiers = [tier({ id: 'ga-6', slot_id: 'six' }), tier({ id: 'vip-6', slot_id: 'six' })];
 
       expect(totalsFor(parseSelection('ga-6:1,vip-6:1'), tiers).crossSession).toBe(false);
     });
@@ -95,10 +102,7 @@ describe('totalsFor', () => {
       // the URL and this is the basket you get. `POST /bookings` receives tier
       // ids and nothing about slots, so the server cannot refuse it — one
       // booking would admit somebody to two evenings.
-      const tiers = [
-        tier({ id: 'ga-6', slot_id: 'six' }),
-        tier({ id: 'ga-9', slot_id: 'nine' }),
-      ];
+      const tiers = [tier({ id: 'ga-6', slot_id: 'six' }), tier({ id: 'ga-9', slot_id: 'nine' })];
 
       expect(totalsFor(parseSelection('ga-6:1,ga-9:1'), tiers).crossSession).toBe(true);
     });
@@ -106,10 +110,7 @@ describe('totalsFor', () => {
     it('does not count an event-wide tier as a second session', () => {
       // `slot_id === null` admits to EVERY show, so it never conflicts. A
       // festival pass beside one night's ticket is a legitimate basket.
-      const tiers = [
-        tier({ id: 'pass', slot_id: null }),
-        tier({ id: 'ga-6', slot_id: 'six' }),
-      ];
+      const tiers = [tier({ id: 'pass', slot_id: null }), tier({ id: 'ga-6', slot_id: 'six' })];
 
       expect(totalsFor(parseSelection('pass:1,ga-6:1'), tiers).crossSession).toBe(false);
     });
@@ -119,5 +120,44 @@ describe('totalsFor', () => {
 
       expect(totalsFor(parseSelection('pass:1,vip:1'), tiers).crossSession).toBe(false);
     });
+  });
+});
+
+describe('seats in the selection', () => {
+  const id = (n: number) => `00000000-0000-0000-0000-00000000000${n}`;
+
+  it('parses seat ids, dropping junk and duplicates and capping at ten', () => {
+    expect(parseSeatIds(`${id(1)},nope,${id(1)},${id(2)}`)).toEqual([id(1), id(2)]);
+    const many = Array.from(
+      { length: 14 },
+      (_, i) => `00000000-0000-0000-0000-0000000000${10 + i}`,
+    );
+    expect(parseSeatIds(many.join(','))).toHaveLength(10);
+  });
+
+  it('gives different seats a different signature, so they never share an idempotency key', () => {
+    const a = [{ tierId: 't', quantity: 1, seatIds: [id(1)] }];
+    const b = [{ tierId: 't', quantity: 1, seatIds: [id(2)] }];
+    expect(selectionSignature(a)).not.toBe(selectionSignature(b));
+    expect(idempotencyKeyFor('e', a)).not.toBe(idempotencyKeyFor('e', b));
+  });
+
+  it('is order-independent over the same seats', () => {
+    const a = [{ tierId: 't', quantity: 2, seatIds: [id(1), id(2)] }];
+    const b = [{ tierId: 't', quantity: 2, seatIds: [id(2), id(1)] }];
+    expect(selectionSignature(a)).toBe(selectionSignature(b));
+  });
+
+  it('lists the seats a basket names, and none for general admission', () => {
+    expect(toSeatIds([{ tierId: 't', quantity: 2, seatIds: [id(2), id(1)] }])).toEqual([
+      id(1),
+      id(2),
+    ]);
+    expect(toSeatIds([{ tierId: 't', quantity: 2 }])).toEqual([]);
+  });
+
+  it('tierSignature ignores seats so a booking’s own lines compare equal', () => {
+    const sel = [{ tierId: 't', quantity: 1, seatIds: [id(1)] }];
+    expect(tierSignature(sel)).toBe('t:1');
   });
 });

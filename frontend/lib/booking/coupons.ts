@@ -75,7 +75,12 @@ export type OfferOutcome =
   /** Nothing to take anything off — a free order, or a code worth zero. */
   | { kind: 'nothing' }
   /** It would take the order under the provider's floor. */
-  | { kind: 'leaves_nothing' };
+  | { kind: 'leaves_nothing' }
+  /** It is limited to ticket types that are not in this order. */
+  | { kind: 'not_eligible' };
+
+/** One order line, by ticket type, in minor units. */
+export type OrderLine = { ticketTypeId: string; amount: number };
 
 /**
  * What pressing this coupon would do, decided the way the server will decide it.
@@ -86,10 +91,24 @@ export type OfferOutcome =
  * provider would decline.
  */
 export function offerOutcome(
-  offer: Pick<PublicOffer, 'kind' | 'value' | 'max_discount_minor'>,
-  { subtotalMinor, donationMinor }: { subtotalMinor: number; donationMinor: number },
+  offer: Pick<PublicOffer, 'kind' | 'value' | 'max_discount_minor' | 'ticket_type_ids'>,
+  {
+    subtotalMinor,
+    donationMinor,
+    lines,
+  }: { subtotalMinor: number; donationMinor: number; lines?: OrderLine[] },
 ): OfferOutcome {
-  const amount = discountOn(offer, subtotalMinor);
+  // A code limited to some ticket types discounts only those lines — the same
+  // rule the server applies when it is pressed (`CouponRedemptionService.redeem`).
+  const scope = offer.ticket_type_ids ?? [];
+  let eligible = subtotalMinor;
+  if (scope.length && lines) {
+    eligible = lines
+      .filter((line) => scope.includes(line.ticketTypeId))
+      .reduce((sum, line) => sum + line.amount, 0);
+    if (eligible <= 0) return { kind: 'not_eligible' };
+  }
+  const amount = discountOn(offer, eligible);
   if (amount <= 0) return { kind: 'nothing' };
   if (subtotalMinor - amount + donationMinor < MIN_PAYABLE_TOTAL_MINOR) {
     return { kind: 'leaves_nothing' };

@@ -54,6 +54,7 @@ import { DetailsStep } from './details-step';
 import { MediaStep } from './media-step';
 import { SeoStep } from './seo-step';
 import { TicketBuilder } from './ticket-builder';
+import { SeatingPanel } from './seating-panel';
 import { LivePreview } from './preview';
 import { ReviewStep } from './review';
 
@@ -109,10 +110,7 @@ import { WizardActionBar, saveSummary } from './action-bar';
  * "Only the owning organization can manage this event." is not reachable from
  * here any more.
  */
-export function EventWizard({
-  eventId,
-  cloneFrom,
-}: { eventId?: string; cloneFrom?: string } = {}) {
+export function EventWizard({ eventId, cloneFrom }: { eventId?: string; cloneFrom?: string } = {}) {
   const router = useRouter();
   const invalidate = useInvalidateOrganizer();
   // Aliased: `status` below is the per-step rail state, which is a different
@@ -124,10 +122,7 @@ export function EventWizard({
   // about which organisations exist.
   const organizationsQuery = useOrganizations();
   const { toast } = useToast();
-  const orgs = React.useMemo(
-    () => organizationsQuery.data?.data ?? [],
-    [organizationsQuery.data],
-  );
+  const orgs = React.useMemo(() => organizationsQuery.data?.data ?? [], [organizationsQuery.data]);
   const organizationIds = React.useMemo(() => orgs.map((org) => org.id), [orgs]);
 
   /**
@@ -266,6 +261,7 @@ export function EventWizard({
     cloneSource,
   });
   const { draft, update, setTiers } = wizard;
+  const [seatedTiers, setSeatedTiers] = React.useState(false);
   // The save engine's health, handed to the steps that render a
   // NeedsSavedDraft panel and to Review — one object, so the badge, the
   // panels and the blocker card all repeat the SAME truth.
@@ -307,7 +303,9 @@ export function EventWizard({
    * guaranteed to look like a bug.
    */
   const openPreview = () => {
-    const query = wizard.draft.eventId ? `?eventId=${encodeURIComponent(wizard.draft.eventId)}` : '';
+    const query = wizard.draft.eventId
+      ? `?eventId=${encodeURIComponent(wizard.draft.eventId)}`
+      : '';
     window.open(`/dashboard/events/preview${query}`, '_blank', 'noopener,noreferrer');
   };
 
@@ -401,15 +399,11 @@ export function EventWizard({
   const renderMember = (member: PhaseMember) => {
     switch (member) {
       case 'basics':
-        return (
-          <BasicsStep draft={draft} update={update} issues={issues} organizations={orgs} />
-        );
+        return <BasicsStep draft={draft} update={update} issues={issues} organizations={orgs} />;
       case 'venue':
         return <VenueStep draft={draft} update={update} issues={issues} />;
       case 'media':
-        return (
-          <MediaStep draft={draft} onPoster={onPoster} posterFile={posterFile} save={save} />
-        );
+        return <MediaStep draft={draft} onPoster={onPoster} posterFile={posterFile} save={save} />;
       case 'details':
         return <DetailsStep draft={draft} update={update} issues={issues} />;
       case 'coupons':
@@ -422,12 +416,26 @@ export function EventWizard({
             <header className="flex flex-col gap-1.5">
               <h2 className="text-h3">Tickets</h2>
             </header>
-            <TicketBuilder
-              tiers={draft.tiers}
-              onChange={setTiers}
-              issues={tierIssues}
-              sessions={sessions}
+            <SeatingPanel
+              eventId={draft.eventId}
+              venue={draft.venue}
+              city={draft.city}
+              placeId={draft.placeId}
+              onTiers={setTiers}
+              onSeated={setSeatedTiers}
             />
+            {seatedTiers ? (
+              <p className="text-body-sm text-muted-foreground">
+                Each seating section is its own ticket type, priced above.
+              </p>
+            ) : (
+              <TicketBuilder
+                tiers={draft.tiers}
+                onChange={setTiers}
+                issues={tierIssues}
+                sessions={sessions}
+              />
+            )}
           </div>
         );
       case 'seo':
@@ -465,15 +473,18 @@ export function EventWizard({
    * initiate, jumping a screen's height, is exactly the class of movement
    * `prefers-reduced-motion` is about.
    */
-  const jumpToStep = React.useCallback((target: StepId) => {
-    setStep(target);
-    window.requestAnimationFrame(() => {
-      const node = document.getElementById(memberAnchor(target));
-      if (!node) return;
-      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      node.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
-    });
-  }, [setStep]);
+  const jumpToStep = React.useCallback(
+    (target: StepId) => {
+      setStep(target);
+      window.requestAnimationFrame(() => {
+        const node = document.getElementById(memberAnchor(target));
+        if (!node) return;
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        node.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+      });
+    },
+    [setStep],
+  );
 
   /**
    * Keyboard shortcuts.
@@ -600,9 +611,7 @@ export function EventWizard({
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-stack-lg py-section text-center">
         <h1 className="text-h3">Could not load your organisations</h1>
-        <p className="text-body-sm text-muted-foreground">
-          Your draft is safe on this device.
-        </p>
+        <p className="text-body-sm text-muted-foreground">Your draft is safe on this device.</p>
         <Button
           onClick={() => void organizationsQuery.refetch()}
           loading={organizationsQuery.isFetching}
@@ -643,9 +652,7 @@ export function EventWizard({
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-stack-lg py-section text-center">
         <h1 className="text-h3">You need an organisation first</h1>
-        <p className="text-body-sm text-muted-foreground">
-          It is what receives the payouts.
-        </p>
+        <p className="text-body-sm text-muted-foreground">It is what receives the payouts.</p>
         <Button asChild>
           <Link href="/dashboard">Back to the dashboard</Link>
         </Button>
@@ -721,18 +728,11 @@ export function EventWizard({
                 than five sibling page titles. On Review the component's own
                 heading says the same thing, so this one is `sr-only` there to
                 avoid printing it twice. */}
-            <h1
-              className={cn(
-                'text-h3',
-                current.id === 'review' && 'sr-only',
-              )}
-            >
-              {current.label}
-            </h1>
+            <h1 className={cn('text-h3', current.id === 'review' && 'sr-only')}>{current.label}</h1>
 
             <div
               key={phase}
-              className="flex animate-in flex-col gap-block-lg fade-in-0 slide-in-from-bottom-1 duration-base motion-reduce:animate-none"
+              className="flex flex-col gap-block-lg duration-base animate-in fade-in-0 slide-in-from-bottom-1 motion-reduce:animate-none"
             >
               {current.members.map((member) => (
                 // A landmark per member, so Review's checklist can scroll to
@@ -799,9 +799,7 @@ export function EventWizard({
               onPreview={openPreview}
               previewOpen={previewOpen}
               forward={
-                next
-                  ? { label: next.label, onClick: () => goForward(firstMemberStep(next)) }
-                  : null
+                next ? { label: next.label, onClick: () => goForward(firstMemberStep(next)) } : null
               }
             />
           </div>
@@ -919,7 +917,7 @@ function StepRail({
           return (
             <li
               key={phase.id}
-              className="relative flex min-w-0 flex-1 items-center lg:flex-none lg:flex-initial"
+              className="relative flex min-w-0 flex-1 items-center lg:flex-initial lg:flex-none"
             >
               {/* The connector INTO this phase. `aria-hidden` scenery, sitting
                   behind the dot so the join is covered by the dot's own fill. */}

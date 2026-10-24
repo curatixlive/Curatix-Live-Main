@@ -37,6 +37,9 @@ export type Coupon = {
   /** Whether the checkout may ADVERTISE it. False is the default: the
    *  commonest use is a private code given to a partner. */
   visible_at_checkout: boolean;
+  /** True when the discount covers only `ticket_type_ids`. */
+  restricted_to_ticket_types?: boolean;
+  ticket_type_ids?: string[];
   is_active: boolean;
   /** Aggregated server-side for the whole page in one query, never per row. */
   redeemed_count: number;
@@ -55,6 +58,8 @@ export type CouponInput = {
   max_per_user?: number;
   visible_at_checkout?: boolean;
   event_id?: string | null;
+  /** Limit the discount to these ticket types of the event; [] lifts a limit. */
+  ticket_type_ids?: string[];
 };
 
 const list = (organizationId: string) =>

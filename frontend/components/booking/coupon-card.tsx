@@ -4,6 +4,7 @@ import * as React from 'react';
 import { BadgePercent, Check, ChevronRight, Loader2, X } from 'lucide-react';
 import { formatMoney } from '@/lib/discovery/format';
 import type { PublicOffer } from '@/lib/api/types';
+import type { OrderLine } from '@/lib/booking/coupons';
 import { cn } from '@/lib/utils/cn';
 import { ApplyCouponSheet } from './apply-coupon-sheet';
 import { RuleHeading } from './donation-card';
@@ -49,6 +50,7 @@ export function CouponCard({
   discount,
   offers,
   subtotal,
+  lines,
   donation,
   pending,
   error,
@@ -65,6 +67,7 @@ export function CouponCard({
   offers: PublicOffer[];
   /** The TICKET subtotal a code is priced against, in minor units. */
   subtotal: number;
+  lines?: OrderLine[];
   /** The donation on the booking — it counts toward the ₹1 floor. */
   donation: number;
   pending: boolean;
@@ -108,7 +111,7 @@ export function CouponCard({
           aria-haspopup="dialog"
           className={cn(
             'flex w-full items-center gap-3 px-card py-card text-left transition-colors',
-            'hover:bg-muted/60 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+            'hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring active:bg-muted',
             'disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent',
             appliedCode ? 'border-t border-border' : null,
           )}
@@ -144,6 +147,7 @@ export function CouponCard({
         offers={offers}
         appliedCode={appliedCode}
         subtotal={subtotal}
+        lines={lines}
         donation={donation}
         pending={pending}
         error={error}

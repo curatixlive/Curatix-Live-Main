@@ -88,9 +88,7 @@ describe('stepHref', () => {
     const [tickets, review] = stepsFor(true);
     expect(stepHref('evt-1', tickets)).toBe('/booking/evt-1');
     expect(stepHref('evt-1', review)).toBe('/booking/evt-1/review');
-    expect(stepHref('evt-1', review, 'tickets=abc:2')).toBe(
-      '/booking/evt-1/review?tickets=abc:2',
-    );
+    expect(stepHref('evt-1', review, 'tickets=abc:2')).toBe('/booking/evt-1/review?tickets=abc:2');
   });
 
   it('gives the ticket step a bare URL, since its segment is empty', () => {

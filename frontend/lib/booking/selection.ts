@@ -324,18 +324,20 @@ export function idempotencyKeyFor(eventId: string, selection: Selection, attempt
  * a selection can never disagree for a reason as trivial as ordering.
  */
 export function selectionSignature(selection: Selection): string {
-  return [...selection]
-    .filter((line) => line.quantity > 0)
-    .sort((a, b) => a.tierId.localeCompare(b.tierId))
-    // The SEATS are part of the identity: two baskets with one VIP seat each are
-    // different purchases, and sharing a signature would share an idempotency key
-    // and replay the first buyer's choice of seat.
-    .map((line) =>
-      line.seatIds?.length
-        ? `${line.tierId}:${line.quantity}[${[...line.seatIds].sort().join('+')}]`
-        : `${line.tierId}:${line.quantity}`,
-    )
-    .join(',');
+  return (
+    [...selection]
+      .filter((line) => line.quantity > 0)
+      .sort((a, b) => a.tierId.localeCompare(b.tierId))
+      // The SEATS are part of the identity: two baskets with one VIP seat each are
+      // different purchases, and sharing a signature would share an idempotency key
+      // and replay the first buyer's choice of seat.
+      .map((line) =>
+        line.seatIds?.length
+          ? `${line.tierId}:${line.quantity}[${[...line.seatIds].sort().join('+')}]`
+          : `${line.tierId}:${line.quantity}`,
+      )
+      .join(',')
+  );
 }
 
 /** The tier counts alone — what a booking's own line items can be compared with. */

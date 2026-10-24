@@ -88,9 +88,9 @@ describe('offerOutcome', () => {
     // The server's `coupon_leaves_nothing_to_charge`. A 100% code on a ticket
     // order with no donation leaves zero — a Pay button that can only fail.
     expect(offerOutcome(percent(100), order)).toEqual({ kind: 'leaves_nothing' });
-    expect(
-      offerOutcome(fixed(FACE - MIN_PAYABLE_TOTAL_MINOR + 1), order),
-    ).toEqual({ kind: 'leaves_nothing' });
+    expect(offerOutcome(fixed(FACE - MIN_PAYABLE_TOTAL_MINOR + 1), order)).toEqual({
+      kind: 'leaves_nothing',
+    });
   });
 
   it('counts a donation toward what is left, as the server does', () => {
@@ -117,5 +117,27 @@ describe('offerBadge', () => {
 
   it('states a fixed amount in rupees, not paise', () => {
     expect(offerBadge({ kind: 'fixed', value: 10_000 })).toBe('₹100 OFF');
+  });
+});
+
+describe('offerOutcome with a ticket-type scope', () => {
+  const lines = [
+    { ticketTypeId: 'vip', amount: 100_000 },
+    { ticketTypeId: 'general', amount: 50_000 },
+  ];
+  const order = { subtotalMinor: 150_000, donationMinor: 0, lines };
+
+  it('prices the saving on the eligible lines only', () => {
+    const scoped = { ...percent(20), ticket_type_ids: ['vip'] };
+    expect(offerOutcome(scoped, order)).toEqual({ kind: 'saves', amount: 20_000 });
+  });
+
+  it('is not eligible when none of the scoped types are in the order', () => {
+    const scoped = { ...percent(20), ticket_type_ids: ['balcony'] };
+    expect(offerOutcome(scoped, order)).toEqual({ kind: 'not_eligible' });
+  });
+
+  it('an unscoped code still covers the whole order', () => {
+    expect(offerOutcome(percent(20), order)).toEqual({ kind: 'saves', amount: 30_000 });
   });
 });

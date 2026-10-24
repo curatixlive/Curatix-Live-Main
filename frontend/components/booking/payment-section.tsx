@@ -240,7 +240,12 @@ export function PaymentSection({
           if (failure) {
             rememberFailure(
               active.id,
-              { message: failure.message, code: failure.code, reason: failure.reason, orderId: failure.orderId },
+              {
+                message: failure.message,
+                code: failure.code,
+                reason: failure.reason,
+                orderId: failure.orderId,
+              },
               Date.now(),
             );
           }
@@ -619,13 +624,7 @@ export function PaymentSection({
  * (the server keeps it deliberately) and the old order is still payable.
  */
 export function PayUsing() {
-  const {
-    paymentProvider,
-    availableProviders,
-    booking,
-    reservedFor,
-    setBooking,
-  } = useBooking();
+  const { paymentProvider, availableProviders, booking, reservedFor, setBooking } = useBooking();
   const provider = resolveProvider(paymentProvider);
   const options = selectableProviders(availableProviders);
 

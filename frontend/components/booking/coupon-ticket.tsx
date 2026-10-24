@@ -144,7 +144,9 @@ function OutcomeLine({ outcome }: { outcome: OfferOutcome }) {
     <p className="text-body-sm text-ink-400">
       {outcome.kind === 'leaves_nothing'
         ? 'Covers more than this order, so it cannot be applied.'
-        : 'Nothing on this order for it to take off.'}
+        : outcome.kind === 'not_eligible'
+          ? 'Not valid for the tickets in this order.'
+          : 'Nothing on this order for it to take off.'}
     </p>
   );
 }
@@ -158,7 +160,7 @@ function OutcomeLine({ outcome }: { outcome: OfferOutcome }) {
  * as an error.
  */
 export function describeOffer(
-  offer: Pick<PublicOffer, 'kind' | 'value' | 'max_discount_minor' | 'expires_at'>,
+  offer: Pick<PublicOffer, 'kind' | 'value' | 'max_discount_minor' | 'expires_at' | 'applies_to'>,
 ): string {
   const terms =
     offer.kind === 'percent'
@@ -166,5 +168,7 @@ export function describeOffer(
           offer.max_discount_minor ? `, up to ${formatMoney(offer.max_discount_minor)}` : ''
         }.`
       : `Get ${formatMoney(Math.trunc(offer.value))} off your tickets.`;
-  return offer.expires_at ? `${terms} Valid until ${formatEventDate(offer.expires_at)}.` : terms;
+  const scope = offer.applies_to?.length ? ` Valid on ${offer.applies_to.join(', ')} tickets.` : '';
+  const until = offer.expires_at ? ` Valid until ${formatEventDate(offer.expires_at)}.` : '';
+  return `${terms}${scope}${until}`;
 }

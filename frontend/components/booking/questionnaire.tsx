@@ -65,120 +65,120 @@ export function QuestionFields({
   showErrors: boolean;
 }) {
   return (
-      <ul className="flex flex-col gap-4">
-        {questions.map((question) => {
-          const value = answers[question.id] ?? '';
-          const wrong = showErrors && missing.has(question.id);
-          const id = `question-${question.id}`;
-          const describedBy = question.help_text ? `${id}-hint` : undefined;
+    <ul className="flex flex-col gap-4">
+      {questions.map((question) => {
+        const value = answers[question.id] ?? '';
+        const wrong = showErrors && missing.has(question.id);
+        const id = `question-${question.id}`;
+        const describedBy = question.help_text ? `${id}-hint` : undefined;
 
-          return (
-            <li key={question.id} className="flex flex-col gap-1.5">
-              <label htmlFor={id} className="text-body-sm font-medium text-foreground">
-                {question.prompt}
-                {question.is_required ? (
-                  <span className="text-muted-foreground" aria-hidden>
-                    {' '}
-                    *
-                  </span>
-                ) : (
-                  <span className="font-normal text-muted-foreground"> (optional)</span>
-                )}
-              </label>
-              {question.help_text ? (
-                <p id={`${id}-hint`} className="text-caption text-muted-foreground">
-                  {question.help_text}
-                </p>
-              ) : null}
+        return (
+          <li key={question.id} className="flex flex-col gap-1.5">
+            <label htmlFor={id} className="text-body-sm font-medium text-foreground">
+              {question.prompt}
+              {question.is_required ? (
+                <span className="text-muted-foreground" aria-hidden>
+                  {' '}
+                  *
+                </span>
+              ) : (
+                <span className="font-normal text-muted-foreground"> (optional)</span>
+              )}
+            </label>
+            {question.help_text ? (
+              <p id={`${id}-hint`} className="text-caption text-muted-foreground">
+                {question.help_text}
+              </p>
+            ) : null}
 
-              {question.kind === 'long_text' ? (
-                <Textarea
-                  id={id}
-                  value={value}
-                  rows={3}
-                  aria-required={question.is_required}
-                  aria-invalid={wrong}
-                  aria-describedby={describedBy}
-                  onChange={(event) => answerQuestion(question.id, event.target.value)}
-                />
-              ) : question.kind === 'choice' ? (
-                /* A radio GROUP, not a select. The options are few and fixed,
+            {question.kind === 'long_text' ? (
+              <Textarea
+                id={id}
+                value={value}
+                rows={3}
+                aria-required={question.is_required}
+                aria-invalid={wrong}
+                aria-describedby={describedBy}
+                onChange={(event) => answerQuestion(question.id, event.target.value)}
+              />
+            ) : question.kind === 'choice' ? (
+              /* A radio GROUP, not a select. The options are few and fixed,
                    and a radio set shows every answer at once — a select on a
                    phone hides them behind a tap and a scroll. */
-                <div
-                  role="radiogroup"
-                  aria-labelledby={id}
-                  aria-required={question.is_required}
-                  className="flex flex-wrap gap-2"
-                >
-                  {question.choices.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      role="radio"
-                      aria-checked={value === option}
-                      onClick={() => answerQuestion(question.id, option)}
-                      className={cn(
-                        'rounded-full border px-3 py-1.5 text-body-sm transition-colors duration-fast',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        value === option
-                          ? 'border-foreground bg-foreground text-background'
-                          : 'border-border text-foreground hover:border-foreground/40',
-                      )}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              ) : question.kind === 'boolean' ? (
-                /* Two explicit buttons rather than one checkbox: an unticked
+              <div
+                role="radiogroup"
+                aria-labelledby={id}
+                aria-required={question.is_required}
+                className="flex flex-wrap gap-2"
+              >
+                {question.choices.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={value === option}
+                    onClick={() => answerQuestion(question.id, option)}
+                    className={cn(
+                      'rounded-full border px-3 py-1.5 text-body-sm transition-colors duration-fast',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      value === option
+                        ? 'border-foreground bg-foreground text-background'
+                        : 'border-border text-foreground hover:border-foreground/40',
+                    )}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            ) : question.kind === 'boolean' ? (
+              /* Two explicit buttons rather than one checkbox: an unticked
                    box and "No" are indistinguishable, and a required yes/no
                    question needs to tell them apart. */
-                <div
-                  role="radiogroup"
-                  aria-labelledby={id}
-                  aria-required={question.is_required}
-                  className="flex gap-2"
-                >
-                  {['Yes', 'No'].map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      role="radio"
-                      aria-checked={value === option}
-                      onClick={() => answerQuestion(question.id, option)}
-                      className={cn(
-                        'rounded-full border px-4 py-1.5 text-body-sm transition-colors duration-fast',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        value === option
-                          ? 'border-foreground bg-foreground text-background'
-                          : 'border-border text-foreground hover:border-foreground/40',
-                      )}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <Input
-                  id={id}
-                  value={value}
-                  aria-required={question.is_required}
-                  aria-invalid={wrong}
-                  aria-describedby={describedBy}
-                  onChange={(event) => answerQuestion(question.id, event.target.value)}
-                />
-              )}
+              <div
+                role="radiogroup"
+                aria-labelledby={id}
+                aria-required={question.is_required}
+                className="flex gap-2"
+              >
+                {['Yes', 'No'].map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={value === option}
+                    onClick={() => answerQuestion(question.id, option)}
+                    className={cn(
+                      'rounded-full border px-4 py-1.5 text-body-sm transition-colors duration-fast',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      value === option
+                        ? 'border-foreground bg-foreground text-background'
+                        : 'border-border text-foreground hover:border-foreground/40',
+                    )}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <Input
+                id={id}
+                value={value}
+                aria-required={question.is_required}
+                aria-invalid={wrong}
+                aria-describedby={describedBy}
+                onChange={(event) => answerQuestion(question.id, event.target.value)}
+              />
+            )}
 
-              {wrong ? (
-                <p role="alert" className="text-caption text-muted-foreground">
-                  This one is needed before you can book.
-                </p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+            {wrong ? (
+              <p role="alert" className="text-caption text-muted-foreground">
+                This one is needed before you can book.
+              </p>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

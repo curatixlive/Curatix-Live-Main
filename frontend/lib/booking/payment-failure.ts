@@ -136,8 +136,7 @@ export function describeFailure(failure: CheckoutFailure | null): FailureCopy {
       ...known,
       // Only when it says something the mapped title does not. Repeating the
       // same fact in two registers reads as a system that is not sure.
-      providerMessage:
-        failure?.message && failure.message !== known.title ? failure.message : null,
+      providerMessage: failure?.message && failure.message !== known.title ? failure.message : null,
     };
   }
   if (failure?.message) {

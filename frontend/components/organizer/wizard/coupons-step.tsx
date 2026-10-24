@@ -13,6 +13,7 @@ import {
   type CouponKind,
 } from '@/lib/api/coupons';
 import { errorMessage } from '@/lib/api/errors';
+import { fetchOwnerEventTiers } from '@/lib/api/organizer';
 import { formatMoney } from '@/lib/discovery/format';
 import { Button, Input, Label } from '@/components/ui';
 import { useToast } from '@/components/ui/toast';
@@ -78,13 +79,7 @@ export function CouponsStep({ draft, save }: { draft: Draft; save?: DraftSave })
   );
 }
 
-function CouponManager({
-  eventId,
-  organizationId,
-}: {
-  eventId: string;
-  organizationId: string;
-}) {
+function CouponManager({ eventId, organizationId }: { eventId: string; organizationId: string }) {
   const client = useQueryClient();
   const { toast } = useToast();
 
@@ -182,8 +177,7 @@ function CouponRow({
   const used = coupon.redeemed_count > 0;
 
   const toggle = useMutation({
-    mutationFn: () =>
-      updateCoupon(organizationId, coupon.id, { is_active: !coupon.is_active }),
+    mutationFn: () => updateCoupon(organizationId, coupon.id, { is_active: !coupon.is_active }),
     onSuccess: onChanged,
     onError: (error) => toast({ variant: 'warning', title: errorMessage(error) }),
   });
@@ -199,7 +193,10 @@ function CouponRow({
       <span className="inline-flex min-w-0 items-center gap-2">
         <BadgePercent className="size-3.5 shrink-0 text-primary" aria-hidden />
         <span className="truncate font-mono text-body-sm font-semibold">{coupon.code}</span>
-        <span className="shrink-0 text-caption text-muted-foreground">{terms(coupon)}</span>
+        <span className="shrink-0 text-caption text-muted-foreground">
+          {terms(coupon)}
+          {coupon.restricted_to_ticket_types ? ' · selected tickets' : ''}
+        </span>
       </span>
 
       <span className="flex shrink-0 items-center gap-1.5">
@@ -254,6 +251,14 @@ function AddCoupon({
   const [value, setValue] = React.useState('');
   const [limit, setLimit] = React.useState('');
   const [failure, setFailure] = React.useState<string | null>(null);
+  // Which ticket types the code covers. Empty means every type.
+  const [tierIds, setTierIds] = React.useState<string[]>([]);
+  const tierList = useQuery({
+    queryKey: ['organizer', 'event-tiers', eventId],
+    queryFn: () => fetchOwnerEventTiers(eventId),
+    staleTime: 30_000,
+  });
+  const tiers = tierList.data ?? [];
 
   // UPPER-CASE, because that is how the server stores and compares them. Doing
   // it as they type means the code on screen is the code they will hand out,
@@ -280,12 +285,14 @@ function AddCoupon({
         value: kind === 'percent' ? Math.round(amount) : Math.round(amount * 100),
         max_redemptions: limit.trim() ? Math.max(1, Math.round(Number(limit))) : null,
         event_id: eventId,
+        ...(tierIds.length ? { ticket_type_ids: tierIds } : {}),
       }),
     onSuccess: () => {
       onAdded(normalised);
       setCode('');
       setValue('');
       setLimit('');
+      setTierIds([]);
       setFailure(null);
     },
     onError: (error) => setFailure(errorMessage(error)),
@@ -371,6 +378,42 @@ function AddCoupon({
           The checkout never publishes how many are left — that would turn a promotion into a race.
         </p>
       </div>
+
+      {tiers.length > 1 ? (
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="text-body-sm font-medium">Applies to</legend>
+          <p className="text-caption text-muted-foreground">
+            Leave all unticked for every ticket type, or tick the ones this code discounts.
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {tiers.map((tier) => {
+              const on = tierIds.includes(tier.id);
+              return (
+                <li key={tier.id}>
+                  <button
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      setTierIds((current) =>
+                        on ? current.filter((id) => id !== tier.id) : [...current, tier.id],
+                      )
+                    }
+                    className={cn(
+                      'rounded-full border px-3 py-1 text-caption transition-colors duration-fast motion-reduce:transition-none',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      on
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-surface text-muted-foreground hover:bg-muted',
+                    )}
+                  >
+                    {tier.name}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </fieldset>
+      ) : null}
 
       {failure ? (
         // Not red. A failure is reported in words here like everywhere else.
