@@ -35,7 +35,7 @@ for the values, you will paste each into Render once.
 ## 4. Brevo (email)
 1. brevo.com -> sign up (free: 300 emails/day).
 2. **Senders** -> add and verify the email you will send from -> that is `SMTP_FROM_EMAIL`.
-3. **SMTP & API** -> **SMTP** tab: host `smtp-relay.brevo.com`, port `587`, copy **Login** into `SMTP_USER`
+3. **SMTP & API** -> **SMTP** tab: host `smtp-relay.brevo.com`, port `587`, copy **Login** into `SMTP_USERNAME`
    and create an **SMTP key** into `SMTP_PASSWORD`.
 Free sender addresses may land in spam; for testing, check the spam folder.
 

@@ -1190,3 +1190,29 @@ def build_engagement_service():
     from apps.events.repositories import EventEngagementRepository
 
     return EngagementService(engagement=EventEngagementRepository())
+
+
+def build_agent_access_service():
+    """Who may drive Curatix from an outside AI assistant. Granted by staff."""
+    from apps.accounts.repositories import UserRepository
+    from apps.agents.repositories import AgentAccessRepository
+    from apps.agents.services import AgentAccessService
+
+    return AgentAccessService(access=AgentAccessRepository(), users=UserRepository())
+
+
+def build_mcp_server():
+    """The assistant endpoint. Its tools call the same services the site uses."""
+    from apps.agents.mcp import McpServer
+    from apps.agents.services import AgentToolService
+    from apps.events.repositories import EventRepository
+    from apps.organizations.repositories import OrganizationRepository
+
+    return McpServer(
+        tools=AgentToolService(
+            events=build_event_service(),
+            ticketing=build_ticketing_service(),
+            event_repo=EventRepository(),
+            org_repo=OrganizationRepository(),
+        )
+    )

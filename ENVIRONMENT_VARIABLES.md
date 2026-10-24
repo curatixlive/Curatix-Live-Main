@@ -229,6 +229,7 @@ honour.
 | `THROTTLE_UPLOAD` | Optional | `60/hour` | `UploadThrottle` | User-keyed. |
 | `THROTTLE_WRITE` | Optional | `120/min` | `WriteThrottle`, `AnonWriteThrottle` | Authenticated writes, plus the push-rotation endpoint. |
 | `THROTTLE_MAPS` | Optional | `120/min` | `MapsThrottle` | Google Maps calls. A **spend** limit as much as an abuse control — autocomplete fires per keystroke and every call is billed. User-keyed, so one organizer in the venue picker cannot exhaust everybody's budget. |
+| `THROTTLE_AGENT` | Optional | `60/min` | `AgentThrottle` | An outside AI assistant acting for one person (`/mcp`). Per person, not per IP. |
 
 ### Business configuration
 

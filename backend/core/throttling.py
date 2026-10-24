@@ -243,3 +243,11 @@ class ReviewWriteThrottle(SimpleRateThrottle):
         if not request.user or not request.user.is_authenticated:
             return None
         return self.cache_format % {"scope": self.scope, "ident": request.user.pk}
+
+
+class AgentThrottle(_UserScopedThrottle):
+    """An assistant acting for a person. Per person, not per IP: an assistant
+    runs from the vendor's servers, so an IP key would put every user of the
+    same assistant in one bucket."""
+
+    scope = "agent"

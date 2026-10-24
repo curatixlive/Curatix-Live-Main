@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bot,
   Activity,
   Building2,
   CreditCard,
@@ -91,6 +92,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     label: 'All events',
     icon: Stamp,
     hint: 'Every event on the platform — review, approve, send back or remove',
+  },
+  {
+    href: '/admin/assistant',
+    label: 'AI assistant',
+    icon: Bot,
+    hint: 'Let chosen people create draft events from Claude or ChatGPT',
   },
   {
     // The hire desk. This REPLACED a performer-moderation queue, and the

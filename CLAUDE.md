@@ -3422,3 +3422,31 @@ page keeps the platform's words: a ticket is a seat, a purchase is an order.
 aggregates (`event_sales_in_windows`), never a query per period. The attendee list
 (`GET /organizer/events/{id}/attendees`) now returns its FILTERED `meta.count`, so
 "Showing X of Y" is a real total — one COUNT over one event's tickets.
+
+## `agents` — an outside AI assistant, granted by an admin, drafts only
+
+`apps/agents` lets a chosen person drive Curatix from Claude, ChatGPT or Cursor
+through a minimal MCP server (`POST /api/v1/mcp`, JSON-RPC over HTTP, no
+sessions and no streaming, so it costs nothing while idle).
+
+- **Off for everybody until a platform admin grants it**, per person
+  (`POST /admin/agent-access`; console page `/admin/assistant`). There is no
+  self-service path, and a disabled grant, a revoked one and a suspended account
+  all stop working at once.
+- **The token is shown once.** Only its SHA-256 digest is stored (a long random
+  secret needs a fast digest, not a password hasher). Granting again REPLACES it,
+  which is how a leaked one is rotated. It is accepted as `Authorization: Bearer`
+  or as the last path segment (`/mcp/<token>`) for connector screens that only
+  take a URL; the second puts the secret in access logs, which is why it is
+  revocable in one click.
+- **The assistant acts AS the person, through the same services the site uses**,
+  so ownership, validation and moderation bind it identically. Its tools are
+  deliberately few: list organisations/events, create a DRAFT event, add a ticket
+  tier. There is NO publish, refund, payout or admin tool, and a test asserts none
+  is offered — a draft is a proposal the person reviews and publishes themselves,
+  which is what makes a model's mistake cheap.
+- **A failed tool is a normal result with `isError: true`**, not a protocol error:
+  that is what lets the model read the message and correct itself. Stack traces
+  never reach it. Bare timestamps are read as Indian time, not UTC.
+- Rate limit `THROTTLE_AGENT` (60/min) is per PERSON, not per IP — an assistant
+  runs from its vendor's servers, so an IP key would share one bucket.

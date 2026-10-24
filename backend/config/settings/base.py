@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "apps.cms",
     "apps.announcements",
     "apps.support",
+    "apps.agents",
     "apps.reviews",
     # Organizer-funded promotional codes. Downstream of events, booking and
     # ticketing; nothing depends on it.
@@ -264,6 +265,7 @@ REST_FRAMEWORK = {
         # as an abuse control, and it is per-user rather than global so one
         # organizer typing in the venue picker cannot exhaust everyone's.
         "maps": env.str("THROTTLE_MAPS", default="120/min"),
+        "agent": env.str("THROTTLE_AGENT", default="60/min"),
     },
 }
 
