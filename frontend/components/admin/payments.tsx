@@ -1,5 +1,6 @@
 'use client';
 
+import { FeeSettings } from '@/components/admin/fee-settings';
 import { GatewaySwitch } from '@/components/admin/gateway-switch';
 import * as React from 'react';
 import Link from 'next/link';
@@ -106,6 +107,7 @@ export function PaymentsConsole() {
   return (
     <div className="flex flex-col gap-stack-lg">
       <GatewaySwitch />
+      <FeeSettings />
       <div role="tablist" aria-label="Payment ledgers" className="flex gap-1.5">
         {(
           [

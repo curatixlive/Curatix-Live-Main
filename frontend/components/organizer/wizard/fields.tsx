@@ -14,6 +14,7 @@ import {
 import { DayPicker } from '@/components/ui/day-picker';
 import type { SaveState } from '@/lib/organizer/wizard/use-wizard';
 import { cn } from '@/lib/utils/cn';
+import { openPicker } from '@/lib/utils/open-picker';
 
 /**
  * The wizard's form primitives.
@@ -219,6 +220,7 @@ export function DateField({
         <Input
           id={`${id}-time`}
           type="time"
+          onClick={openPicker}
           value={value.slice(11)}
           aria-label={`${label} — time`}
           aria-invalid={Boolean(error)}
@@ -305,6 +307,7 @@ export function DateTimeField({
         <Input
           id={`${id}-time`}
           type="time"
+          onClick={openPicker}
           value={time}
           aria-label={`${label} — ${timeLabel}`}
           aria-invalid={Boolean(error)}
@@ -353,6 +356,7 @@ export function TimeOnlyField({
       <Input
         id={id}
         type="time"
+        onClick={openPicker}
         value={value}
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy || undefined}

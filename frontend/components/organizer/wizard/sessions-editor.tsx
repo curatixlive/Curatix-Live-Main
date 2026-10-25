@@ -15,6 +15,7 @@ import { ErrorState, Skeleton } from '@/components/organizer/primitives';
 import { Button, Input } from '@/components/ui';
 import { tempId, toIso, type PendingSlot } from '@/lib/organizer/wizard/model';
 import { cn } from '@/lib/utils/cn';
+import { openPicker } from '@/lib/utils/open-picker';
 
 /**
  * Sessions — the showtimes an event runs at.
@@ -209,6 +210,7 @@ export function SessionsEditor({
             <Input
               id="session-starts"
               type="datetime-local"
+              onClick={openPicker}
               value={startsAt}
               onChange={(event) => setStartsAt(event.target.value)}
             />
@@ -229,6 +231,7 @@ export function SessionsEditor({
             <Input
               id="session-ends"
               type="datetime-local"
+              onClick={openPicker}
               value={endsAt}
               min={startsAt || undefined}
               onChange={(event) => setEndsAt(event.target.value)}

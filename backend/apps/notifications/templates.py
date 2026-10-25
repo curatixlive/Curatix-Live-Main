@@ -137,6 +137,7 @@ CHANNEL_BY_TYPE: dict[str, str] = {
     NotificationType.EVENT_INVITE: NotificationChannel.EMAIL,
     NotificationType.WAITLIST_JOINED_ORGANIZER: NotificationChannel.EMAIL,
     NotificationType.PAYMENT_REMINDER: NotificationChannel.EMAIL,
+    NotificationType.CAMPAIGN_PROMO: NotificationChannel.EMAIL,
 }
 
 
@@ -1476,6 +1477,42 @@ def _waitlist_joined_organizer(ctx: dict) -> RenderedMessage:
     )
 
 
+def _campaign_promo(ctx: dict) -> RenderedMessage:
+    """An organiser writing to people who bought tickets from them.
+
+    The organiser's words are the body; everything around them is ours, and says
+    who sent it and why, because this is unsolicited by nature.
+    """
+    organiser = str(ctx.get("organiser") or "an organiser")
+    subject = str(ctx["subject"])
+    name = ctx.get("name") or "there"
+    paragraphs = [p.strip() for p in str(ctx["message"]).split("\n") if p.strip()]
+    url = str(ctx.get("url") or "")
+    blocks = [ui.heading(subject), ui.paragraph(f"Hi {name},")]
+    blocks += [ui.paragraph(p) for p in paragraphs]
+    if url:
+        blocks.append(ui.button("See what is on", url))
+    blocks.append(
+        ui.paragraph(
+            f"You are getting this because you bought tickets from {organiser} on Curatix. "
+            "Reply to this email or contact the organiser to stop hearing from them."
+        )
+    )
+    return RenderedMessage(
+        subject=subject,
+        body=f"Hi {name},\n\n"
+        + "\n\n".join(paragraphs)
+        + (f"\n\n{url}" if url else "")
+        + f"\n\nYou are getting this because you bought tickets from {organiser} on Curatix.",
+        html=ui.render_email(
+            title=subject,
+            preheader=f"A message from {organiser}",
+            masthead_label=organiser,
+            blocks=blocks,
+        ),
+    )
+
+
 def _payment_reminder(ctx: dict) -> RenderedMessage:
     """A buyer started checking out and the payment did not go through."""
     name = ctx.get("name") or "there"
@@ -1622,6 +1659,7 @@ _TEMPLATES: dict[str, Callable[[dict], RenderedMessage]] = {
     NotificationType.EVENT_INVITE: _event_invite,
     NotificationType.WAITLIST_JOINED_ORGANIZER: _waitlist_joined_organizer,
     NotificationType.PAYMENT_REMINDER: _payment_reminder,
+    NotificationType.CAMPAIGN_PROMO: _campaign_promo,
 }
 
 

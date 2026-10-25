@@ -12,7 +12,7 @@ import {
   type Faq,
 } from '@/components/pages/page-shell';
 import { BRAND_NAME } from '@/lib/brand';
-import { PLATFORM_FEE_BPS, platformFeeFor } from '@/lib/booking/selection';
+import { DEFAULT_FEE_SCHEDULE, buyerFeeFor } from '@/lib/booking/selection';
 import { formatMoney } from '@/lib/discovery/format';
 import { pageMetadata } from '@/lib/seo/metadata';
 
@@ -52,7 +52,7 @@ import { pageMetadata } from '@/lib/seo/metadata';
 export const metadata: Metadata = {
   ...pageMetadata(
     'Pricing',
-    `What it costs to sell tickets on ${BRAND_NAME} — 1% of the ticket price, paid by the attendee at checkout. You receive the full price you set.`,
+    `What it costs to sell tickets on ${BRAND_NAME} — a small per-ticket fee paid by the attendee at checkout. You receive the full price you set.`,
   ),
   alternates: { canonical: '/pricing' },
 };
@@ -142,18 +142,21 @@ const FAQS: readonly Faq[] = [
 
 export default function PricingPage() {
   const gross = EXAMPLE_TICKET_PRICE * EXAMPLE_QUANTITY;
-  const fee = platformFeeFor(gross);
+  const fee = buyerFeeFor([{ unitPrice: EXAMPLE_TICKET_PRICE, quantity: EXAMPLE_QUANTITY }]);
   // The organizer receives the ticket subtotal; the fee is paid by the attendee
   // on top of it, so `net` is `gross` and the "You receive" row says so.
   const net = gross;
-  const feePercent = PLATFORM_FEE_BPS / 100;
+  const gatewayPercent = DEFAULT_FEE_SCHEDULE.gateway_bps / 100;
+  const platformPercent = DEFAULT_FEE_SCHEDULE.platform_bps / 100;
+  const minimum = formatMoney(DEFAULT_FEE_SCHEDULE.platform_min_minor);
+  const feeSentence = `${gatewayPercent}% payment processing + ${platformPercent}% or ${minimum} (whichever is higher) per ticket`;
 
   return (
     <StaticPage>
       <PageHeader
         eyebrow="For organizers"
         title="One fee. You keep the price you set."
-        lead={`${feePercent}% of the ticket price, paid by your attendee at checkout. No listing fee, no monthly charge, and nothing at all for a free event.`}
+        lead={`${feeSentence}, paid by your attendee at checkout. No listing fee, no monthly charge, and nothing at all for a free event.`}
         illustration={<SpotPayout />}
       />
 
@@ -164,8 +167,12 @@ export default function PricingPage() {
             Platform fee
           </span>
           <div className="flex flex-wrap items-baseline gap-3">
-            <span className="text-display tabular-nums text-foreground">{feePercent}%</span>
-            <span className="text-body-lg text-muted-foreground">of the ticket price</span>
+            <span className="text-display tabular-nums text-foreground">
+              {gatewayPercent + platformPercent}%
+            </span>
+            <span className="text-body-lg text-muted-foreground">
+              per ticket ({gatewayPercent}% processing + {platformPercent}%, minimum {minimum})
+            </span>
           </div>
         </div>
 
@@ -212,7 +219,7 @@ export default function PricingPage() {
             {
               label: `${BRAND_NAME} fee, paid by your attendees`,
               value: formatMoney(fee),
-              note: `${feePercent}% of ${formatMoney(gross)}, added at checkout`,
+              note: `${feeSentence}, added at checkout`,
             },
           ].map((row) => (
             <div key={row.label} className="flex items-baseline justify-between gap-4 px-card py-4">

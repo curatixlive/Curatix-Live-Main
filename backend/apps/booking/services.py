@@ -158,6 +158,7 @@ class BookingService:
         hold_minutes: int,
         platform_fee_bps: int,
         donation_max_minor: int,
+        fee_policies=None,
     ) -> None:
         self._bookings = bookings
         self._tickets = tickets
@@ -174,6 +175,10 @@ class BookingService:
         self._qr_secret = qr_secret
         self._hold_minutes = hold_minutes
         self._platform_fee_bps = platform_fee_bps
+        #: `FeePolicyRepository`: the admin-set per-ticket buyer fee (see
+        #: `fees.py`). None keeps the flat `platform_fee_bps` of the subtotal,
+        #: which is how services built directly in tests are priced.
+        self._fee_policies = fee_policies
         self._donation_max_minor = donation_max_minor
 
     # --- ShareReceipt ------------------------------------------------------
@@ -498,6 +503,26 @@ class BookingService:
         """
         return (subtotal_minor * self._platform_fee_bps + 5_000) // 10_000
 
+    def _buyer_fee(
+        self,
+        event_id: uuid.UUID | str,
+        lines: list[tuple[int, int]],
+        discount_minor: int = 0,
+    ) -> int:
+        """The fee ADDED for the buyer on `(unit_price, quantity)` lines.
+
+        With an admin fee schedule wired, it is per ticket (gateway% + the
+        larger of platform% and the minimum); the organiser still receives the
+        full ticket price. Otherwise the flat legacy percentage of the subtotal.
+        """
+        if self._fee_policies is None:
+            subtotal = sum(price * qty for price, qty in lines)
+            return self._platform_fee_for(subtotal - discount_minor)
+        from .fees import fee_for_lines
+
+        schedule = self._fee_policies.resolve(event_id)
+        return fee_for_lines(schedule, lines, discount_minor)
+
     def resolve_access(
         self, *, event_id: uuid.UUID | str, user_id: uuid.UUID | str | None, code: str = ""
     ) -> AccessDecision:
@@ -644,7 +669,9 @@ class BookingService:
                 # unlocked read would let a sale phase change between the two
                 # and bill a percentage of a price nobody was charged.
                 subtotal = sum(q * price for _, q, price, _, _, _ in priced)
-                platform_fee = self._platform_fee_for(subtotal)
+                platform_fee = self._buyer_fee(
+                    event_id, [(price, q) for _, q, price, _, _, _ in priced]
+                )
                 total_amount = subtotal + platform_fee + donation_minor
 
                 booking = self._bookings.create(
@@ -1252,7 +1279,10 @@ class BookingService:
         """
         charged_subtotal = subtotal_minor - discount_minor
         booking.discount_amount_minor = discount_minor
-        booking.platform_fee_minor = self._platform_fee_for(charged_subtotal)
+        lines = [
+            (item.unit_price_minor, item.quantity) for item in self._bookings.list_items(booking.id)
+        ]
+        booking.platform_fee_minor = self._buyer_fee(booking.event_id, lines, discount_minor)
         booking.total_amount_minor = (
             charged_subtotal + booking.platform_fee_minor + booking.donation_amount_minor
         )
@@ -1754,3 +1784,83 @@ def _clean_recipients(emails: list[str]) -> list[str]:
             raise InvalidInputError(f"{raw.strip()} does not look like an email address.") from None
         seen.append(candidate)
     return seen
+
+
+#: The most an admin may set any fee percentage to (20%), and the minimum (₹500),
+#: so a typo cannot bill a customer many times the ticket price.
+MAX_FEE_BPS = 2_000
+MAX_FEE_MIN_MINOR = 50_000
+
+
+class FeePolicyService:
+    """A platform admin setting the buyer's fee: default, per organisation, per event.
+
+    A change applies to bookings priced after it — including on an event that
+    is already approved and selling — and never re-bills an existing booking.
+    """
+
+    def __init__(self, *, policies) -> None:
+        self._policies = policies
+
+    @staticmethod
+    def _clean(values: dict) -> dict[str, int]:
+        cleaned: dict[str, int] = {}
+        for key, ceiling in (
+            ("gateway_bps", MAX_FEE_BPS),
+            ("platform_bps", MAX_FEE_BPS),
+            ("platform_min_minor", MAX_FEE_MIN_MINOR),
+        ):
+            try:
+                value = int(values[key])
+            except (KeyError, TypeError, ValueError):
+                raise InvalidInputError(f"{key} must be a whole number.") from None
+            if value < 0 or value > ceiling:
+                raise InvalidInputError(f"{key} must be between 0 and {ceiling}.")
+            cleaned[key] = value
+        return cleaned
+
+    def overview(self) -> dict:
+        return {
+            "default": self._policies.default_schedule().as_dict(),
+            "overrides": [
+                {
+                    "scope": "event" if row.event_id else "organization",
+                    "id": str(row.event_id or row.organization_id),
+                    "name": row.event.title if row.event_id else row.organization.name,
+                    "gateway_bps": row.gateway_bps,
+                    "platform_bps": row.platform_bps,
+                    "platform_min_minor": row.platform_min_minor,
+                    "updated_at": row.updated_at.isoformat(),
+                }
+                for row in self._policies.list_overrides()
+            ],
+        }
+
+    def set(self, *, actor_id, values: dict, event_id=None, organization_id=None) -> dict[str, int]:
+        cleaned = self._clean(values)
+        self._policies.upsert(
+            event_id=event_id, organization_id=organization_id, actor_id=actor_id, **cleaned
+        )
+        record_audit(
+            actor_id=str(actor_id),
+            action="fees.updated",
+            target_type="event"
+            if event_id
+            else ("organization" if organization_id else "platform"),
+            target_id=str(event_id or organization_id or ""),
+        )
+        return cleaned
+
+    def clear(self, *, actor_id, event_id=None, organization_id=None) -> None:
+        if event_id is None and organization_id is None:
+            raise InvalidInputError("The platform default can be changed but not removed.")
+        self._policies.delete(event_id=event_id, organization_id=organization_id)
+        record_audit(
+            actor_id=str(actor_id),
+            action="fees.override_removed",
+            target_type="event" if event_id else "organization",
+            target_id=str(event_id or organization_id),
+        )
+
+    def for_event(self, event_id) -> dict[str, int]:
+        return self._policies.resolve(event_id).as_dict()

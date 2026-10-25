@@ -9,6 +9,7 @@ import { LIFECYCLE_FILTERS, STATUS_FILTERS } from '@/lib/organizer/event-status'
 import { cn } from '@/lib/utils/cn';
 import { TOOLBAR_CONTROL } from './data-table';
 import { DATE_PRESETS, SearchField, fromDateInput, toDateInput } from './filters';
+import { openPicker } from '@/lib/utils/open-picker';
 
 /**
  * MY EVENTS — the one filter row, and the sheet behind "Filters".
@@ -290,6 +291,7 @@ export function EventFiltersSheet({
                   <span className="text-caption text-muted-foreground">From</span>
                   <input
                     type="date"
+                    onClick={openPicker}
                     value={toDateInput(draft.from)}
                     onChange={(event) =>
                       setDraft((current) => ({
@@ -305,6 +307,7 @@ export function EventFiltersSheet({
                   <span className="text-caption text-muted-foreground">To</span>
                   <input
                     type="date"
+                    onClick={openPicker}
                     value={toDateInput(draft.to)}
                     onChange={(event) =>
                       setDraft((current) => ({

@@ -10,7 +10,7 @@ from typing import cast
 from django.conf import settings
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -452,3 +452,99 @@ class ShareReceiptView(APIView):
         # 202: the mail is queued, not sent. A 200 here would assert delivery
         # that has not happened yet.
         return _no_store(Response({"queued": queued}, status=status.HTTP_202_ACCEPTED))
+
+
+class FeeValuesSerializer(serializers.Serializer):
+    gateway_bps = serializers.IntegerField(min_value=0)
+    platform_bps = serializers.IntegerField(min_value=0)
+    platform_min_minor = serializers.IntegerField(min_value=0)
+
+
+def _private(response: Response) -> Response:
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+class AdminFeesView(APIView):
+    """GET /admin/fees — the default schedule and every override.
+    PUT /admin/fees — change the platform default."""
+
+    permission_classes = [IsAdminUser]
+
+    @extend_schema(responses={200: None}, operation_id="admin_fees")
+    def get(self, request: Request) -> Response:
+        from config.di import build_fee_policy_service
+
+        return _private(Response(build_fee_policy_service().overview()))
+
+    @extend_schema(
+        request=FeeValuesSerializer, responses={200: None}, operation_id="admin_fees_set"
+    )
+    def put(self, request: Request) -> Response:
+        from config.di import build_fee_policy_service
+
+        body = FeeValuesSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        result = build_fee_policy_service().set(
+            actor_id=cast(User, request.user).id, values=dict(body.validated_data)
+        )
+        return _private(Response(result))
+
+
+class AdminFeeOverrideView(APIView):
+    """PUT/DELETE /admin/fees/{scope}/{id} — a schedule for one event or organisation."""
+
+    permission_classes = [IsAdminUser]
+
+    @staticmethod
+    def _scope(scope: str, target_id: str) -> dict:
+        if scope == "events":
+            return {"event_id": target_id}
+        if scope == "organizations":
+            return {"organization_id": target_id}
+        from core.errors import NotFoundError
+
+        raise NotFoundError("Unknown fee scope.")
+
+    @extend_schema(
+        request=FeeValuesSerializer, responses={200: None}, operation_id="admin_fee_override_set"
+    )
+    def put(self, request: Request, scope: str, target_id: str) -> Response:
+        from config.di import build_fee_policy_service
+
+        body = FeeValuesSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        result = build_fee_policy_service().set(
+            actor_id=cast(User, request.user).id,
+            values=dict(body.validated_data),
+            **self._scope(scope, target_id),
+        )
+        return _private(Response(result))
+
+    @extend_schema(responses={204: None}, operation_id="admin_fee_override_clear")
+    def delete(self, request: Request, scope: str, target_id: str) -> Response:
+        from config.di import build_fee_policy_service
+
+        build_fee_policy_service().clear(
+            actor_id=cast(User, request.user).id, **self._scope(scope, target_id)
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EventFeesView(APIView):
+    """GET /events/{id}/fees — the buyer-fee schedule a new booking would use.
+
+    Public: it is the same for everybody and the checkout shows it before a
+    booking exists. Short-cached, because an admin can change it.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+
+    @extend_schema(responses={200: None}, operation_id="event_fees")
+    def get(self, request: Request, event_id: str) -> Response:
+        from config.di import build_fee_policy_service
+
+        response = Response(build_fee_policy_service().for_event(event_id))
+        response["Cache-Control"] = "public, max-age=60"
+        return response

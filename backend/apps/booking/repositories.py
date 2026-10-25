@@ -13,7 +13,15 @@ from django.utils import timezone
 
 from core.base_repository import BaseRepository
 
-from .models import Booking, BookingAnswer, BookingItem, BookingStatus, Ticket, TicketStatus
+from .models import (
+    Booking,
+    BookingAnswer,
+    BookingItem,
+    BookingStatus,
+    FeePolicy,
+    Ticket,
+    TicketStatus,
+)
 
 # Columns the check-in gate path needs from a ticket — deliberately tiny so the
 # per-ticket locked section stays as small and fast as possible (see the
@@ -600,3 +608,62 @@ class TicketRepository(BaseRepository[Ticket]):
         return Ticket.objects.filter(booking_id=booking_id, status=TicketStatus.ACTIVE).update(
             status=TicketStatus.VOID
         )
+
+
+class FeePolicyRepository:
+    """Admin fee schedules, most specific first: event, organisation, platform."""
+
+    def default_schedule(self):
+        from .fees import FeeSchedule
+
+        row = FeePolicy.objects.filter(event__isnull=True, organization__isnull=True).first()
+        if row is not None:
+            return FeeSchedule(row.gateway_bps, row.platform_bps, row.platform_min_minor)
+        return FeeSchedule(
+            int(settings.FEE_GATEWAY_BPS),
+            int(settings.FEE_PLATFORM_BPS),
+            int(settings.FEE_PLATFORM_MIN_MINOR),
+        )
+
+    def resolve(self, event_id):
+        """The schedule a NEW booking for this event is priced with."""
+        from apps.events.models import Event
+
+        from .fees import FeeSchedule
+
+        org_id = Event.objects.filter(pk=event_id).values_list("organization_id", flat=True).first()
+        rows = {
+            ("event" if row.event_id else "org"): row
+            for row in FeePolicy.objects.filter(
+                Q(event_id=event_id) | Q(organization_id=org_id, event__isnull=True)
+            )
+        }
+        row = rows.get("event") or rows.get("org")
+        if row is not None:
+            return FeeSchedule(row.gateway_bps, row.platform_bps, row.platform_min_minor)
+        return self.default_schedule()
+
+    def list_overrides(self):
+        return list(
+            FeePolicy.objects.filter(Q(event__isnull=False) | Q(organization__isnull=False))
+            .select_related("event", "organization")
+            .order_by("-updated_at")
+        )
+
+    def upsert(self, *, event_id=None, organization_id=None, actor_id=None, **values) -> FeePolicy:
+        row = FeePolicy.objects.filter(event_id=event_id, organization_id=organization_id).first()
+        if row is None:
+            return FeePolicy.objects.create(
+                event_id=event_id, organization_id=organization_id, updated_by_id=actor_id, **values
+            )
+        for key, value in values.items():
+            setattr(row, key, value)
+        row.updated_by_id = actor_id
+        row.save()
+        return row
+
+    def delete(self, *, event_id=None, organization_id=None) -> int:
+        deleted, _ = FeePolicy.objects.filter(
+            event_id=event_id, organization_id=organization_id
+        ).delete()
+        return deleted

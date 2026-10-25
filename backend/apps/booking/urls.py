@@ -4,6 +4,13 @@ from . import api
 
 # Mounted under /api/v1/ (see config/urls.py).
 urlpatterns = [
+    path("admin/fees", api.AdminFeesView.as_view(), name="admin-fees"),
+    path(
+        "admin/fees/<str:scope>/<uuid:target_id>",
+        api.AdminFeeOverrideView.as_view(),
+        name="admin-fee-override",
+    ),
+    path("events/<uuid:event_id>/fees", api.EventFeesView.as_view(), name="event-fees"),
     path("bookings", api.BookingCreateView.as_view(), name="booking-create"),
     path("bookings/<uuid:booking_id>", api.BookingDetailView.as_view(), name="booking-detail"),
     path(

@@ -646,3 +646,59 @@ class PaymentFailureListView(OrganizerView):
             event_id=event_id, actor_id=self.owner_id, booking_ids=ids
         )
         return _no_store(Response(result))
+
+
+class CampaignOverviewView(OrganizerView):
+    """Who the organiser can write to, and where their crowds are."""
+
+    @extend_schema(responses={200: None})
+    def get(self, request: Request) -> Response:
+        repo = OrganizerRepository()
+        customers = list(repo.customers(self.owner_id, search=None)[:10])
+        sizes = {
+            segment: len(repo.campaign_audience(self.owner_id, segment))
+            for segment in ("all", "repeat", "recent")
+        }
+        return _no_store(
+            Response(
+                {
+                    "audience": sizes,
+                    "top_customers": [
+                        {
+                            "name": c["full_name"],
+                            "email": c["email"],
+                            "orders": c["bookings"],
+                            "lifetime_value_minor": int(c["lifetime_value_minor"] or 0),
+                            "last_booked_at": c["last_booked_at"].isoformat()
+                            if c["last_booked_at"]
+                            else None,
+                        }
+                        for c in customers
+                    ],
+                    "venues": repo.venue_crowd(self.owner_id),
+                }
+            )
+        )
+
+
+class CampaignSendView(OrganizerView):
+    """POST /organizer/campaigns — email a promotion to past customers."""
+
+    @extend_schema(request=None, responses={200: None})
+    def post(self, request: Request) -> Response:
+        from config.di import build_promo_campaign_service
+
+        data = request.data if hasattr(request.data, "get") else {}
+        event_raw = data.get("event_id")
+        service = build_promo_campaign_service()
+        kwargs = {
+            "owner_id": self.owner_id,
+            "segment": str(data.get("segment") or ""),
+            "event_id": UUID(str(event_raw)) if event_raw else None,
+        }
+        if data.get("preview"):
+            return _no_store(Response({"recipients": service.preview(**kwargs)}))
+        result = service.send(
+            subject=str(data.get("subject") or ""), message=str(data.get("message") or ""), **kwargs
+        )
+        return _no_store(Response(result))

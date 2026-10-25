@@ -34,6 +34,7 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from typing import Any
 from uuid import UUID
 
 from django.db.models import (
@@ -704,6 +705,69 @@ class OrganizerRepository:
             },
             order_by=("-lifetime_value_minor", "email"),
         )
+
+    def campaign_audience(
+        self, owner_id: UUID, segment: str, event_id: UUID | None = None, limit: int = 500
+    ) -> list[dict]:
+        """Past customers an organiser may write to: buyers who PAID them.
+
+        Segments: `all`, `repeat` (two or more paid orders), `recent` (paid in the
+        last 90 days) and `event` (paid for one named event of theirs). Never
+        anybody who has not bought from this organiser.
+        """
+        import datetime as dt
+
+        from django.utils import timezone
+
+        base = Booking.objects.filter(
+            event__organization__owner_id=owner_id,
+            event__deleted_at__isnull=True,
+            status=BookingStatus.PAID,
+            user__is_active=True,
+        ).exclude(user__email="")
+        if segment == "event" and event_id:
+            base = base.filter(event_id=event_id)
+        elif segment == "recent":
+            base = base.filter(created_at__gte=timezone.now() - dt.timedelta(days=90))
+        # `Any`: django-stubs cannot follow an aliased `.values().annotate()`
+        # (the same untyped boundary `_grouped_lazy` documents).
+        grouped: Any = base.values(
+            uid=F("user_id"), email=F("user__email"), name=F("user__full_name")
+        )
+        grouped = grouped.annotate(orders=Count("id")).order_by("-orders", "email")
+        if segment == "repeat":
+            grouped = grouped.filter(orders__gte=2)
+        return list(grouped[:limit])
+
+    def venue_crowd(self, owner_id: UUID, limit: int = 8) -> list[dict]:
+        """Where this organiser's paid attendance has been biggest, by venue."""
+        rows = (
+            BookingItem.objects.filter(
+                booking__event__organization__owner_id=owner_id,
+                booking__event__deleted_at__isnull=True,
+                booking__status=BookingStatus.PAID,
+            )
+            .values(
+                venue=F("booking__event__venue"),
+                city=F("booking__event__city"),
+            )
+            .annotate(
+                tickets=Sum("quantity"),
+                events=Count("booking__event_id", distinct=True),
+                buyers=Count("booking__user_id", distinct=True),
+            )
+            .order_by("-tickets")[:limit]
+        )
+        return [
+            {
+                "venue": r["venue"],
+                "city": r["city"],
+                "tickets": int(r["tickets"] or 0),
+                "events": r["events"],
+                "buyers": r["buyers"],
+            }
+            for r in rows
+        ]
 
     def customer_bookings(self, owner_id: UUID, customer_id: UUID) -> QuerySet[Booking]:
         return (

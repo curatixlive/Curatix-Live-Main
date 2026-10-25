@@ -114,6 +114,8 @@ class NotificationType(models.TextChoices):
     WAITLIST_JOINED_ORGANIZER = "waitlist_joined_organizer", "Waitlist: new entry (organiser)"
     # An organiser nudging a buyer whose payment did not complete.
     PAYMENT_REMINDER = "payment_reminder", "Payment reminder"
+    # An organiser's promotion to people who already bought from them.
+    CAMPAIGN_PROMO = "campaign_promo", "Organiser campaign"
 
 
 class NotificationLog(models.Model):

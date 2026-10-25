@@ -174,39 +174,76 @@ export function OffersCard({ eventId }: { eventId: string }) {
     retry: 0,
   });
   const [index, setIndex] = React.useState(0);
+  const strip = React.useRef<HTMLUListElement>(null);
   if (offers.length === 0) return null;
-  const offer = offers[index % offers.length]!;
+
+  // Swiping is the browser's own scroll-snap; the dots only REPORT where the
+  // strip came to rest, and move it when pressed.
+  const onScroll = () => {
+    const node = strip.current;
+    if (!node || node.clientWidth === 0) return;
+    setIndex(Math.round(node.scrollLeft / node.clientWidth));
+  };
+  const goTo = (next: number) => {
+    const node = strip.current;
+    if (node) node.scrollTo({ left: next * node.clientWidth, behavior: 'smooth' });
+  };
 
   return (
     <section aria-labelledby="scene-offers" className="flex flex-col gap-3">
       <h3 id="scene-offers" className="text-h4 text-foreground">
         Offers on booking
       </h3>
-      <button
-        type="button"
-        onClick={() => setIndex((i) => (i + 1) % offers.length)}
-        aria-label={
-          offers.length > 1 ? `Offer ${index + 1} of ${offers.length}. Show the next` : undefined
-        }
-        className="flex w-full items-center gap-3 rounded-2xl border border-success/30 bg-success/10 p-3.5 text-left"
+      <ul
+        ref={strip}
+        onScroll={onScroll}
+        aria-label={offers.length > 1 ? 'Offers. Swipe for the next one' : undefined}
+        className="flex touch-manipulation snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success/20 text-success">
-          <Tag className="size-5" aria-hidden />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-body-sm font-bold text-foreground">
-            {offerHeadline(offer)}
-          </span>
-          <span className="truncate text-caption text-muted-foreground">
-            use <span className="font-semibold text-foreground">{offer.code}</span>
-          </span>
-        </span>
-        {offers.length > 1 ? (
-          <span className="shrink-0 text-caption font-bold tabular-nums text-foreground">
-            {(index % offers.length) + 1}/{offers.length}
-          </span>
-        ) : null}
-      </button>
+        {offers.map((offer, position) => (
+          <li
+            key={offer.code}
+            aria-label={offers.length > 1 ? `Offer ${position + 1} of ${offers.length}` : undefined}
+            className="w-full shrink-0 snap-center snap-always"
+          >
+            <div className="flex w-full items-center gap-3 rounded-2xl border border-success/30 bg-success/10 p-3.5">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success/20 text-success">
+                <Tag className="size-5" aria-hidden />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-body-sm font-bold text-foreground">
+                  {offerHeadline(offer)}
+                </span>
+                <span className="truncate text-caption text-muted-foreground">
+                  use <span className="font-semibold text-foreground">{offer.code}</span>
+                </span>
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {offers.length > 1 ? (
+        <div className="flex justify-center gap-1.5" role="group" aria-label="Choose an offer">
+          {offers.map((offer, position) => (
+            <button
+              key={offer.code}
+              type="button"
+              onClick={() => goTo(position)}
+              aria-label={`Show offer ${position + 1}`}
+              aria-current={position === index}
+              className="flex size-4 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span
+                className={
+                  position === index
+                    ? 'size-1.5 rounded-full bg-foreground'
+                    : 'size-1.5 rounded-full bg-muted-foreground/40'
+                }
+              />
+            </button>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }

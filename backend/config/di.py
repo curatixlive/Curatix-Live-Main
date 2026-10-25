@@ -980,6 +980,14 @@ def build_payment_reminder_service():
     )
 
 
+def build_promo_campaign_service():
+    """An organiser's promotion emails to their own past customers."""
+    from apps.organizer.repositories import OrganizerRepository
+    from apps.organizer.services import CampaignService
+
+    return CampaignService(repository=OrganizerRepository(), notifier=build_notification_service())
+
+
 def build_event_invite_service():
     """Emails an event's access code to people the organiser names."""
     from apps.events.repositories import EventRepository
@@ -1029,7 +1037,11 @@ def build_ticketing_service() -> TicketingService:
 
 
 def build_booking_service() -> BookingService:
-    from apps.booking.repositories import BookingRepository, TicketRepository
+    from apps.booking.repositories import (
+        BookingRepository,
+        FeePolicyRepository,
+        TicketRepository,
+    )
     from apps.booking.services import BookingService
     from apps.events.repositories import EventContentRepository, EventRepository
     from apps.ticketing.repositories import TicketTypeRepository
@@ -1049,7 +1061,16 @@ def build_booking_service() -> BookingService:
         hold_minutes=settings.BOOKING_HOLD_MINUTES,
         platform_fee_bps=settings.PLATFORM_FEE_BPS,
         donation_max_minor=settings.DONATION_MAX_MINOR,
+        fee_policies=FeePolicyRepository(),
     )
+
+
+def build_fee_policy_service():
+    """A platform admin's buyer-fee schedules (default, per organisation, per event)."""
+    from apps.booking.repositories import FeePolicyRepository
+    from apps.booking.services import FeePolicyService
+
+    return FeePolicyService(policies=FeePolicyRepository())
 
 
 def build_gateway_switch_service():

@@ -4,6 +4,7 @@ import {
   BarChart3,
   CalendarPlus,
   LayoutDashboard,
+  Megaphone,
   MessageSquare,
   QrCode,
   Receipt,
@@ -105,6 +106,12 @@ export const ORGANIZER_SECTIONS: OrganizerSection[] = [
     label: 'Promotions',
     icon: BadgePercent,
     hint: 'Discount codes for your events, and how much of each is gone',
+  },
+  {
+    href: '/dashboard/campaigns',
+    label: 'Campaigns',
+    icon: Megaphone,
+    hint: 'Your best customers, where crowds come, and promotion emails',
   },
   {
     href: '/dashboard/analytics',

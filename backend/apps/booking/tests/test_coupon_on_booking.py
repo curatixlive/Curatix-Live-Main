@@ -528,7 +528,8 @@ class TestTheEndpoint:
         assert response.status_code == 200
         body = response.json()
         assert body["discount"] == 10_000
-        assert body["total_amount"] == 40_400  # ₹400 + 1% of ₹400
+        # ₹400 after the coupon + per ticket 2% gateway (₹8) + max(2%, ₹10) (₹10)
+        assert body["total_amount"] == 41_800
 
     def test_it_is_never_cached(self, authed_client, held, coupons):
         coupons(code="SAVE20", value=20)

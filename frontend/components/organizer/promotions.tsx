@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Panel, Skeleton, StatusPill } from '@/components/organizer/primitives';
 import { cn } from '@/lib/utils/cn';
 import { couponStatus, describeTerms, describeUsage, validateDraft } from '@/lib/organizer/coupons';
+import { openPicker } from '@/lib/utils/open-picker';
 
 /**
  * Promotional codes — the organizer's own discounts on their own events.
@@ -479,6 +480,7 @@ function CouponSheet({
                 <Input
                   id="coupon-ends"
                   type="date"
+                  onClick={openPicker}
                   value={endsAt}
                   onChange={(event) => setEndsAt(event.target.value)}
                 />

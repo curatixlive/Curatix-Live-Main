@@ -74,43 +74,49 @@ export function TeamManager() {
         title="Your team"
         subtitle={`People who can help run every ${organization.name} event, now and later.`}
       >
-        <form
-          className="flex flex-wrap gap-2"
-          onSubmit={(submit) => {
-            submit.preventDefault();
-            if (email.trim()) add.mutate();
-          }}
-        >
-          <Input
-            aria-label="Team member email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="their-account@example.com"
-            className="max-w-80"
-          />
-          <Button type="submit" variant="outline" disabled={!email.trim() || add.isPending}>
-            <UserPlus className="size-4" aria-hidden /> {add.isPending ? 'Adding…' : 'Add to team'}
-          </Button>
-        </form>
-        <p className="mt-2 text-caption text-muted-foreground">
-          They need a Curatix account. New members can see analytics, attendees and scan tickets,
-          but not money, until you turn that on.
-        </p>
-        {failure ? (
-          <p role="alert" className="mt-2 text-body-sm text-muted-foreground">
-            {failure}
+        <div className="flex flex-col gap-2 p-card">
+          <form
+            className="flex flex-col gap-2 sm:flex-row sm:items-center"
+            onSubmit={(submit) => {
+              submit.preventDefault();
+              if (email.trim()) add.mutate();
+            }}
+          >
+            <Input
+              aria-label="Team member email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="their-account@example.com"
+              className="sm:max-w-80"
+            />
+            <Button type="submit" disabled={!email.trim() || add.isPending}>
+              <UserPlus className="size-4" aria-hidden />{' '}
+              {add.isPending ? 'Adding…' : 'Add to team'}
+            </Button>
+          </form>
+          <p className="text-caption text-muted-foreground">
+            They need a Curatix account. New members can see analytics, attendees and scan tickets,
+            but not money, until you turn that on.
           </p>
-        ) : null}
+          {failure ? (
+            <p role="alert" className="text-body-sm text-muted-foreground">
+              {failure}
+            </p>
+          ) : null}
+        </div>
       </Panel>
 
       {list.isPending ? (
         <Skeleton className="h-40 w-full" />
       ) : (list.data ?? []).length === 0 ? (
         <Panel>
-          <p className="flex items-center gap-2 text-body-sm text-muted-foreground">
-            <UsersRound className="size-4" aria-hidden /> No one on your team yet. To give someone
-            access to a single event instead, use the Co-hosts section when you create or edit it.
+          <p className="flex items-start gap-2 p-card text-body-sm text-muted-foreground">
+            <UsersRound className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              No one on your team yet. To give someone access to a single event instead, use the
+              Co-hosts section when you create or edit it.
+            </span>
           </p>
         </Panel>
       ) : (

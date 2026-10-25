@@ -53,42 +53,48 @@ function Waitlist({ eventId }: { eventId: string }) {
       title="Waiting list"
       subtitle={
         list.data
-          ? `${list.data.meta.count} ${list.data.meta.count === 1 ? 'person' : 'people'} · ${list.data.meta.tickets_wanted} tickets wanted. They are emailed automatically when tickets become available.`
+          ? `${list.data.meta.count} ${list.data.meta.count === 1 ? 'person' : 'people'} · ${list.data.meta.tickets_wanted} tickets wanted`
           : undefined
       }
     >
-      {list.isPending ? (
-        <Skeleton className="h-24 w-full" />
-      ) : list.isError ? (
-        <p role="alert" className="text-body-sm text-muted-foreground">
-          {errorMessage(list.error)}
+      <div className="p-card pt-stack">
+        <p className="mb-2 text-caption text-muted-foreground">
+          They are emailed automatically when tickets become available.
         </p>
-      ) : list.data.data.length === 0 ? (
-        <p className="text-body-sm text-muted-foreground">
-          Nobody is waiting. When the event sells out, people can ask to be told if tickets return.
-        </p>
-      ) : (
-        <ul className="flex flex-col divide-y divide-border">
-          {list.data.data.map((row) => (
-            <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <span className="min-w-0">
-                <span className="block truncate text-body-sm font-semibold">
-                  {row.name || row.email}
+        {list.isPending ? (
+          <Skeleton className="h-24 w-full" />
+        ) : list.isError ? (
+          <p role="alert" className="text-body-sm text-muted-foreground">
+            {errorMessage(list.error)}
+          </p>
+        ) : list.data.data.length === 0 ? (
+          <p className="text-body-sm text-muted-foreground">
+            Nobody is waiting. When the event sells out, people can ask to be told if tickets
+            return.
+          </p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-border">
+            {list.data.data.map((row) => (
+              <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <span className="min-w-0">
+                  <span className="block truncate text-body-sm font-semibold">
+                    {row.name || row.email}
+                  </span>
+                  <ContactLine email={row.email} phone={row.phone} />
                 </span>
-                <ContactLine email={row.email} phone={row.phone} />
-              </span>
-              <span className="text-right text-caption text-muted-foreground">
-                <span className="block text-body-sm font-semibold text-foreground">
-                  {row.quantity} {row.quantity === 1 ? 'ticket' : 'tickets'}
+                <span className="text-right text-caption text-muted-foreground">
+                  <span className="block text-body-sm font-semibold text-foreground">
+                    {row.quantity} {row.quantity === 1 ? 'ticket' : 'tickets'}
+                  </span>
+                  {row.notified_at
+                    ? 'Told tickets are back'
+                    : `Joined ${formatEventDateTime(row.joined_at)}`}
                 </span>
-                {row.notified_at
-                  ? 'Told tickets are back'
-                  : `Joined ${formatEventDateTime(row.joined_at)}`}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Panel>
   );
 }
@@ -131,7 +137,7 @@ function UnpaidCheckouts({ eventId }: { eventId: string }) {
   return (
     <Panel
       title="Unpaid checkouts"
-      subtitle="People who started booking but the payment did not complete. No money was taken and no ticket was issued."
+      subtitle="Payment did not complete"
       actions={
         rows.length > 1 ? (
           <Button size="sm" onClick={() => remind.mutate(undefined)} disabled={remind.isPending}>
@@ -140,54 +146,60 @@ function UnpaidCheckouts({ eventId }: { eventId: string }) {
         ) : undefined
       }
     >
-      {note ? (
-        <p role="status" className="mb-3 text-body-sm text-muted-foreground">
-          {note}
+      <div className="p-card pt-stack">
+        <p className="mb-2 text-caption text-muted-foreground">
+          People who started booking but did not finish paying. No money was taken and no ticket was
+          issued. A reminder can go to each person once a day.
         </p>
-      ) : null}
-      {list.isPending ? (
-        <Skeleton className="h-24 w-full" />
-      ) : list.isError ? (
-        <p role="alert" className="text-body-sm text-muted-foreground">
-          {errorMessage(list.error)}
-        </p>
-      ) : rows.length === 0 ? (
-        <p className="text-body-sm text-muted-foreground">No unfinished checkouts. Nice.</p>
-      ) : (
-        <ul className="flex flex-col divide-y divide-border">
-          {rows.map((row) => (
-            <li
-              key={row.booking_id}
-              className="flex flex-wrap items-center justify-between gap-3 py-3"
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-body-sm font-semibold">
-                  {row.name || row.email}
-                </span>
-                <ContactLine email={row.email} phone={row.phone} />
-              </span>
-              <span className="flex items-center gap-4">
-                <span className="text-right text-caption text-muted-foreground">
-                  <span className="block text-body-sm font-semibold text-foreground">
-                    {row.tickets} {row.tickets === 1 ? 'ticket' : 'tickets'} ·{' '}
-                    {inr(row.amount_minor)}
+        {note ? (
+          <p role="status" className="mb-3 text-body-sm text-muted-foreground">
+            {note}
+          </p>
+        ) : null}
+        {list.isPending ? (
+          <Skeleton className="h-24 w-full" />
+        ) : list.isError ? (
+          <p role="alert" className="text-body-sm text-muted-foreground">
+            {errorMessage(list.error)}
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="text-body-sm text-muted-foreground">No unfinished checkouts. Nice.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-border">
+            {rows.map((row) => (
+              <li
+                key={row.booking_id}
+                className="flex flex-wrap items-center justify-between gap-3 py-3"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-body-sm font-semibold">
+                    {row.name || row.email}
                   </span>
-                  {formatEventDateTime(row.attempted_at)}
+                  <ContactLine email={row.email} phone={row.phone} />
                 </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={remind.isPending}
-                  onClick={() => remind.mutate([row.booking_id])}
-                  aria-label={`Send ${row.name || row.email} a reminder`}
-                >
-                  Remind
-                </Button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+                <span className="flex items-center gap-4">
+                  <span className="text-right text-caption text-muted-foreground">
+                    <span className="block text-body-sm font-semibold text-foreground">
+                      {row.tickets} {row.tickets === 1 ? 'ticket' : 'tickets'} ·{' '}
+                      {inr(row.amount_minor)}
+                    </span>
+                    {formatEventDateTime(row.attempted_at)}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={remind.isPending}
+                    onClick={() => remind.mutate([row.booking_id])}
+                    aria-label={`Send ${row.name || row.email} a reminder`}
+                  >
+                    Remind
+                  </Button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Panel>
   );
 }

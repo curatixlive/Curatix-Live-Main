@@ -204,9 +204,43 @@ export type SelectionTotals = {
  */
 export const PLATFORM_FEE_BPS = 100;
 
-/** The platform fee on a ticket subtotal, in whole paise. */
+/** The legacy flat fee on a ticket subtotal, in whole paise. */
 export const platformFeeFor = (subtotalMinor: number) =>
   Math.floor((subtotalMinor * PLATFORM_FEE_BPS + 5_000) / 10_000);
+
+/**
+ * The buyer's per-ticket fee schedule — mirrors `apps/booking/fees.py`. The
+ * organiser receives the full ticket price; this is ADDED for the customer.
+ * The defaults match the backend's settings; an admin can override them per
+ * event, and `GET /events/{id}/fees` returns the schedule actually in force.
+ */
+export type FeeSchedule = {
+  gateway_bps: number;
+  platform_bps: number;
+  platform_min_minor: number;
+};
+
+export const DEFAULT_FEE_SCHEDULE: FeeSchedule = {
+  gateway_bps: 200,
+  platform_bps: 200,
+  platform_min_minor: 1000,
+};
+
+const pct = (amount: number, bps: number) => Math.floor((amount * bps + 5_000) / 10_000);
+
+/** Per ticket: gateway% + max(platform%, minimum). A free ticket has no fee. */
+export function buyerFeeFor(
+  lines: { unitPrice: number; quantity: number }[],
+  schedule: FeeSchedule = DEFAULT_FEE_SCHEDULE,
+): number {
+  return lines.reduce((fee, line) => {
+    if (line.unitPrice <= 0 || line.quantity <= 0) return fee;
+    const perTicket =
+      pct(line.unitPrice, schedule.gateway_bps) +
+      Math.max(pct(line.unitPrice, schedule.platform_bps), schedule.platform_min_minor);
+    return fee + perTicket * line.quantity;
+  }, 0);
+}
 
 /**
  * Mirrors the backend's `DONATION_MAX_MINOR`.
@@ -237,7 +271,7 @@ export const DONATION_MAX_MINOR = 100_000;
 export function totalsFor(
   selection: Selection,
   tiers: TicketTier[],
-  options: { hasAccess?: boolean } = {},
+  options: { hasAccess?: boolean; fees?: FeeSchedule } = {},
 ): SelectionTotals {
   const lines: SelectionLine[] = [];
   for (const line of selection) {
@@ -266,7 +300,7 @@ export function totalsFor(
   }
   const ticketCount = lines.reduce((sum, line) => sum + line.quantity, 0);
   const total = lines.reduce((sum, line) => sum + line.subtotal, 0);
-  const platformFee = platformFeeFor(total);
+  const platformFee = buyerFeeFor(lines, options.fees);
   return {
     lines,
     ticketCount,

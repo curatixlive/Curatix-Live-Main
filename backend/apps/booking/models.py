@@ -322,3 +322,47 @@ class BookingAnswer(models.Model):
 
     def __str__(self) -> str:
         return f"Answer to {self.question_id} on {self.booking_id}"
+
+
+class FeePolicy(models.Model):
+    """A platform admin's buyer-fee schedule: for one event, one organisation,
+    or (both null) the platform default. See `booking/fees.py`.
+
+    Applies to bookings priced AFTER it is saved — a held or paid booking keeps
+    the fee it was priced with, so changing a schedule never re-bills anybody.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.OneToOneField(
+        "events.Event", on_delete=models.CASCADE, null=True, blank=True, related_name="fee_policy"
+    )
+    organization = models.OneToOneField(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="fee_policy",
+    )
+    gateway_bps = models.PositiveIntegerField()
+    platform_bps = models.PositiveIntegerField()
+    platform_min_minor = models.PositiveIntegerField()
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "booking_fee_policy"
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(event__isnull=False, organization__isnull=False),
+                name="fee_policy_one_scope",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Fees for {self.event_id or self.organization_id or 'platform'}"

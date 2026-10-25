@@ -458,6 +458,12 @@ PAYMENTS_ROUTE_PROVIDER = env.str("PAYMENTS_ROUTE_PROVIDER", default="")
 # this codebase and a percentage stored as 0.01 would be the one place a float
 # rounding error could reach a charged amount.
 PLATFORM_FEE_BPS = env.int("PLATFORM_FEE_BPS", default=100)
+# The BUYER's per-ticket fee, added on top of the ticket price (the organiser
+# receives the full price): gateway% + max(platform%, minimum). A platform admin
+# can override all three per event or per organisation (`booking.FeePolicy`).
+FEE_GATEWAY_BPS = env.int("FEE_GATEWAY_BPS", default=200)
+FEE_PLATFORM_BPS = env.int("FEE_PLATFORM_BPS", default=200)
+FEE_PLATFORM_MIN_MINOR = env.int("FEE_PLATFORM_MIN_MINOR", default=1000)
 
 # Optional donation collected with a booking (currently: feeding stray dogs).
 # Retained by the platform exactly like the fee — excluded from the organizer's

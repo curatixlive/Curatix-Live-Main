@@ -17,6 +17,7 @@ import {
 import { EmptyState, ErrorState, Panel, Percent, Skeleton } from './primitives';
 import { cn } from '@/lib/utils/cn';
 import { FunnelTable } from './funnel-table';
+import { openPicker } from '@/lib/utils/open-picker';
 
 /**
  * Analytics.
@@ -142,6 +143,7 @@ export function Analytics() {
           <input
             id="analytics-from"
             type="date"
+            onClick={openPicker}
             max={range?.to ?? istToday()}
             value={range?.from ?? ''}
             onChange={(event) => {
@@ -160,6 +162,7 @@ export function Analytics() {
           <input
             id="analytics-to"
             type="date"
+            onClick={openPicker}
             min={range?.from}
             max={istToday()}
             value={range?.to ?? ''}

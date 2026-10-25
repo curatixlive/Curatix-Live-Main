@@ -15,6 +15,7 @@ import { EmptyState, ErrorState, Skeleton } from '@/components/organizer/primiti
 import { Button, Input } from '@/components/ui';
 import { tempId, toIso, type PendingTimelineEntry } from '@/lib/organizer/wizard/model';
 import { cn } from '@/lib/utils/cn';
+import { openPicker } from '@/lib/utils/open-picker';
 
 /**
  * The running order.
@@ -365,6 +366,7 @@ export function RunningOrder({
           <Input
             id="timeline-time"
             type="datetime-local"
+            onClick={openPicker}
             value={startsAt}
             onChange={(event) => setStartsAt(event.target.value)}
           />

@@ -5,6 +5,7 @@ import { Check, ChevronDown, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils/cn';
 import { TOOLBAR_CONTROL } from './data-table';
+import { openPicker } from '@/lib/utils/open-picker';
 
 /**
  * The filter controls every list surface shares.
@@ -359,6 +360,7 @@ export function DateRangeFilter({
               <span className="w-8 shrink-0 text-muted-foreground">From</span>
               <input
                 type="date"
+                onClick={openPicker}
                 value={toDateInput(custom.from)}
                 onChange={(event) => {
                   onPreset('');
@@ -371,6 +373,7 @@ export function DateRangeFilter({
               <span className="w-8 shrink-0 text-muted-foreground">To</span>
               <input
                 type="date"
+                onClick={openPicker}
                 value={toDateInput(custom.to)}
                 onChange={(event) => {
                   onPreset('');

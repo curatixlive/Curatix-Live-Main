@@ -59,4 +59,8 @@ urlpatterns = [
         api.PaymentFailureListView.as_view(),
         name="organizer-event-payment-failures",
     ),
+    path(
+        "organizer/campaigns/overview", api.CampaignOverviewView.as_view(), name="campaign-overview"
+    ),
+    path("organizer/campaigns", api.CampaignSendView.as_view(), name="campaign-send"),
 ]

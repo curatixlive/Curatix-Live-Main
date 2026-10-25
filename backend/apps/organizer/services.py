@@ -101,3 +101,90 @@ class PaymentReminderService:
             target_id=str(event_id),
         )
         return {"sent": sent, "skipped": skipped}
+
+
+#: The most people one campaign may reach, and the shape of a campaign's text.
+MAX_CAMPAIGN_AUDIENCE = 500
+SEGMENTS = ("all", "repeat", "recent", "event")
+
+
+class CampaignService:
+    """An organiser writing to people who have bought from them.
+
+    Email only — WhatsApp is a later, paid channel. The audience is computed on
+    the server from the organiser's own PAID bookings, never accepted from the
+    client, so a campaign cannot be pointed at anybody who did not buy.
+    """
+
+    def __init__(self, *, repository: OrganizerRepository, notifier: ReminderNotifier) -> None:
+        self._repo = repository
+        self._notifier = notifier
+
+    def preview(self, *, owner_id: UUID, segment: str, event_id: UUID | None) -> int:
+        return len(self._audience(owner_id, segment, event_id))
+
+    def _audience(self, owner_id, segment, event_id) -> list[dict]:
+        if segment not in SEGMENTS:
+            raise InvalidInputError("Choose who to send this to.")
+        if segment == "event" and (
+            event_id is None or not self._repo.owns_event(owner_id, event_id)
+        ):
+            raise InvalidInputError("Choose one of your events.")
+        return self._repo.campaign_audience(
+            owner_id, segment, event_id, limit=MAX_CAMPAIGN_AUDIENCE
+        )
+
+    def send(
+        self,
+        *,
+        owner_id: UUID,
+        subject: str,
+        message: str,
+        segment: str,
+        event_id: UUID | None = None,
+    ) -> dict[str, int]:
+        import uuid as _uuid
+
+        from apps.organizations.models import Organization
+
+        subject = (subject or "").strip()
+        message = (message or "").strip()
+        if not subject or len(subject) > 120:
+            raise InvalidInputError("Give the email a subject of up to 120 characters.")
+        if not message or len(message) > 2000:
+            raise InvalidInputError("Write a message of up to 2,000 characters.")
+        audience = self._audience(owner_id, segment, event_id)
+        if not audience:
+            raise InvalidInputError("Nobody matches that audience yet.")
+
+        org = Organization.objects.filter(owner_id=owner_id, deleted_at__isnull=True).first()
+        organiser = org.name if org else "Your organiser"
+        site = str(getattr(settings, "PUBLIC_SITE_URL", "") or "").rstrip("/")
+        url = f"{site}/events" if site else ""
+        campaign_id = _uuid.uuid4().hex
+        sent = failed = 0
+        for person in audience:
+            try:
+                self._notifier.notify(
+                    notification_type="campaign_promo",
+                    recipient=person["email"],
+                    context={
+                        "name": person["name"],
+                        "organiser": organiser,
+                        "subject": subject,
+                        "message": message,
+                        "url": url,
+                    },
+                    dedupe_key=f"campaign:{campaign_id}:{person['uid']}",
+                )
+                sent += 1
+            except Exception:
+                logger.exception("campaign_send_failed")
+                failed += 1
+        record_audit(
+            actor_id=str(owner_id),
+            action="organizer.campaign_sent",
+            target_type="organization",
+            target_id=str(org.id) if org else "",
+        )
+        return {"sent": sent, "failed": failed}
