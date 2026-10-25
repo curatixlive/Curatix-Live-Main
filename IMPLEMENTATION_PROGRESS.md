@@ -23,8 +23,8 @@ reviews + follow-up email). Work happens in the existing app; nothing is rebuilt
 
 1. DONE (committed, NOT deployed) Promotions backend `apps/promotions`.
 2. DONE (committed, NOT deployed) Partner links panel inside the existing Promotions page; `?ref=` capture; attribution after reserve.
-3. Post-event review email (scheduled, deduped through the notification ledger).
-4. Public community page + follow control on event page.
+3. DONE+DEPLOYED Post-event review email (`reviews.send_requests`, every 15 min, ledger key `review_request:{event}:{user}`, 2h after end, 48h look-back, paid + un-refunded + un-reviewed + not cancelled).
+4. DONE+DEPLOYED Public community page `/organizers/{id}`, `GET /organizations/{id}/community` (new `apps/community`, read-only), Follow button, dashboard `/dashboard/community` editor (bio + banner), event page links to it.
 5. Community-only / early-access events (backend-enforced).
 6. Dashboard additions that need the above (promotion + community cards).
 
@@ -59,3 +59,9 @@ reviews + follow-up email). Work happens in the existing app; nothing is rebuilt
 ## Needs from the owner (no secrets here)
 - Decide: commission payout is recorded manually by the organizer (no payout rail built).
 - Decide: WhatsApp review follow-up stays off (no approved templates/credentials known).
+
+## Update (25 Oct, later)
+- Migrations applied to production: promotions.0001, notifications.0015 (choices only), organizations.0003 (bio, cover_url).
+- Pushed: promotions, review email, community page. Not yet verified on the live site.
+- NEXT: 5) community-only / early-access events (backend-enforced), 6) dashboard cards, then live smoke test.
+- Review email needs `PUBLIC_SITE_URL` set on Render for the link (otherwise the button is omitted) and a real EMAIL_PROVIDER; check both.
