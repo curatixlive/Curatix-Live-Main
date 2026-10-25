@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
-from django.db.models import Count, Exists, OuterRef, QuerySet
+from django.db.models import Count, Exists, OuterRef, QuerySet, Sum
 from django.db.models.functions import Coalesce
 
 from apps.booking.models import Booking, BookingStatus, Ticket, TicketStatus
@@ -50,6 +50,46 @@ class ReviewRepository(BaseRepository[EventReview]):
         a page boundary. The same tiebreak the booking ticket list needed.
         """
         return self._published(event_id).order_by("-created_at", "-id")
+
+    def organization_summary(self, organization_id: uuid.UUID | str) -> dict:
+        """Count, average and star distribution across ALL of an organizer's events.
+
+        Published reviews only. `average` is None when there are none: a zero
+        would render as a real, terrible score for somebody nobody has rated.
+        """
+        base = EventReview.objects.filter(
+            event__organization_id=organization_id, status=ReviewStatus.PUBLISHED
+        )
+        agg = base.aggregate(count=Count("id"), total=Sum("rating"))
+        count = agg["count"] or 0
+        rows = base.values("rating").annotate(n=Count("id"))
+        return {
+            "count": count,
+            "average": round(agg["total"] / count, 1) if count else None,
+            "distribution": {str(r["rating"]): r["n"] for r in rows},
+        }
+
+    def latest_for_organization(
+        self, organization_id: uuid.UUID | str, limit: int
+    ) -> list[EventReview]:
+        return list(
+            EventReview.objects.filter(
+                event__organization_id=organization_id, status=ReviewStatus.PUBLISHED
+            )
+            .select_related("user", "event")
+            .only(
+                "id",
+                "rating",
+                "body",
+                "verified_attendee",
+                "created_at",
+                "user__full_name",
+                "event__id",
+                "event__title",
+                "event__slug",
+            )
+            .order_by("-created_at", "-id")[:limit]
+        )
 
     def get_for_user(
         self, *, event_id: uuid.UUID | str, user_id: uuid.UUID | str

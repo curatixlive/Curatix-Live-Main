@@ -13,6 +13,8 @@ class CreateOrganizationRequestSerializer(serializers.Serializer):
 class UpdateOrganizationRequestSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200, required=False)
     logo = serializers.FileField(required=False)
+    cover = serializers.FileField(required=False)
+    bio = serializers.CharField(max_length=2000, required=False, allow_blank=True)
 
     def validate(self, attrs: dict) -> dict:
         if not attrs:
@@ -51,6 +53,8 @@ class OrganizationDetailSerializer(serializers.ModelSerializer):
             # the console's own serializer, which is `IsAdminUser`.
             "payout_account_linked",
             "logo_url",
+            "bio",
+            "cover_url",
             "created_at",
             "follower_count",
         ]
@@ -63,6 +67,8 @@ class OrganizationDetailSerializer(serializers.ModelSerializer):
             "name",
             "verified_level",
             "logo_url",
+            "bio",
+            "cover_url",
             "created_at",
         ]
 

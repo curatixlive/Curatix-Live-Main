@@ -442,6 +442,30 @@ class EventRepository(BaseRepository[Event]):
             )
         return qs.only(*_CARD_FIELDS).order_by(*PUBLIC_LIST_ORDERING)
 
+    def list_public_for_organization(
+        self, organization_id: uuid.UUID | str, *, now, upcoming: bool, limit: int
+    ) -> QuerySet[Event]:
+        """An organizer's public events, for their community page.
+
+        `upcoming` is what is still to come (soonest first); otherwise what has
+        already finished (most recent first). An event counts as over once its
+        `ends_at` — or, without one, its `starts_at` — has passed. Visibility is
+        `_publicly_visible()`, the same predicate as the browse list, so the
+        page can never show an event the platform would not list.
+        """
+        from django.db.models.functions import Coalesce
+
+        qs = (
+            self._publicly_visible()
+            .filter(organization_id=organization_id)
+            .annotate(_over_at=Coalesce("ends_at", "starts_at"))
+        )
+        if upcoming:
+            qs = qs.filter(_over_at__gte=now).order_by("starts_at", "id")
+        else:
+            qs = qs.filter(_over_at__lt=now).order_by("-starts_at", "-id")
+        return qs.only(*_CARD_FIELDS)[:limit]
+
     def list_for_sitemap(self, *, limit: int = SITEMAP_MAX_URLS) -> QuerySet[Event]:
         """Every publicly-reachable event, for `/sitemap.xml`.
 

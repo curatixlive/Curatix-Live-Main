@@ -36,6 +36,11 @@ class Organization(models.Model):
     )
     payout_account_id = models.CharField(max_length=255, blank=True, default="")
     logo_url = models.CharField(max_length=500, blank=True, default="")
+    #: The public community page's "about" text and banner. Both optional and
+    #: both blank until the organizer writes them — a page with an invented bio
+    #: would be the one thing a follower reads before deciding to trust them.
+    bio = models.TextField(blank=True, default="", max_length=2000)
+    cover_url = models.CharField(max_length=500, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)

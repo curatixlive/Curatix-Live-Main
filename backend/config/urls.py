@@ -49,6 +49,7 @@ urlpatterns = [
     # on apps/booking's routes beside the donation endpoint.
     path("api/v1/", include("apps.coupons.urls")),
     path("api/v1/", include("apps.promotions.urls")),
+    path("api/v1/", include("apps.community.urls")),
     # notifications is otherwise internal; these are only the push-subscription
     # routes, which exist because a subscription can only be minted by the
     # browser that owns it. See apps/notifications/api.py.

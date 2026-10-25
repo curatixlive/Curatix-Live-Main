@@ -75,6 +75,16 @@ class OrganizationService:
         content_type = logo.content_type or "application/octet-stream"
         return self._storage.upload(path=path, content=logo.read(), content_type=content_type)
 
+    def _upload_cover(self, organization_id: uuid.UUID | str, cover: UploadedFile) -> str:
+        """The community banner. Same storage, its own prefix, and the same
+        allow-list as every other image upload: see `core/uploads.py`."""
+        from core.uploads import validate_image
+
+        validate_image(cover)
+        path = f"org-covers/{organization_id}/{uuid.uuid4().hex}-{cover.name}"
+        content_type = cover.content_type or "application/octet-stream"
+        return self._storage.upload(path=path, content=cover.read(), content_type=content_type)
+
     def _get_owned_organization(
         self, *, organization_id: uuid.UUID | str, actor_id: uuid.UUID | str
     ) -> Organization:
@@ -131,15 +141,22 @@ class OrganizationService:
         actor_id: uuid.UUID | str,
         name: str | None = None,
         logo: UploadedFile | None = None,
+        cover: UploadedFile | None = None,
+        bio: str | None = None,
     ) -> Organization:
         org = self._get_owned_organization(organization_id=organization_id, actor_id=actor_id)
         logo_url = self._upload_logo(org.id, logo) if logo is not None else None
+        cover_url = self._upload_cover(org.id, cover) if cover is not None else None
 
         with UnitOfWork():
             if name is not None:
                 org.name = name
             if logo_url is not None:
                 org.logo_url = logo_url
+            if cover_url is not None:
+                org.cover_url = cover_url
+            if bio is not None:
+                org.bio = bio.strip()
             self._organizations.save(org)
             record_audit(
                 actor_id=str(actor_id),

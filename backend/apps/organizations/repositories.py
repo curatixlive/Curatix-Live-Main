@@ -22,6 +22,8 @@ _DETAIL_FIELDS = (
     "verified_level",
     "payout_account_id",
     "logo_url",
+    "bio",
+    "cover_url",
     "created_at",
 )
 # `payout_account_id` is LOADED but never PUBLISHED. The summary serializer
