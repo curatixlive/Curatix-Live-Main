@@ -65,3 +65,16 @@ reviews + follow-up email). Work happens in the existing app; nothing is rebuilt
 - Pushed: promotions, review email, community page. Not yet verified on the live site.
 - NEXT: 5) community-only / early-access events (backend-enforced), 6) dashboard cards, then live smoke test.
 - Review email needs `PUBLIC_SITE_URL` set on Render for the link (otherwise the button is omitted) and a real EMAIL_PROVIDER; check both.
+
+## Update (26 Oct)
+- 5) Community-only / early access: ALREADY EXISTED and is backend-enforced (`Event.invite_only`, per-tier `presale_starts_at`,
+  `BookingService.resolve_access`: code, follower, or past attendee). "Community member" = follower. Added a
+  "Follow {organiser}" link on the invite-only gate so a blocked visitor has a way in.
+- 6) Dashboard: `GrowthCard` (followers, rating, partner clicks/bookings/commission owed) on the dashboard home.
+- CI: release + frontend-e2e green on 59dff81 (one e2e re-run: Google Fonts download flake, unrelated).
+- Live smoke (curl + Chrome): /health ok; GET /organizations/{id}/community 200 public-cached; /organizers/{id} renders;
+  promotions list 401 anonymous; click endpoint 204 for unknown code.
+- NOT verified live: creating a partner link end to end, attribution at a real checkout, the review email actually sending
+  (needs PUBLIC_SITE_URL + a real EMAIL_PROVIDER on Render), the community editor upload.
+- Still not built: customer contact list per promotion, per-link page-visit counts, link restricted to ticket types,
+  push/in-app notification to followers about new events (follow exists; check `notify` flag use in notifications).
