@@ -204,11 +204,8 @@ export function OrganizerCard({ event }: { event: EventDetail }) {
           {event.organization_name}
         </p>
       </div>
-      <Link
-        href={`/events?q=${encodeURIComponent(event.organization_name)}`}
-        className={ACTION_PILL}
-      >
-        Their other events
+      <Link href={`/organizers/${event.organization_id}`} className={ACTION_PILL}>
+        View community
       </Link>
     </div>
   );

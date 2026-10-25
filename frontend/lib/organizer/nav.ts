@@ -4,6 +4,7 @@ import {
   BarChart3,
   CalendarPlus,
   LayoutDashboard,
+  Globe2,
   Megaphone,
   MessageSquare,
   QrCode,
@@ -106,6 +107,12 @@ export const ORGANIZER_SECTIONS: OrganizerSection[] = [
     label: 'Promotions',
     icon: BadgePercent,
     hint: 'Discount codes for your events, and how much of each is gone',
+  },
+  {
+    href: '/dashboard/community',
+    label: 'Community page',
+    icon: Globe2,
+    hint: 'Your public page: about text, banner, followers and ratings',
   },
   {
     href: '/dashboard/campaigns',

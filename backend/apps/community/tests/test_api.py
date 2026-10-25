@@ -127,9 +127,12 @@ def test_hidden_reviews_are_excluded(org, fan):
 
 def test_owner_can_set_bio(org, owner):
     c = APIClient()
+    from typing import cast
+
     from rest_framework_simplejwt.tokens import RefreshToken
 
-    c.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(owner).access_token}")
+    token = str(cast(RefreshToken, RefreshToken.for_user(owner)).access_token)
+    c.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
     resp = c.patch(f"/api/v1/organizations/{org.id}", {"bio": "  New bio  "}, format="json")
     assert resp.status_code == 200
     assert resp.json()["bio"] == "New bio"

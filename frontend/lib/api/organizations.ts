@@ -22,6 +22,9 @@ export type Organization = {
    *  one shared key and readable by anyone signed in. */
   payout_account_linked: boolean;
   logo_url: string;
+  /** The community page's banner and about text; blank until written. */
+  bio?: string;
+  cover_url?: string;
   created_at: string;
 };
 
@@ -90,3 +93,18 @@ export async function fetchVerification(
  */
 export const linkPayoutAccount = (organizationId: string) =>
   api.post<Organization>(`/organizations/${encodeURIComponent(organizationId)}/payout-account`, {});
+
+/**
+ * Edit the organisation's public community page. Multipart, because the cover
+ * is a file; only the fields passed are sent, and the server changes only those.
+ */
+export function updateOrganizationProfile(
+  organizationId: string,
+  input: { bio?: string; cover?: File | null; logo?: File | null },
+) {
+  const form = new FormData();
+  if (input.bio !== undefined) form.append('bio', input.bio);
+  if (input.cover) form.append('cover', input.cover);
+  if (input.logo) form.append('logo', input.logo);
+  return api.patch<Organization>(`/organizations/${encodeURIComponent(organizationId)}`, form);
+}
