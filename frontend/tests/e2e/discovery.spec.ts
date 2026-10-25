@@ -144,21 +144,15 @@ async function settleForAxe(page: Page) {
     // true; one that legitimately stays hidden should not fail the a11y gate.
     .catch(() => undefined);
 
-  // Anything else still fading (poster cards, badges) is measured by axe as the
-  // blend it is mid-flight, not the colour it settles to. Wait for every FINITE
-  // animation to finish; looping ones (pulses) never do and are skipped.
-  await page
-    .evaluate(() =>
-      Promise.all(
-        document
-          .getAnimations()
-          .filter((animation) =>
-            Number.isFinite(animation.effect?.getComputedTiming().endTime ?? 0),
-          )
-          .map((animation) => animation.finished.catch(() => undefined)),
-      ),
-    )
-    .catch(() => undefined);
+  // Anything still fading (poster cards, badges) is measured by axe as the
+  // blend it is mid-flight, not the colour it settles to, and how far a slow CI
+  // runner has got is not something to race. Take the transitions away and the
+  // computed style jumps straight to its end state, which is what a reader sees
+  // a moment later.
+  await page.addStyleTag({
+    content:
+      '*, *::before, *::after { transition: none !important; animation-duration: 0s !important; animation-delay: 0s !important; }',
+  });
   await page.waitForTimeout(300);
 }
 

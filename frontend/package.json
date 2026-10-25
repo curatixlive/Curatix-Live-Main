@@ -27,7 +27,7 @@
     "gen:api": "openapi-typescript ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}/api/schema/ -o lib/api/schema.d.ts"
   },
   "dependencies": {
-    "@hookform/resolvers": "3.9.0",
+    "@hookform/resolvers": "^5.9.2",
     "@radix-ui/react-avatar": "1.1.0",
     "@radix-ui/react-checkbox": "1.1.1",
     "@radix-ui/react-dialog": "1.1.1",
@@ -47,14 +47,14 @@
     "framer-motion": "11.5.4",
     "jsqr": "^1.4.0",
     "lucide-react": "0.441.0",
-    "next": "^15.5.27",
+    "next": "^15.5.28",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "react-hook-form": "7.53.0",
+    "react-hook-form": "^7.91.0",
     "tailwind-merge": "2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "web-vitals": "4.2.3",
-    "zod": "3.23.8"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.0",
@@ -95,7 +95,7 @@
   },
   "overrides": {
     "postcss": "8.5.18",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "fast-uri": "3.1.6",
     "@storybook/nextjs": {
       "next": "$next"
