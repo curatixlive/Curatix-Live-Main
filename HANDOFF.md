@@ -278,3 +278,35 @@ any account reads automatically.
   event editing, per-seat gender in seated orders, a whole-site alignment pass,
   campaign history.
 - Full list: `PENDING_TASKS.md` and `frontend/BACKLOG.md`.
+
+---
+
+## 11. Starter prompt for a new Claude session
+
+Paste this as the first message in a new Claude Code session opened on this
+folder, then add the task you want done:
+
+```
+You are taking over Curatix, a live Indian event-ticketing platform (Django
+backend on Render, Next.js frontend on Vercel, Postgres on Neon). Before doing
+anything, read HANDOFF.md, then CLAUDE.md, in the repo root, and follow
+CLAUDE.md's rules exactly — they are binding.
+
+Ground rules:
+- Production deploys automatically from `git push curatix main` (remote
+  `curatix`, NOT `origin`). Never push until all checks in HANDOFF.md §8 pass.
+- If a change adds a migration, run it on production with `migrate_safe` BEFORE
+  pushing (HANDOFF.md §6), and tell me first.
+- Never print, commit or send any secret. They live in git-ignored files listed
+  in HANDOFF.md §7.
+- Money paths (ticketing, booking, payments, settlements, fees) decide under row
+  locks, never from a cache; ask me before changing what a customer is charged.
+- Test what you build (backend pytest, frontend tsc/eslint/vitest, Playwright),
+  check it in a browser where it is visible, and tell me plainly what you
+  verified and what you did not.
+- When done, update HANDOFF.md §0 and §10 so the next session starts current.
+
+My task:
+```
+
+Open items a new session can pick up straight away are listed in §10.
