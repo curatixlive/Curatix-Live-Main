@@ -30,6 +30,15 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+AWS_RELEASE_STAGES = REPO_ROOT / ".github" / "disabled" / "release-aws.yml.txt"
+
+
+def _requires_in(jobs: dict, name: str) -> set[str]:
+    needs = jobs[name].get("needs") or []
+    needs = [needs] if isinstance(needs, str) else list(needs)
+    return set(needs).union(*(_requires_in(jobs, n) for n in needs)) if needs else set()
+
+
 def _load(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
@@ -860,14 +869,24 @@ class TestReleaseWorkflow:
     body = _code_only(
         (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     )
+    # The AWS publish/deploy/rollback stages are NOT in the live workflow — nothing
+    # ships to AWS today (Vercel + Render deploy themselves). They are kept,
+    # unexecuted, in `.github/disabled/`, and every invariant below that is about
+    # them is asserted against that copy, so restoring it cannot quietly bring
+    # back a defect these tests were written to catch.
+    aws_body = _code_only(AWS_RELEASE_STAGES.read_text(encoding="utf-8"))
 
     def test_no_long_lived_aws_credentials(self):
         """A stored access key is standing AWS access that outlives any leak.
         OIDC mints a token per run that expires with it."""
         for forbidden in ("aws-access-key-id", "aws-secret-access-key", "AWS_SESSION_TOKEN"):
+            assert forbidden not in self.aws_body, f"{forbidden} must never appear"
             assert forbidden not in self.body, f"{forbidden} must never appear"
-        assert "id-token: write" in self.body
-        assert "role-to-assume" in self.body
+        assert "id-token: write" in self.aws_body
+        assert "role-to-assume" in self.aws_body
+        # The live workflow holds no AWS identity at all.
+        assert "id-token: write" not in self.body
+        assert "role-to-assume" not in self.body
 
     def test_no_ssh_key_reaches_the_runner(self):
         """SSM needs no inbound port and no key. A `.pem` in CI is a
@@ -899,6 +918,13 @@ class TestReleaseWorkflow:
         """
         workflow = _load(REPO_ROOT / ".github" / "workflows" / "release.yml")
         jobs = workflow["jobs"]
+        # The deploy stages live in the disabled copy; the live workflow's last
+        # stage is `resolve`, and the same graph must hold for both.
+        aws_jobs = _load(AWS_RELEASE_STAGES)["jobs"]
+        assert "deploy" not in jobs and "publish" not in jobs, (
+            "an AWS stage is live again — restore it from .github/disabled deliberately, "
+            "with AWS_DEPLOY_ROLE_ARN set, not by accident"
+        )
 
         def requires(name: str) -> set[str]:
             needs = jobs[name].get("needs") or []
@@ -906,7 +932,8 @@ class TestReleaseWorkflow:
             return set(needs).union(*(requires(n) for n in needs)) if needs else set()
 
         for stage in ("ci", "frontend", "security"):
-            assert stage in requires("deploy"), (
+            assert stage in requires("resolve"), f"resolve does not depend on '{stage}'"
+            assert stage in _requires_in(aws_jobs, "deploy"), (
                 f"deploy does not depend on '{stage}' — production can ship a "
                 f"commit that stage never validated"
             )
@@ -928,7 +955,7 @@ class TestReleaseWorkflow:
 
         # No stage may be conditional. A gate that can be skipped is not a gate,
         # and a manual dispatch under pressure is exactly when it would be.
-        for stage in ("ci", "frontend", "security", "deploy"):
+        for stage in ("ci", "frontend", "security", "resolve"):
             assert "if" not in jobs[stage], f"'{stage}' is conditional — it can be bypassed"
 
     # The frontend E2E suite is deliberately outside the deploy gate. This is
@@ -1024,7 +1051,7 @@ class TestReleaseWorkflow:
         Parsed rather than string-matched: EVERY pushing build step needs the
         guard, and a substring check passes while one of the two is missing.
         """
-        workflow = _load(REPO_ROOT / ".github" / "workflows" / "release.yml")
+        workflow = _load(AWS_RELEASE_STAGES)
         pushing = [
             step
             for step in workflow["jobs"]["publish"]["steps"]
@@ -1040,7 +1067,7 @@ class TestReleaseWorkflow:
     def test_the_rollback_target_is_read_from_the_instance(self):
         """Parsed from the step that actually resolves it, so a leftover
         mention elsewhere in the file cannot satisfy this."""
-        workflow = _load(REPO_ROOT / ".github" / "workflows" / "release.yml")
+        workflow = _load(AWS_RELEASE_STAGES)
         steps = workflow["jobs"]["rollback"]["steps"]
         resolver = next(s for s in steps if s.get("id") == "prev")
         run = _code_only(resolver["run"])
@@ -1059,7 +1086,7 @@ class TestReleaseWorkflow:
         Compared as NUMBERS, for every step that dispatches one: a substring
         check passes while one of the two loops is still too short.
         """
-        workflow = _load(REPO_ROOT / ".github" / "workflows" / "release.yml")
+        workflow = _load(AWS_RELEASE_STAGES)
         checked = 0
         for job in workflow["jobs"].values():
             for step in job.get("steps", []):
@@ -1090,5 +1117,5 @@ class TestReleaseWorkflow:
         """`--parameters commands=...` splits its value on commas into separate
         list elements. The base64 config bundle is exactly the kind of value
         that would be torn into fragments — silently."""
-        assert "--parameters commands=" not in self.body
-        assert "file:///tmp/ssm-" in self.body
+        assert "--parameters commands=" not in self.aws_body
+        assert "file:///tmp/ssm-" in self.aws_body

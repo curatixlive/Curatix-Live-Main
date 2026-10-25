@@ -266,10 +266,14 @@ any account reads automatically.
   `GOOGLE_OAUTH_SIGNIN_REDIRECT_URI` on Render.
 - **WhatsApp** (invites, reminders, campaigns) is not integrated; email is the only channel.
 - **SMS** is disabled.
-- **GitHub `release` workflow** fails at the `publish` step because no AWS deploy
-  role is configured (`AWS_DEPLOY_ROLE_ARN`). Production does not use AWS, so this
-  does not affect the live site. Either configure AWS or remove the publish/deploy
-  jobs. All test and security jobs in that workflow pass.
+- **AWS release stages are removed** (publish, scan-image, deploy, rollback —
+  they failed on every push because no AWS deploy role exists, and e-mailed a
+  "deploy failed" notice each time). `release.yml` is now only the gate (CI,
+  frontend, security). The old workflow is kept unexecuted at
+  `.github/disabled/release-aws.yml.txt`; to bring AWS back, restore the stages,
+  set the repo variable `AWS_DEPLOY_ROLE_ARN` and re-add `id-token: write`. The
+  AWS invariants in `core/tests/test_deployment_topology.py` are asserted against
+  that copy.
 - **Checkout price estimate** on the ticket picker uses the default fee; an event
   with an admin fee override shows the real fee from the review screen onwards.
 - **Organiser fee override** in the admin page takes a pasted organisation id

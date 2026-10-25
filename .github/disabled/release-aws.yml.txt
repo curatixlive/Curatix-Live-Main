@@ -1,0 +1,780 @@
+name: release
+
+# ── ONE PIPELINE, ONE COMMIT ──────────────────────────────────────────────
+#
+# This workflow IS the pipeline. It runs the three validation workflows as
+# stages via `uses:`, and every later stage depends on them through `needs:`.
+#
+# What this replaces: release used to be triggered by CI *finishing*
+# (`workflow_run`) and then ask the GitHub API whether Security and Frontend
+# had passed for the same SHA, polling each for up to 60 x 10s. Two things
+# were wrong with that, and both were fatal:
+#
+#   1. It was a race. Frontend E2E ran ~34 minutes; the poll gave up at 600s.
+#      Every observed release failure was 10m28s — 600s of waiting plus
+#      overhead — reporting a "timeout" conclusion for a job that was simply
+#      still running. The deploy decision depended on wall-clock luck.
+#   2. It could never have succeeded anyway. See the `resolve` job below.
+#
+# A called workflow always runs against the CALLER's commit, so exact-SHA
+# safety is structural rather than something to re-verify: there is no window
+# in which a sibling result for a different commit could be read, and no
+# "latest run for this SHA" lookup to get wrong.
+#
+# `workflow_dispatch` takes no SHA input. It used to accept an arbitrary
+# `image_sha`, which in this design would validate one commit and deploy a
+# different one — precisely the stale-result hazard being removed. To deploy
+# an older commit, dispatch this workflow FROM that ref; it is then validated
+# and deployed as one unit. To undo a bad deploy, the `rollback` job below
+# restores the previously recorded images.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_BACKEND: curatix-backend
+  ECR_FRONTEND: curatix-frontend
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+jobs:
+  # ── WHAT IDENTITY THIS PIPELINE PRESENTS TO AWS ─────────────────────────
+  #
+  # `publish` failed at `configure-aws-credentials` after ~110s — that action's
+  # RETRY window, not a fast input error, so STS was reached and it DENIED
+  # `sts:AssumeRoleWithWebIdentity`. A denial is a mismatch between the token's
+  # claims and the role's trust policy, and the job that hits it cannot show
+  # you the claims it sent, so the failure names neither side of the mismatch.
+  #
+  # This runs with no `needs:`, so it answers that in well under a minute
+  # instead of after ten minutes of validation. It gates nothing — `publish`
+  # already enforces the real thing; this exists so the NEXT person sees the
+  # actual `sub` next to the policy that has to match it.
+  #
+  # It prints CLAIMS ONLY. The OIDC token itself is a bearer credential and is
+  # never echoed, written to a file, or exported — only the specific,
+  # non-secret fields below are read out of it.
+  aws-oidc-claims:
+    runs-on: ubuntu-latest
+    steps:
+      - name: The subject this workflow presents to AWS
+        run: |
+          set -euo pipefail
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+                    "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+                  | python3 -c 'import sys,json; print(json.load(sys.stdin)["value"])')
+
+          # Decode the payload locally. Only the claims named here are printed;
+          # the token is consumed by this python process and never leaves it.
+          TOKEN="$TOKEN" python3 - <<'PY'
+          import base64, json, os
+
+          payload = os.environ["TOKEN"].split(".")[1]
+          payload += "=" * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+
+          print("=== OIDC claims presented to AWS STS ===")
+          for key in ("sub", "aud", "repository", "ref", "environment", "job_workflow_ref"):
+              if key in claims:
+                  print(f"  {key:18} {claims[key]}")
+          print()
+          print("The role's trust policy must allow BOTH subjects this pipeline uses:")
+          repo = claims.get("repository", "<repo>")
+          print(f'  "repo:{repo}:ref:refs/heads/main"        <- publish (no environment)')
+          print(f'  "repo:{repo}:environment:production"     <- deploy  (environment: production)')
+          print()
+          print("A policy scoped to only environment:production CANNOT admit publish,")
+          print("which necessarily runs before any environment exists.")
+          PY
+
+  # ── STAGE 1: VALIDATION ─────────────────────────────────────────────────
+  #
+  # The three validation workflows, called for THIS commit. They are ordinary
+  # `needs:` dependencies, so nothing below can start until all three have
+  # genuinely succeeded — enforced by GitHub, not by a script asking politely.
+  # They run concurrently with each other; the pipeline is as slow as the
+  # slowest one, not the sum.
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  frontend:
+    uses: ./.github/workflows/frontend.yml
+
+  security:
+    uses: ./.github/workflows/security.yml
+
+  # ── E2E IS NOT HERE, AND THAT IS THE POINT ──────────────────────────────
+  #
+  # `frontend-e2e.yml` runs on its own `push` trigger instead of as a stage of
+  # this pipeline. It was a `uses:` stage, and that had a consequence nobody
+  # would predict from reading it: a workflow run does not finish until EVERY
+  # job finishes, so a ~20-minute suite that gates NOTHING held this workflow's
+  # `production-deploy` concurrency lock for twenty minutes after the deploy
+  # decision was already made, and the next push queued behind it.
+  #
+  # A non-blocking suite that delays every deployment is not non-blocking. So
+  # it is a sibling workflow now: same commit, same visibility, still red when
+  # it fails, and structurally unable to slow a release down.
+  #
+  # This is still time-boxed — see
+  # backend/core/tests/test_deployment_topology.py, which fails once the
+  # recorded date passes so the exception cannot outlive its justification.
+
+  # ── STAGE 2: RESOLVE ────────────────────────────────────────────────────
+  #
+  # All this does now is name the commit and echo it. The gate is `needs:`.
+  #
+  # What used to be here was a prerequisite check that could not pass. It read
+  # a helper's result with `C_CI=$(conclusion ci.yml)`, and a diagnostics
+  # change had added seven `echo` lines INSIDE that helper. Command
+  # substitution captures stdout, so `$C_CI` was never "success" — it was the
+  # whole transcript: "Workflow: ci.yml", "Latest matching run ID: ...", the
+  # status, the timestamps, and only then "success" on the final line.
+  # `[ "$C_CI" != "success" ]` was therefore true and the gate closed even when
+  # all three workflows were green. The diagnostics were written to stdout
+  # while the pre-existing progress lines correctly used `>&2`; that one
+  # detail is the whole bug, and it made the release unpassable rather than
+  # merely slow.
+  #
+  # The lesson generalises: a shell function whose RETURN VALUE is its stdout
+  # cannot also log to stdout. This job no longer has that shape, so it cannot
+  # regress into it.
+  # ── THE GATE, REPORTED WHETHER IT OPENS OR NOT ──────────────────────────
+  #
+  # `resolve` below is SKIPPED when a prerequisite fails — that is what makes
+  # it a gate, but it also means it can never explain a refusal. This job runs
+  # `always()` purely to say what happened and why, in one place, instead of
+  # leaving somebody to infer it from which jobs are grey.
+  #
+  # It decides nothing. It cannot open the gate and it cannot close it; deploy
+  # depends on `resolve`, not on this. It exits 0 even when the gate is closed,
+  # because the job that actually failed is already red and a second red tick
+  # for the same failure only obscures which one to open.
+  gate-report:
+    needs: [ci, frontend, security]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release gate
+        env:
+          CI_R: ${{ needs.ci.result }}
+          FE_R: ${{ needs.frontend.result }}
+          SEC_R: ${{ needs.security.result }}
+          # E2E is a SIBLING workflow now, not a job here, so there is no
+          # result to read — and deliberately so: reading it would mean waiting
+          # for it, which is what used to hold the deploy lock for 20 minutes.
+          E2E_R: "separate workflow (frontend-e2e), non-blocking"
+        run: |
+          set -euo pipefail
+          verdict() { [ "$1" = "success" ] && echo PASS || echo "FAIL ($1)"; }
+
+          echo "=================================================="
+          echo " RELEASE GATE — ${{ github.sha }}"
+          echo "=================================================="
+          echo " CI (backend, images, compose) : $(verdict "$CI_R")"
+          echo " Frontend quality              : $(verdict "$FE_R")"
+          echo " Security                      : $(verdict "$SEC_R")"
+          echo " Frontend E2E                  : $E2E_R  — NON-BLOCKING TEMPORARY"
+          echo "--------------------------------------------------"
+
+          R=/tmp/gate-reasons.txt
+          : > "$R"
+          [ "$CI_R" = "success" ]  || echo "   - CI concluded '$CI_R'. Backend tests, both Docker images and compose must pass." >> "$R"
+          [ "$FE_R" = "success" ]  || echo "   - Frontend quality concluded '$FE_R'. Typecheck, lint, CSS lint, unit tests, production build and the bundle budget must pass." >> "$R"
+          [ "$SEC_R" = "success" ] || echo "   - Security concluded '$SEC_R'. pip-audit, npm audit and the Trivy filesystem scan must pass. Check the scan DURATION first: a few seconds means Trivy could not start, which is not a finding and must not be answered with an ignore entry." >> "$R"
+
+          if [ -s "$R" ]; then
+            echo " Release gate: CLOSED"
+            echo " Reason:"
+            cat "$R"
+            echo
+            echo " Note: E2E is deliberately NOT a reason. It is a temporary"
+            echo " exception for initial production infrastructure validation"
+            echo " (frontend/BACKLOG.md item 79) and cannot close this gate."
+          else
+            echo " Release gate: OPEN"
+            echo " All blocking prerequisites passed for this exact commit."
+          fi
+          echo "=================================================="
+
+          {
+            echo "### Release gate: $([ -s "$R" ] && echo CLOSED || echo OPEN)"
+            echo ""
+            echo "| stage | blocking | result |"
+            echo "| --- | --- | --- |"
+            echo "| CI | yes | $CI_R |"
+            echo "| Frontend quality | yes | $FE_R |"
+            echo "| Security | yes | $SEC_R |"
+            echo "| Frontend E2E | **no — temporary** | $E2E_R |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  resolve:
+    needs: [ci, frontend, security]
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+      short: ${{ steps.pick.outputs.short }}
+    steps:
+      - id: pick
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          if [ ${#SHA} -ne 40 ]; then
+            echo "::error::Refusing a non-40-char SHA ('$SHA'). Deployment tags must be the full immutable commit id."
+            exit 1
+          fi
+          echo "sha=$SHA"         >> "$GITHUB_OUTPUT"
+          echo "short=${SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+          echo "=== RELEASE GATE ==="
+          echo "Commit:   $SHA"
+          echo "Event:    ${{ github.event_name }}"
+          echo "CI:       ${{ needs.ci.result }}"
+          echo "Frontend: ${{ needs.frontend.result }}"
+          echo "Security: ${{ needs.security.result }}"
+          echo "E2E:      NON-BLOCKING TEMPORARY (see gate-report / BACKLOG 79)"
+          echo "Gate:     OPEN (all BLOCKING validation stages succeeded for this commit)"
+          {
+            echo "### Deploying \`$SHA\`"
+            echo ""
+            echo "| stage | result |"
+            echo "| --- | --- |"
+            echo "| CI | ${{ needs.ci.result }} |"
+            echo "| Frontend | ${{ needs.frontend.result }} |"
+            echo "| Security | ${{ needs.security.result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: resolve
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.tags.outputs.backend }}
+      frontend: ${{ steps.tags.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - name: Environment Diagnostics
+        run: |
+          echo "::group::Environment Diagnostics"
+          echo "Workflow: release"
+          echo "Job: publish"
+          echo "Target SHA: ${{ needs.resolve.outputs.sha }}"
+          echo "Runner OS: ${{ runner.os }}"
+          echo "Runner Arch: ${{ runner.arch }}"
+          echo "CWD: $(pwd)"
+          echo "Docker version: $(docker --version 2>/dev/null || echo N/A)"
+          echo "AWS CLI version: $(aws --version 2>/dev/null || echo N/A)"
+          echo "::endgroup::"
+          echo "=== RELEASE STAGE: PUBLISH IMAGES ==="
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - id: tags
+        run: |
+          R="${{ steps.ecr.outputs.registry }}"
+          S="${{ needs.resolve.outputs.sha }}"
+          echo "Target Registry: $R"
+          echo "Target Backend Image: $R/${{ env.ECR_BACKEND }}:$S"
+          echo "Target Frontend Image: $R/${{ env.ECR_FRONTEND }}:$S"
+          echo "backend=$R/${{ env.ECR_BACKEND }}:$S"   >> "$GITHUB_OUTPUT"
+          echo "frontend=$R/${{ env.ECR_FRONTEND }}:$S" >> "$GITHUB_OUTPUT"
+
+      # ── CHECKED WITH ecr:DescribeImages, NOT ecr:DescribeRepositories ────
+      #
+      # The deployment role is scoped to exactly what the pipeline needs, and
+      # `ecr:DescribeRepositories` is deliberately not in it. `describe-images`
+      # IS granted and answers the same question: it raises
+      # RepositoryNotFoundException when the repository is missing, which is
+      # the failure this step exists to catch. It is also the very call the
+      # next step makes, so a permission problem surfaces here with a clear
+      # message rather than inside a conditional that treats any error as
+      # "image absent, go build".
+      #
+      # The alternative was widening the role by one action. Not widening a
+      # production deployment role to power a diagnostic is the better trade.
+      - name: Verify ECR Repositories Existence
+        run: |
+          set -euo pipefail
+          echo "Verifying ECR repositories in ${{ env.AWS_REGION }}..."
+          for repo in "${{ env.ECR_BACKEND }}" "${{ env.ECR_FRONTEND }}"; do
+            if aws ecr describe-images --repository-name "$repo" --max-items 1 >/dev/null 2>"/tmp/ecr-$repo.err"; then
+              echo "  [OK] $repo"
+            elif grep -q "ImageNotFound\|not found in the repository" "/tmp/ecr-$repo.err"; then
+              echo "  [OK] $repo (exists, currently empty)"
+            else
+              echo "::error::ECR repository '$repo' is not reachable in ${{ env.AWS_REGION }}"
+              sed 's/^/    /' "/tmp/ecr-$repo.err"
+              exit 1
+            fi
+          done
+
+      - name: Are these images already in ECR?
+        id: exists
+        run: |
+          set -euo pipefail
+          S="${{ needs.resolve.outputs.sha }}"
+          present=0
+          for repo in "${{ env.ECR_BACKEND }}" "${{ env.ECR_FRONTEND }}"; do
+            if aws ecr describe-images --repository-name "$repo" --image-ids imageTag="$S" >/dev/null 2>&1; then
+              present=$((present + 1))
+            fi
+          done
+          if [ "$present" = "2" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "both images for $S are already in ECR — skipping the build"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "$present/2 images present for $S — building"
+          fi
+
+      - name: Backend image
+        if: steps.exists.outputs.skip != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.backend }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_BACKEND }}:main-${{ needs.resolve.outputs.short }}
+          # ── ALWAYS RE-RESOLVE THE BASE IMAGE ──────────────────────────
+          # `docker/build-push-action` defaults to `pull: false`, so a runner
+          # with `python:3.12-slim` already resolved keeps building on the
+          # digest it saw first. Combined with the GHA layer cache below, the
+          # published image can carry OS packages months older than the tag it
+          # claims to be built from — and the image scan, which is the gate on
+          # this pipeline, is the thing that finds out.
+          #
+          # Pulling costs seconds and only invalidates the layer cache when the
+          # base has genuinely moved, which is exactly when it should.
+          pull: true
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Frontend image
+        if: steps.exists.outputs.skip != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.frontend }}
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_FRONTEND }}:main-${{ needs.resolve.outputs.short }}
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_MEDIA_BASE_URL=${{ vars.NEXT_PUBLIC_MEDIA_BASE_URL }}
+            NEXT_PUBLIC_RAZORPAY_KEY_ID=${{ vars.NEXT_PUBLIC_RAZORPAY_KEY_ID }}
+            NEXT_PUBLIC_CASHFREE_ENVIRONMENT=${{ vars.NEXT_PUBLIC_CASHFREE_ENVIRONMENT }}
+            NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ vars.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          # Same reasoning as the backend above.
+          pull: true
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Verify Published ECR Image Digests
+        run: |
+          S="${{ needs.resolve.outputs.sha }}"
+          echo "=== PUBLISHED IMAGE DIGESTS ==="
+          for repo in "${{ env.ECR_BACKEND }}" "${{ env.ECR_FRONTEND }}"; do
+            echo "Repository: $repo Tag: $S"
+            aws ecr describe-images --repository-name "$repo" --image-ids imageTag="$S" \
+              --query 'imageDetails[*].[imageDigest,imageSizeInBytes,imagePushedAt]' --output table || true
+          done
+
+  scan-image:
+    needs: [resolve, publish]
+    runs-on: ubuntu-latest
+    steps:
+      # Needed for `.trivyignore.yaml`. Without a checkout the ignore file is
+      # absent and the frontend image fails on the same carried next 14.2.35
+      # advisories the filesystem scan already accounts for — the image
+      # contains that dependency tree, so both scans see them.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - name: Environment Diagnostics
+        run: |
+          echo "::group::Environment Diagnostics"
+          echo "Workflow: release"
+          echo "Job: scan-image"
+          echo "Backend Image Ref: ${{ needs.publish.outputs.backend }}"
+          echo "Frontend Image Ref: ${{ needs.publish.outputs.frontend }}"
+          echo "Scan mode: image"
+          echo "Severity threshold: CRITICAL,HIGH"
+          echo "Ignore unfixed: true"
+          echo "Exit code: 1"
+          echo "::endgroup::"
+          echo "=== RELEASE STAGE: IMAGE SECURITY SCAN ==="
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      # Pinned, not @master: an unpinned third-party action on the gate that
+      # decides what reaches production is exactly the dependency you do not
+      # want moving under you. v0.33.1 pins its own nested setup-trivy by
+      # commit SHA — see the note in .github/workflows/security.yml for why
+      # that specifically matters here.
+      # Trivy is run directly here for the same reasons as the filesystem scan
+      # — see the long note in .github/workflows/security.yml. Both images are
+      # scanned in ONE step so that a failure on the backend still reports the
+      # frontend: two steps would stop at the first, and knowing only half of
+      # what is wrong with a release is how you fix it twice.
+      #
+      # `--image-src docker` scans the image already pulled onto the runner,
+      # so Trivy uses the daemon's ECR credentials from the login above rather
+      # than needing its own registry auth.
+      - name: Trivy — published images
+        env:
+          TRIVY_VERSION: "0.65.0"
+          BACKEND: ${{ needs.publish.outputs.backend }}
+          FRONTEND: ${{ needs.publish.outputs.frontend }}
+        run: |
+          set -euo pipefail
+          failed=0
+          for image in "$BACKEND" "$FRONTEND"; do
+            echo "::group::Trivy image scan — $image"
+            docker pull -q "$image"
+            if docker run --rm \
+                 -v /var/run/docker.sock:/var/run/docker.sock \
+                 -v "$PWD:/work" -w /work \
+                 -v "$RUNNER_TEMP/trivy-cache:/root/.cache" \
+                 "aquasec/trivy:${TRIVY_VERSION}" \
+                 image --image-src docker "$image" \
+                 --severity CRITICAL,HIGH \
+                 --ignore-unfixed \
+                 --exit-code 1 \
+                 --format table \
+                 --ignorefile .trivyignore.yaml; then
+              echo "clean: $image"
+            else
+              echo "::error::CRITICAL/HIGH findings in $image"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          exit "$failed"
+
+  deploy:
+    needs: [resolve, publish, scan-image]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://fastride.xyz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - name: Environment Diagnostics
+        run: |
+          echo "::group::Environment Diagnostics"
+          echo "Workflow: release"
+          echo "Job: deploy"
+          echo "EC2 Instance ID: ${{ vars.EC2_INSTANCE_ID }}"
+          echo "AWS Region: ${{ env.AWS_REGION }}"
+          echo "Backend Image: ${{ needs.publish.outputs.backend }}"
+          echo "Frontend Image: ${{ needs.publish.outputs.frontend }}"
+          echo "Deployment SHA: ${{ needs.resolve.outputs.sha }}"
+          echo "::endgroup::"
+          echo "=== RELEASE STAGE: EC2 SSM DEPLOYMENT ==="
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build the config bundle
+        id: bundle
+        run: |
+          set -euo pipefail
+          echo "[DEPLOY STAGE: CONFIG BUNDLE]"
+          tar -czf bundle.tgz \
+            docker-compose.yml docker-compose.ec2.yml \
+            docker/Caddyfile deploy/deploy.sh deploy/render-env.sh
+          echo "b64=$(base64 -w0 bundle.tgz)" >> "$GITHUB_OUTPUT"
+          echo "Bundle created: $(stat -c%s bundle.tgz) bytes"
+
+      - name: Deploy over SSM
+        id: ssm
+        env:
+          INSTANCE: ${{ vars.EC2_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+          echo "[DEPLOY STAGE: SSM DISPATCH]"
+          CMD=$(cat <<EOF
+          set -euo pipefail
+          echo "[SSM CONNECT] Connected to EC2 host"
+          mkdir -p /opt/curatix
+          cd /opt/curatix
+          echo "[BUNDLE EXTRACTION] Extracting configuration bundle"
+          echo '${{ steps.bundle.outputs.b64 }}' | base64 -d | tar -xzf - -C /opt/curatix
+          export BACKEND_IMAGE='${{ needs.publish.outputs.backend }}'
+          export FRONTEND_IMAGE='${{ needs.publish.outputs.frontend }}'
+          export DEPLOY_SHA='${{ needs.resolve.outputs.sha }}'
+          export AWS_REGION='${{ env.AWS_REGION }}'
+          # ── RENDER EVERY DEPLOY, NOT ONLY WHEN .env IS ABSENT ─────────────
+          #
+          # This was `if [ ! -f /opt/curatix/.env ]`, which meant the FIRST
+          # deploy wrote the file and every later one silently kept whatever
+          # was already on disk. Change a value in Secrets Manager, redeploy,
+          # and the instance goes on running the old one — the secret and the
+          # host drift apart with nothing reporting it.
+          #
+          # Not hypothetical: it is exactly what happened with SMS_PROVIDER.
+          # The first deploy wrote `console`; correcting the secret afterwards
+          # would have had no effect, and the next failure would have looked
+          # identical to the previous one.
+          #
+          # Safe to repeat: render-env.sh writes through a temp file with
+          # umask 077, REFUSES to write a config missing any required key, and
+          # keeps the previous file as .env.prev. The "secrets change on a
+          # different clock" rule it documents still holds — rotating a key
+          # needs no deploy — this only guarantees a deploy cannot run against
+          # a stale one.
+          echo "[SECRET RENDER] Rendering /opt/curatix/.env from Secrets Manager"
+          bash deploy/render-env.sh
+          echo "[EXECUTING DEPLOYMENT SCRIPT]"
+          bash deploy/deploy.sh
+          EOF
+          )
+          jq -n --arg script "$CMD" '{commands: [$script], executionTimeout: ["3000"]}' > /tmp/ssm-params.json
+          ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE" \
+            --document-name "AWS-RunShellScript" \
+            --comment "deploy ${{ needs.resolve.outputs.short }}" \
+            --parameters file:///tmp/ssm-params.json \
+            --timeout-seconds 600 \
+            --query 'Command.CommandId' --output text)
+          echo "command_id=$ID" >> "$GITHUB_OUTPUT"
+          echo "SSM command ID: $ID"
+          echo "Dispatch Time: $(date -u)"
+
+          echo "[DEPLOY STAGE: STATUS POLLING]"
+          ST=Pending
+          for _ in $(seq 1 330); do
+            ST=$(aws ssm get-command-invocation --command-id "$ID" \
+                 --instance-id "$INSTANCE" \
+                 --query Status --output text 2>/dev/null || echo Pending)
+            case "$ST" in
+              Success) echo "SSM Command Completed Successfully ($ST)"; break ;;
+              Failed|Cancelled|TimedOut) echo "::error::SSM deploy ended with status: $ST"; break ;;
+            esac
+            sleep 10
+          done
+
+          mkdir -p /tmp/deploy-reports
+          echo "===== STDOUT FROM EC2 DEPLOYMENT =====" | tee /tmp/deploy-reports/ssm-stdout.txt
+          aws ssm get-command-invocation --command-id "$ID" --instance-id "$INSTANCE" \
+            --query StandardOutputContent --output text | tee -a /tmp/deploy-reports/ssm-stdout.txt || true
+
+          if [ "$ST" != "Success" ]; then
+            echo "===== STDERR FROM EC2 DEPLOYMENT =====" | tee /tmp/deploy-reports/ssm-stderr.txt
+            aws ssm get-command-invocation --command-id "$ID" --instance-id "$INSTANCE" \
+              --query StandardErrorContent --output text | tee -a /tmp/deploy-reports/ssm-stderr.txt || true
+          fi
+
+          echo "[FINAL STATUS]: $ST"
+          test "$ST" = "Success"
+
+      - name: Upload SSM Deployment Artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-ssm-deployment-output
+          path: /tmp/deploy-reports/
+          retention-days: 7
+
+      - name: Smoke tests
+        id: smoke
+        run: |
+          set -euo pipefail
+          echo "=== RELEASE STAGE: EXTERNAL SMOKE TESTS ==="
+          BASE=https://fastride.xyz
+          fail() { echo "::error::$1"; exit 1; }
+
+          echo "1. Checking backend /health/ over HTTPS..."
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$BASE/health/") || fail "health unreachable"
+          echo "   HTTP Response Code: $code"
+          [ "$code" = "200" ] || fail "health returned $code"
+
+          echo "2. Verifying health payload JSON..."
+          curl -sS --max-time 20 "$BASE/health/" | grep -q '"status": *"ok"' || fail "health reports degraded"
+
+          echo "3. Checking frontend homepage over HTTPS..."
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 "$BASE/") || fail "frontend unreachable"
+          echo "   HTTP Response Code: $code"
+          [ "$code" = "200" ] || fail "frontend returned $code"
+
+          echo "4. Checking API routing through Caddy..."
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$BASE/api/v1/events") || fail "api unreachable"
+          echo "   HTTP Response Code: $code"
+          [ "$code" = "200" ] || fail "api returned $code"
+
+          echo "5. Verifying TLS termination headers..."
+          curl -sS -I --max-time 20 "$BASE/" | grep -qi '^HTTP/' || fail "no HTTP response over TLS"
+          echo "[SUCCESS] All smoke tests passed: health ok, frontend ok, api-through-caddy ok"
+
+      - name: Record what is running
+        if: always()
+        run: |
+          {
+            echo "## Production"
+            echo "- commit: \`${{ needs.resolve.outputs.sha }}\`"
+            echo "- backend image: \`${{ needs.publish.outputs.backend }}\`"
+            echo "- frontend image: \`${{ needs.publish.outputs.frontend }}\`"
+            echo "- smoke: ${{ steps.smoke.outcome }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  rollback:
+    needs: [resolve, deploy]
+    if: failure() && needs.deploy.result == 'failure'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - id: prev
+        env:
+          INSTANCE: ${{ vars.EC2_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+          jq -n '{commands: ["cat /opt/curatix/.deployed.prev 2>/dev/null || cat /opt/curatix/.deployed 2>/dev/null || echo NONE"]}' > /tmp/read.json
+          ID=$(aws ssm send-command --instance-ids "$INSTANCE" \
+                 --document-name "AWS-RunShellScript" --comment "read rollback target" \
+                 --parameters file:///tmp/read.json \
+                 --query 'Command.CommandId' --output text)
+          for _ in $(seq 1 30); do
+            ST=$(aws ssm get-command-invocation --command-id "$ID" --instance-id "$INSTANCE" \
+                 --query Status --output text 2>/dev/null || echo Pending)
+            case "$ST" in Success|Failed|Cancelled|TimedOut) break ;; esac
+            sleep 5
+          done
+          OUT=$(aws ssm get-command-invocation --command-id "$ID" --instance-id "$INSTANCE" \
+                --query StandardOutputContent --output text || echo NONE)
+
+          PREV=$(printf '%s\n' "$OUT" | sed -n 's/^DEPLOYED_SHA=//p' | head -1)
+          if [ -z "$PREV" ]; then
+            echo "::error::No previous successful deployment is recorded on the instance."
+            echo "::error::This is expected on a FIRST deploy — there is nothing to roll back to."
+            echo "::error::Production is serving whatever the failed deploy left. Recover by hand: DEPLOY_EC2.md section 7."
+            exit 1
+          fi
+          if [ "$PREV" = "${{ needs.resolve.outputs.sha }}" ]; then
+            echo "::error::The recorded previous deployment is the same SHA that just failed. Nothing to roll back to."
+            exit 1
+          fi
+          echo "sha=$PREV" >> "$GITHUB_OUTPUT"
+          echo "::warning::Rolling production back to $PREV (code only; the schema stays forward)"
+
+      - name: Both previous images are still in ECR
+        run: |
+          set -euo pipefail
+          P="${{ steps.prev.outputs.sha }}"
+          for repo in "${{ env.ECR_BACKEND }}" "${{ env.ECR_FRONTEND }}"; do
+            aws ecr describe-images --repository-name "$repo" --image-ids imageTag="$P" >/dev/null \
+              || { echo "::error::$repo:$P is not in ECR — there is nothing to roll back to"; exit 1; }
+          done
+          echo "both images for $P are present"
+
+      - name: Build the previous commit's config bundle
+        id: bundle
+        run: |
+          set -euo pipefail
+          P="${{ steps.prev.outputs.sha }}"
+          git fetch --quiet origin "$P" 2>/dev/null || true
+          git cat-file -e "${P}^{commit}" 2>/dev/null \
+            || { echo "::error::commit $P is not in this checkout — cannot rebuild its configuration"; exit 1; }
+          rm -rf /tmp/prev && mkdir -p /tmp/prev
+          git archive "$P" docker-compose.yml docker-compose.ec2.yml \
+                           docker/Caddyfile deploy/deploy.sh deploy/render-env.sh \
+            | tar -xf - -C /tmp/prev
+          tar -czf bundle.tgz -C /tmp/prev .
+          echo "b64=$(base64 -w0 bundle.tgz)" >> "$GITHUB_OUTPUT"
+
+      - name: Redeploy the previous release
+        env:
+          INSTANCE: ${{ vars.EC2_INSTANCE_ID }}
+        run: |
+          set -euo pipefail
+          R="${{ steps.ecr.outputs.registry }}"
+          P="${{ steps.prev.outputs.sha }}"
+          CMD=$(cat <<EOF
+          set -euo pipefail
+          cd /opt/curatix
+          echo '${{ steps.bundle.outputs.b64 }}' | base64 -d | tar -xzf - -C /opt/curatix
+          export BACKEND_IMAGE='$R/${{ env.ECR_BACKEND }}:$P'
+          export FRONTEND_IMAGE='$R/${{ env.ECR_FRONTEND }}:$P'
+          export DEPLOY_SHA='$P'
+          export AWS_REGION='${{ env.AWS_REGION }}'
+          export SKIP_MIGRATIONS=1
+          bash deploy/deploy.sh
+          EOF
+          )
+          jq -n --arg script "$CMD" '{commands: [$script], executionTimeout: ["3000"]}' > /tmp/ssm-rollback.json
+          ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE" \
+            --document-name "AWS-RunShellScript" \
+            --comment "rollback to $P" \
+            --parameters file:///tmp/ssm-rollback.json \
+            --timeout-seconds 600 \
+            --query 'Command.CommandId' --output text)
+
+          ST=Pending
+          for _ in $(seq 1 330); do
+            ST=$(aws ssm get-command-invocation --command-id "$ID" \
+                 --instance-id "$INSTANCE" --query Status --output text 2>/dev/null || echo Pending)
+            case "$ST" in Success|Failed|Cancelled|TimedOut) break ;; esac
+            sleep 10
+          done
+
+          echo "----- rollback output from the instance -----"
+          aws ssm get-command-invocation --command-id "$ID" --instance-id "$INSTANCE" \
+            --query StandardOutputContent --output text || true
+          if [ "$ST" != "Success" ]; then
+            echo "----- stderr -----"
+            aws ssm get-command-invocation --command-id "$ID" --instance-id "$INSTANCE" \
+              --query StandardErrorContent --output text || true
+            echo "::error::ROLLBACK FAILED ($ST). Production is serving a failed deploy."
+            echo "::error::Recover by hand — DEPLOY_EC2.md section 7."
+            exit 1
+          fi
+          echo "::warning::Production rolled back to $P"
+          {
+            echo "## ⚠️ Rolled back"
+            echo "- production is now running \`$P\`"
+            echo "- the schema was NOT reverted (forward-only)"
+          } >> "$GITHUB_STEP_SUMMARY"
