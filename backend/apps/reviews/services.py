@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import timedelta
@@ -29,6 +30,8 @@ from .repositories import ReviewRepository
 #:
 #: 30 days is generous against that evidence while still closing the window,
 #: which matters because an open one means the prompt list grows forever.
+logger = logging.getLogger(__name__)
+
 REVIEW_WINDOW_DAYS = 30
 
 #: A short settle before asking. Somebody is still at the venue, in a taxi, or
@@ -397,3 +400,64 @@ def _invalidate(event_id: uuid.UUID | str) -> None:
         invalidate_review_summary(event_id)
 
     transaction.on_commit(drop)
+
+
+REVIEW_REQUEST_TASK = "reviews.send_requests"
+#: How far back a sweep looks for events that ended. Past this, the moment
+#: to ask has gone, and a "how was it?" a week later reads as a mistake.
+REVIEW_REQUEST_LOOKBACK_HOURS = 48
+REVIEW_REQUEST_BATCH = 200
+
+
+class ReviewRequestService:
+    """Emails each paid attendee ONE request to review a finished event.
+
+    Exactly-once rests on the notification ledger, not on this class: the dedupe
+    key is `review_request:{event}:{user}`, so a retried task, an overlapping
+    sweep, or two bookings by the same person for one event all collapse to a
+    single message. Failures are recorded and retried by the notification
+    pipeline (pending / sent / failed), not here.
+    """
+
+    def __init__(self, *, notifier, requests=None) -> None:
+        from .repositories import ReviewRequestRepository
+
+        self._notifier = notifier
+        self._requests = requests or ReviewRequestRepository()
+
+    def send_due(self, *, limit: int = REVIEW_REQUEST_BATCH) -> int:
+        """Claim a request for everyone due. Returns how many bookings were examined."""
+        from django.conf import settings
+
+        from apps.notifications.models import NotificationType
+        from apps.notifications.templates import format_when
+
+        site = str(getattr(settings, "PUBLIC_SITE_URL", "") or "").rstrip("/")
+        due = self._requests.candidates(
+            now=timezone.now(),
+            delay=timedelta(hours=REVIEW_DELAY_HOURS),
+            lookback=timedelta(hours=REVIEW_REQUEST_LOOKBACK_HOURS),
+            limit=limit,
+        )
+        for booking in due:
+            event = booking.event
+            user = booking.user
+            if not user.email:
+                continue
+            try:
+                self._notifier.notify(
+                    notification_type=NotificationType.REVIEW_REQUEST,
+                    recipient=user.email,
+                    context={
+                        "name": (user.full_name or "").split(" ")[0],
+                        "event_title": event.title,
+                        "event_when": format_when(event.starts_at),
+                        "organizer_name": event.organization.name,
+                        # Blank rather than a guess when the origin is unset.
+                        "url": f"{site}/events/{event.id}#reviews" if site else "",
+                    },
+                    dedupe_key=f"review_request:{event.id}:{user.id}",
+                )
+            except Exception:  # one bad row must not strand the rest of the batch
+                logger.exception("reviews.request.failed", extra={"booking_id": str(booking.id)})
+        return len(due)

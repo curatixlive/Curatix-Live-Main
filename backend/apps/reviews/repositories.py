@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta
 from typing import Any
 
-from django.db.models import Count, QuerySet
+from django.db.models import Count, Exists, OuterRef, QuerySet
+from django.db.models.functions import Coalesce
 
+from apps.booking.models import Booking, BookingStatus, Ticket, TicketStatus
+from apps.events.models import EventStatus
 from core.base_repository import BaseRepository
 
 from .models import EventReview, ReviewStatus
@@ -118,3 +122,41 @@ class ReviewRepository(BaseRepository[EventReview]):
         if status in {ReviewStatus.PUBLISHED, ReviewStatus.HIDDEN}:
             rows = rows.filter(status=status)
         return rows.order_by("-created_at", "-id")
+
+
+class ReviewRequestRepository:
+    """Who should be asked, as ONE bounded query."""
+
+    def candidates(
+        self, *, now: datetime, delay: timedelta, lookback: timedelta, limit: int
+    ) -> list[Booking]:
+        """Paid, un-refunded, un-reviewed bookings for events that ended recently.
+
+        The window is `[now - delay - lookback, now - delay]` on the event's
+        FINISH time, so (a) nobody is asked before the event is over, (b) a
+        sweep that was down is caught up on, and (c) switching this on does not
+        email the whole back catalogue of past events at once. A cancelled event
+        is excluded; a rescheduled one is judged by its CURRENT finish time.
+        """
+        finished = Coalesce("event__ends_at", "event__starts_at")
+        live_ticket = Ticket.objects.filter(booking_id=OuterRef("pk")).exclude(
+            status=TicketStatus.VOID
+        )
+        reviewed = EventReview.objects.filter(
+            event_id=OuterRef("event_id"), user_id=OuterRef("user_id")
+        )
+        return list(
+            Booking.objects.filter(status=BookingStatus.PAID)
+            .exclude(event__status__in=[EventStatus.CANCELLED, EventStatus.DRAFT])
+            .annotate(
+                _finished=finished, _has_ticket=Exists(live_ticket), _reviewed=Exists(reviewed)
+            )
+            .filter(
+                _has_ticket=True,
+                _reviewed=False,
+                _finished__lte=now - delay,
+                _finished__gte=now - delay - lookback,
+            )
+            .select_related("user", "event", "event__organization")
+            .order_by("_finished", "id")[:limit]
+        )

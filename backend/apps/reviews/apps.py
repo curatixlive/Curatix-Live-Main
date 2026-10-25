@@ -6,11 +6,9 @@ class ReviewsConfig(AppConfig):
     label = "reviews"
 
     def ready(self) -> None:
-        """Nothing to subscribe or register.
+        """Register the review-request task so it exists before anything enqueues it.
 
-        `reviews` emits no domain events and consumes none. A review is a
-        person choosing to write something, not a consequence of another
-        module's write — there is no `ReviewSubmitted` handler because nothing
-        needs to happen elsewhere when one lands. Adding an event here for
-        symmetry would be an outbox row nobody reads.
+        `reviews` still emits and consumes no domain events: a review is a person
+        choosing to write something. Only the scheduled request email lives here.
         """
+        from . import tasks  # noqa: F401

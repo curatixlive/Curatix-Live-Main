@@ -74,6 +74,13 @@ CONTEXTS: dict[str, dict[str, Any]] = {
         "quantity": 3,
         "url": f"{SITE}/dashboard/events/3f1d9c22-0000-4000-8000-000000000001/waitlist",
     },
+    NotificationType.REVIEW_REQUEST: {
+        "name": "Asha",
+        "event_title": "Sunburn Jazz Night",
+        "event_when": "Sat 23 Aug 2026, 20:10 IST",
+        "organizer_name": "Groove Collective",
+        "url": f"{SITE}/events/3f1d9c22-0000-4000-8000-000000000001#reviews",
+    },
     NotificationType.CAMPAIGN_PROMO: {
         "name": "Asha Rao",
         "organiser": "Groove Collective",

@@ -138,6 +138,9 @@ CHANNEL_BY_TYPE: dict[str, str] = {
     NotificationType.WAITLIST_JOINED_ORGANIZER: NotificationChannel.EMAIL,
     NotificationType.PAYMENT_REMINDER: NotificationChannel.EMAIL,
     NotificationType.CAMPAIGN_PROMO: NotificationChannel.EMAIL,
+    # EMAIL only. A WhatsApp follow-up needs an approved template, recorded
+    # consent and credentials, none of which exist here.
+    NotificationType.REVIEW_REQUEST: NotificationChannel.EMAIL,
 }
 
 
@@ -1631,6 +1634,49 @@ def _waitlist_available(ctx: dict) -> RenderedMessage:
     )
 
 
+def _review_request(ctx: dict) -> RenderedMessage:
+    """Asks a paid attendee to rate an event that has finished.
+
+    One message per person per event, ever (the ledger key is per event and
+    person). It states why it was sent and asks for nothing but a rating: it is
+    a transactional follow-up to a purchase, not marketing.
+    """
+    name = ctx.get("name") or "there"
+    title = str(ctx["event_title"])
+    url = str(ctx.get("url") or "")
+    blocks = [
+        ui.heading(f"How was {title}?"),
+        ui.paragraph(
+            f"Hi {name}, thanks for coming. A rating and a line or two helps other people "
+            f"decide, and tells {ctx.get('organizer_name') or 'the organiser'} what worked."
+        ),
+        ui.facts([("Event", title), ("When", str(ctx["event_when"]))]),
+    ]
+    if url:
+        blocks.append(ui.button("Rate this event", url))
+    blocks.append(
+        ui.paragraph(
+            "You are receiving this because you bought a ticket. Only people who bought "
+            "one can leave a review, and it is shown as a verified attendee review."
+        )
+    )
+    return RenderedMessage(
+        subject=f"How was {title}?",
+        body=(
+            f"Hi {name},\n\nThanks for coming to {title}. "
+            f"A rating helps other people decide and tells the organiser what worked.\n\n"
+            + (f"{url}\n\n" if url else "")
+            + "You are receiving this because you bought a ticket."
+        ),
+        html=ui.render_email(
+            title=f"How was {title}?",
+            preheader="It takes about ten seconds.",
+            masthead_label="Your feedback",
+            blocks=blocks,
+        ),
+    )
+
+
 _TEMPLATES: dict[str, Callable[[dict], RenderedMessage]] = {
     NotificationType.WELCOME: _welcome,
     NotificationType.TICKET_DELIVERY: _ticket_delivery,
@@ -1660,6 +1706,7 @@ _TEMPLATES: dict[str, Callable[[dict], RenderedMessage]] = {
     NotificationType.WAITLIST_JOINED_ORGANIZER: _waitlist_joined_organizer,
     NotificationType.PAYMENT_REMINDER: _payment_reminder,
     NotificationType.CAMPAIGN_PROMO: _campaign_promo,
+    NotificationType.REVIEW_REQUEST: _review_request,
 }
 
 

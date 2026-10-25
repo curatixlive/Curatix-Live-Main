@@ -116,6 +116,8 @@ class NotificationType(models.TextChoices):
     PAYMENT_REMINDER = "payment_reminder", "Payment reminder"
     # An organiser's promotion to people who already bought from them.
     CAMPAIGN_PROMO = "campaign_promo", "Organiser campaign"
+    # "How was it?" — sent once, to a paid attendee, after the event has ended.
+    REVIEW_REQUEST = "review_request", "Post-event review request"
 
 
 class NotificationLog(models.Model):

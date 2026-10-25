@@ -1306,3 +1306,10 @@ def build_promotion_service():
     from apps.promotions.services import PromotionService
 
     return PromotionService(organizations=OrganizationRepository(), events=EventRepository())
+
+
+def build_review_request_service():
+    """The post-event "how was it?" email, via the notification ledger."""
+    from apps.reviews.services import ReviewRequestService
+
+    return ReviewRequestService(notifier=build_notification_service())

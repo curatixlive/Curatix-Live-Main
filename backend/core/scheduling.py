@@ -127,6 +127,16 @@ SCHEDULE: tuple[ScheduledJob, ...] = (
         why="Tells people waiting on a sold-out event that tickets came back.",
     ),
     ScheduledJob(
+        task_name="reviews.send_requests",
+        # Fifteen minutes. A review request is best sent a couple of hours after
+        # the event, but nothing is lost by a quarter-hour of slack, and the
+        # query is one bounded read that finds nothing most ticks. The ledger
+        # key makes overlapping or repeated sweeps harmless.
+        interval_seconds=900,
+        payload={"limit": 200},
+        why="Emails paid attendees once, after an event ends, asking for a rating.",
+    ),
+    ScheduledJob(
         task_name="notifications.sweep_stuck",
         # Five minutes. A notification stuck between claim and dispatch is a
         # ticket email that never arrived; the customer is at a gate with no QR.
