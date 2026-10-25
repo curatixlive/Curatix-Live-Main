@@ -143,6 +143,23 @@ async function settleForAxe(page: Page) {
     // A page with no `Reveal` blocks never changes, so the predicate is already
     // true; one that legitimately stays hidden should not fail the a11y gate.
     .catch(() => undefined);
+
+  // Anything else still fading (poster cards, badges) is measured by axe as the
+  // blend it is mid-flight, not the colour it settles to. Wait for every FINITE
+  // animation to finish; looping ones (pulses) never do and are skipped.
+  await page
+    .evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((animation) =>
+            Number.isFinite(animation.effect?.getComputedTiming().endTime ?? 0),
+          )
+          .map((animation) => animation.finished.catch(() => undefined)),
+      ),
+    )
+    .catch(() => undefined);
+  await page.waitForTimeout(300);
 }
 
 /**
@@ -484,7 +501,7 @@ test.describe('browse and results', () => {
   test('error state offers a retry', async ({ page }) => {
     // The fixture returns 503 for this query, mirroring the backend error envelope.
     await page.goto('/events?q=__boom__');
-    await expect(page.getByText(/couldn't load these events/i)).toBeVisible();
+    await expect(page.getByText(/couldn't load these events/i).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
   });
 
