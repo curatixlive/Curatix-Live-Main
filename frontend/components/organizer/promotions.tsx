@@ -20,6 +20,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/compone
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Panel, Skeleton, StatusPill } from '@/components/organizer/primitives';
+import { PartnerLinks } from '@/components/organizer/partner-links';
 import { cn } from '@/lib/utils/cn';
 import { couponStatus, describeTerms, describeUsage, validateDraft } from '@/lib/organizer/coupons';
 import { openPicker } from '@/lib/utils/open-picker';
@@ -117,8 +118,9 @@ export function Promotions() {
         <div className="flex flex-col gap-1">
           <h1 className="text-h3 md:text-h2">Promotions</h1>
           <p className="max-w-prose text-body text-muted-foreground">
-            Discount codes for your own events. You fund the discount, so our fee is charged on what
-            the customer actually pays and your payout moves with it.
+            Discount codes for your own events, and trackable links for the influencers who promote
+            them. You fund any discount, so our fee is charged on what the customer actually pays
+            and your payout moves with it.
           </p>
         </div>
         <Button onClick={() => setAdding(true)} className="shrink-0 gap-1.5">
@@ -134,6 +136,8 @@ export function Promotions() {
       ) : (
         <CouponTable rows={rows} onEdit={setEditing} />
       )}
+
+      <PartnerLinks organizationId={organization.id} />
 
       <CouponSheet
         organizationId={organization.id}

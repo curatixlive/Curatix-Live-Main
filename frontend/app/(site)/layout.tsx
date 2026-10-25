@@ -8,6 +8,7 @@ import { ReviewPrompt } from '@/components/reviews/review-prompt';
 import { CookieConsent } from '@/components/consent/cookie-consent';
 import { FavouritesSync } from '@/components/account/favourites-sync';
 import { EngagementTracker } from '@/components/analytics/engagement-tracker';
+import { PromotionRef } from '@/components/analytics/promotion-ref';
 import { BOTTOM_NAV_CLEARANCE } from '@/components/shell/bottom-nav';
 import { cn } from '@/lib/utils/cn';
 import { SiteFooter } from '@/components/shell/site-footer';
@@ -74,6 +75,9 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             dashboard renders event components too, and an organizer
             previewing their own draft is not an audience. */}
         <EngagementTracker />
+        <React.Suspense fallback={null}>
+          <PromotionRef />
+        </React.Suspense>
       </DiscoveryProviders>
     </>
   );

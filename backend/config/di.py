@@ -1297,3 +1297,12 @@ def build_seating_service():
         ticket_types=TicketTypeRepository(),
         ticketing=build_ticketing_service(),
     )
+
+
+def build_promotion_service():
+    """Influencer/partner promotions: terms, clicks, attribution, payouts."""
+    from apps.events.repositories import EventRepository
+    from apps.organizations.repositories import OrganizationRepository
+    from apps.promotions.services import PromotionService
+
+    return PromotionService(organizations=OrganizationRepository(), events=EventRepository())

@@ -1,5 +1,7 @@
 'use client';
 
+import { attributeBooking } from '@/lib/api/partner-promotions';
+import { readRef } from '@/lib/promotions/ref';
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -429,6 +431,10 @@ export function ReviewStep() {
         // The signature goes in WITH the booking, from the same `selection` this
         // request was built from — so the pair cannot describe two orders.
         setBooking(result.booking, selectionSignature(selection));
+        // Credit the partner link this buyer arrived through, if any. Best effort
+        // and AFTER the hold exists: it must never delay or fail a reservation.
+        const ref = readRef();
+        if (ref) void attributeBooking(result.booking.id, ref.code, ref.clickedAt);
         setPaymentKeyId(result.payment.key_id);
         rememberKeyId(result.payment.key_id);
         // `provider` is newer than the hand-written response type in
