@@ -28,6 +28,7 @@ import {
   POSTER_BLOCKER,
   resolveOrganizationId,
   restoreDraft,
+  cloneDraftFrom,
   draftFromEvent,
   tierFingerprint,
   toCreateInput,
@@ -948,6 +949,13 @@ describe('draftFromEvent', () => {
     expect(draft.placeId).toBe('ChIJ_place');
     expect(draft.latitude).toBeCloseTo(19.076, 6);
     expect(draft.longitude).toBeCloseTo(72.8777, 6);
+  });
+
+  it('a clone keeps language and age restriction, as a new unsaved draft', () => {
+    const draft = cloneDraftFrom(event, [tier], {}, ['org-1']);
+    expect(draft.language).toBe('English');
+    expect(draft.ageRestriction).toBe('18+');
+    expect(draft.eventId).toBe('');
   });
 
   it('carries the policies, which a dropped field would silently delete', () => {

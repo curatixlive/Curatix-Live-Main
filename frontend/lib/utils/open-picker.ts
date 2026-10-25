@@ -15,3 +15,18 @@ export function openPicker(event: { currentTarget: HTMLInputElement }): void {
     // keep the browser's default: the icon still opens it
   }
 }
+
+/**
+ * For TIME fields, where people type: the first press only focuses the box so
+ * the keyboard works immediately; pressing it again (already focused) opens the
+ * picker. Opening on the first press put Chrome's picker over the field before
+ * a single digit could be typed.
+ */
+export const timeFieldPointerHandlers = {
+  onPointerDown(event: { currentTarget: HTMLInputElement }): void {
+    event.currentTarget.dataset.wasFocused = String(document.activeElement === event.currentTarget);
+  },
+  onClick(event: { currentTarget: HTMLInputElement }): void {
+    if (event.currentTarget.dataset.wasFocused === 'true') openPicker(event);
+  },
+};

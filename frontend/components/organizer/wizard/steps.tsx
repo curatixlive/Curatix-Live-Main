@@ -130,7 +130,7 @@ export function BasicsStep({
           the collapse or silently do nothing. */}
       <AccordionCard
         title="Event title"
-        count={draft.title.trim() ? draft.title.trim().slice(0, 28) : 'Required'}
+        count={shortTitle(draft.title)}
         invalid={Boolean(errorFor(issues, 'title'))}
       >
         <TextField
@@ -1168,4 +1168,11 @@ function TimelineRow({
       </span>
     </li>
   );
+}
+
+/** The accordion summary for the title: clipped with an ellipsis, never mid-word silently. */
+function shortTitle(title: string): string {
+  const text = title.trim();
+  if (!text) return 'Required';
+  return text.length > 28 ? `${text.slice(0, 27).trimEnd()}…` : text;
 }

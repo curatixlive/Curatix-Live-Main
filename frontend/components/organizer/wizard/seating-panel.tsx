@@ -266,8 +266,11 @@ function MiniGrid({ layout }: { layout: Pick<VenueLayout, 'grid' | 'sections' | 
   return (
     <div
       aria-hidden
-      className="grid gap-px"
-      style={{ gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))` }}
+      // 1fr columns made a 4-column layout fill the card, so each seat became
+      // an enormous square. Cells are capped (1rem) and the grid keeps its own
+      // width, so the preview stays a preview whatever the column count.
+      className="grid w-fit max-w-full gap-px"
+      style={{ gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1rem))` }}
     >
       {layout.grid.flatMap((row, r) =>
         row.map((cell, c) => (

@@ -80,4 +80,6 @@ Legend: DONE = fixed and tested (items 8–15 of the first list: see below). NEX
 Done locally and tested, not yet deployed: P0 1–3, P1 4–10 (delete unused ticket,
 "still needed" checklist, seated gender prices, quiet required errors, last-used
 organisation, clickable policies box, Saved-at badge + toast beside the buttons,
-year on non-current dates, image wording, stable tag chips). P2 11–15 remain.
+year on non-current dates, image wording, stable tag chips) and P2 11–15 (time field
+types on first press, title summary clipped with an ellipsis, seat-map preview cells
+capped, clone confirmed to carry language/age (pinned by a test), zone copy audited).

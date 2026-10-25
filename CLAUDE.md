@@ -3510,3 +3510,17 @@ sessions and no streaming, so it costs nothing while idle).
   never reach it. Bare timestamps are read as Indian time, not UTC.
 - Rate limit `THROTTLE_AGENT` (60/min) is per PERSON, not per IP — an assistant
   runs from its vendor's servers, so an IP key would share one bucket.
+
+## Organiser wizard rules added in the UX pass
+
+- **An unused saved ticket CAN be deleted** (soft delete) when nothing is sold,
+  reserved, booked, ticketed or seated against it. This reverses the old "known
+  and NOT fixed" note.
+- **A "still needed" checklist sits above the form's buttons** (`checklist.ts`);
+  the buttons stay at the END of the form, not in a sticky bar.
+- **Required-empty errors stay hidden until Save/Create is pressed or a draft
+  exists** (`Issue.kind === 'required'`).
+- **Seated sections have a gender-price control**; the last-used organisation is
+  preselected; a pressed "Save draft" toasts, autosave never does.
+- **Dates show the year when it is not this year** (`lib/organizer/wizard/when.ts`).
+- **Time inputs focus on the first press and open the picker on the second.**
