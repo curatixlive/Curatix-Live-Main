@@ -15,6 +15,7 @@ Performance rules from CLAUDE.md's checklist, applied here:
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Protocol
@@ -26,7 +27,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.accounts.repositories import UserRepository
-from apps.organizations.exceptions import OrganizationNotFoundError
+from apps.organizations.exceptions import NotOrganizationOwnerError, OrganizationNotFoundError
 from apps.organizations.models import Organization, VerifiedLevel
 from apps.organizations.repositories import OrganizationRepository
 from config.di import build_booking_service, task_queue_port
@@ -83,6 +84,7 @@ from .repositories import (
     EventRepository,
     EventSlotRepository,
     EventWaitlistRepository,
+    OrganizationCrewRepository,
     OrganizerCategoryRepository,
 )
 from .selectors import invalidate_event_caches
@@ -2751,6 +2753,10 @@ class OrganizerCategoryService:
         )
 
 
+#: The most tickets one waiting-list entry may ask for.
+WAITLIST_MAX_QUANTITY = 10
+
+
 class WaitlistService:
     """Join, leave, and tell people when tickets come back.
 
@@ -2792,8 +2798,12 @@ class WaitlistService:
 
     # ── the customer's side ─────────────────────────────────────────────────
 
-    def join(self, *, user_id, event_id) -> bool:
+    def join(self, *, user_id, event_id, quantity: int = 1, phone: str = "") -> bool:
         """Put somebody on the list. Idempotent; True when newly added.
+
+        `quantity` and `phone` are what the join form asked for. A new entry
+        also emails the organiser who it was, how many tickets and how to reach
+        them; a repeat press changes nothing about the queue and sends nothing.
 
         ── IT DOES NOT REFUSE WHEN TICKETS ARE AVAILABLE ───────────────────
 
@@ -2812,7 +2822,51 @@ class WaitlistService:
         event = self._events.get_published_by_id(event_id)
         if event is None:
             raise EventNotFoundError(str(event_id))
-        return self._waitlist.join(user_id=user_id, event_id=event.id)
+        quantity = int(quantity or 1)
+        if quantity < 1 or quantity > WAITLIST_MAX_QUANTITY:
+            raise InvalidInputError(f"Choose between 1 and {WAITLIST_MAX_QUANTITY} tickets.")
+        phone = (phone or "").strip()
+        if phone and not re.fullmatch(r"\+?[0-9][0-9 ()\-]{6,20}", phone):
+            raise InvalidInputError("Enter a valid mobile number.")
+        created = self._waitlist.join(
+            user_id=user_id, event_id=event.id, quantity=quantity, phone=phone
+        )
+        if created:
+            self._tell_organiser(event, user_id=user_id, quantity=quantity, phone=phone)
+        return created
+
+    def _tell_organiser(self, event, *, user_id, quantity: int, phone: str) -> None:
+        """Email the event's owner about a new entry. Never breaks the join."""
+        try:
+            owner = event.organization.owner
+            if not owner.email:
+                return
+            person = self._waitlist.person(user_id)
+            site = str(getattr(settings, "PUBLIC_SITE_URL", "") or "").rstrip("/")
+            self._notifier.notify(
+                notification_type="waitlist_joined_organizer",
+                recipient=owner.email,
+                context={
+                    "event_title": event.title,
+                    "person_name": person.full_name or person.email,
+                    "person_email": person.email,
+                    "phone": phone or person.phone or "",
+                    "quantity": quantity,
+                    "url": f"{site}/dashboard/events/{event.id}/waitlist" if site else "",
+                },
+                dedupe_key=f"waitlist_joined:{event.id}:{user_id}",
+            )
+        except Exception:
+            logger.exception("waitlist_organiser_notice_failed", extra={"event_id": str(event.id)})
+
+    def entries_for_organizer(self, *, event_id, actor_id) -> list:
+        """The people waiting on an event, for its owner. Same 404 for anyone else."""
+        event = self._events.get_active_by_id(event_id)
+        if event is None:
+            raise EventNotFoundError(str(event_id))
+        if str(event.organization.owner_id) != str(actor_id):
+            raise NotEventOwnerError()
+        return self._waitlist.list_for_event(event_id=event.id)
 
     def leave(self, *, user_id, event_id) -> bool:
         """Take somebody off. A no-op if they were not on it — the caller's
@@ -3166,4 +3220,94 @@ class EventCoHostService:
             action="event.cohost_removed",
             target_type="event",
             target_id=str(event.id),
+        )
+
+
+MAX_CREW_PER_ORG = 25
+
+
+class OrganizationCrewService:
+    """The owner names the people who help run EVERY event (the whole band).
+
+    Same rules as `EventCoHostService`, one level up: only the organisation's
+    owner can add, change or remove crew, and the permission set is never
+    writable by the person it describes.
+    """
+
+    def __init__(
+        self,
+        *,
+        organizations: OrganizationRepository,
+        users: UserRepository,
+        crew: OrganizationCrewRepository,
+    ) -> None:
+        self._orgs = organizations
+        self._users = users
+        self._crew = crew
+
+    def _owned_org(self, organization_id, actor_id):
+        org = self._orgs.get_active_by_id(organization_id)
+        if org is None:
+            raise OrganizationNotFoundError(str(organization_id))
+        if str(org.owner_id) != str(actor_id):
+            raise NotOrganizationOwnerError()
+        return org
+
+    def list(self, *, organization_id, actor_id) -> list:
+        self._owned_org(organization_id, actor_id)
+        return self._crew.list_for_org(organization_id)
+
+    def add(self, *, organization_id, actor_id, email: str, permissions: dict | None = None):
+        org = self._owned_org(organization_id, actor_id)
+        address = (email or "").strip().lower()
+        if not address:
+            raise InvalidInputError("Enter the crew member's email address.")
+        user = self._users.get_by_email(address)
+        if user is None:
+            raise InvalidInputError(
+                "There is no Curatix account with that email yet. Ask them to sign up first."
+            )
+        if str(user.id) == str(org.owner_id):
+            raise InvalidInputError("You are already the owner of this organisation.")
+        if self._crew.exists(organization_id=org.id, user_id=user.id):
+            raise InvalidInputError("They are already on your crew.")
+        if self._crew.count_for_org(org.id) >= MAX_CREW_PER_ORG:
+            raise InvalidInputError(f"A crew can have at most {MAX_CREW_PER_ORG} people.")
+        row = self._crew.create(
+            organization_id=org.id,
+            user_id=user.id,
+            permissions=EventCoHostService._normalise(permissions),
+        )
+        record_audit(
+            actor_id=str(actor_id),
+            action="organization.crew_added",
+            target_type="organization",
+            target_id=str(org.id),
+        )
+        return self._crew.get(organization_id=org.id, crew_id=row.id)
+
+    def update(self, *, organization_id, actor_id, crew_id, permissions: dict):
+        org = self._owned_org(organization_id, actor_id)
+        row = self._crew.get(organization_id=org.id, crew_id=crew_id)
+        if row is None:
+            raise EventNotFoundError(str(crew_id))
+        merged = {**(row.permissions or {}), **EventCoHostService._normalise(permissions)}
+        self._crew.set_permissions(row.id, EventCoHostService._normalise(merged))
+        record_audit(
+            actor_id=str(actor_id),
+            action="organization.crew_updated",
+            target_type="organization",
+            target_id=str(org.id),
+        )
+        return self._crew.get(organization_id=org.id, crew_id=row.id)
+
+    def remove(self, *, organization_id, actor_id, crew_id) -> None:
+        org = self._owned_org(organization_id, actor_id)
+        if self._crew.delete(organization_id=org.id, crew_id=crew_id) == 0:
+            raise EventNotFoundError(str(crew_id))
+        record_audit(
+            actor_id=str(actor_id),
+            action="organization.crew_removed",
+            target_type="organization",
+            target_id=str(org.id),
         )

@@ -1108,6 +1108,11 @@ class EventWaitlist(models.Model):
     )
     #: When they joined. THE QUEUE POSITION — see the class docstring.
     created_at = models.DateTimeField(auto_now_add=True)
+    #: How many tickets they want, and the number the organiser can reach them
+    #: on. Both are what the person typed on the join form: the organiser sees
+    #: them as demand, and the sweeper does not act on them.
+    quantity = models.PositiveSmallIntegerField(default=1)
+    phone = models.CharField(max_length=32, blank=True, default="")
     #: When we told them tickets were available, or null while they wait.
     #:
     #: Set AFTER the notification is claimed, never before: the notification
@@ -1250,3 +1255,32 @@ class EventCoHost(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} on {self.event_id}"
+
+
+class OrganizationCrew(models.Model):
+    """Somebody who helps run EVERY event of an organisation (the whole band).
+
+    The organisation-wide twin of `EventCoHost`: one row here grants the same
+    permission set on every event the organisation runs, now and later. An
+    event's own co-host row can add to it but never subtract — a person's rights
+    on an event are the union of the two. The owner is never a row here.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        "organizations.Organization", on_delete=models.CASCADE, related_name="crew"
+    )
+    user = models.ForeignKey("accounts.User", on_delete=models.CASCADE, related_name="crew_roles")
+    #: Same keys as `EventCoHost.permissions`.
+    permissions = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "events_organization_crew"
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "user"], name="org_crew_unique"),
+        ]
+        indexes = [models.Index(fields=["user"], name="org_crew_user_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} crew of {self.organization_id}"

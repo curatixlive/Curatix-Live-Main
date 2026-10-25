@@ -11,6 +11,7 @@ import {
   Ticket,
   Undo2,
   Users,
+  UserCog,
   UsersRound,
   Wallet,
   type LucideIcon,
@@ -86,6 +87,12 @@ export const ORGANIZER_SECTIONS: OrganizerSection[] = [
     label: 'Crew',
     icon: UsersRound,
     hint: 'The people you put on stage, reusable across every event',
+  },
+  {
+    href: '/dashboard/team',
+    label: 'Team',
+    icon: UserCog,
+    hint: 'People who help run every event, and what each can see',
   },
   {
     href: '/dashboard/customers',

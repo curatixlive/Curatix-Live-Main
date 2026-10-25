@@ -80,6 +80,16 @@ function signedIn(eventIds: string[] = []) {
   fetchMyWaitlist.mockResolvedValue({ data: [], event_ids: eventIds });
 }
 
+/** The join form: pick a quantity if asked, type a number, submit. */
+async function fillAndJoin(phone = '9876543210', extraTickets = 0) {
+  await screen.findByRole('dialog');
+  for (let i = 0; i < extraTickets; i += 1) {
+    await userEvent.click(screen.getByRole('button', { name: /more tickets/i }));
+  }
+  await userEvent.type(screen.getByLabelText(/mobile number/i), phone);
+  await userEvent.click(screen.getByRole('button', { name: /^join the waiting list$/i }));
+}
+
 function anonymous() {
   useAuth.mockReturnValue({ user: null, status: 'anonymous' });
 }
@@ -110,8 +120,11 @@ describe('WaitlistButton', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /tell me when/i }));
     await userEvent.click(screen.getByRole('button', { name: /pretend to sign in/i }));
+    await fillAndJoin();
 
-    await waitFor(() => expect(joinWaitlist).toHaveBeenCalledWith(EVENT));
+    await waitFor(() =>
+      expect(joinWaitlist).toHaveBeenCalledWith(EVENT, { quantity: 1, phone: '9876543210' }),
+    );
   });
 
   it('does NOT join when the sheet is dismissed without signing in', async () => {
@@ -126,14 +139,31 @@ describe('WaitlistButton', () => {
     expect(joinWaitlist).not.toHaveBeenCalled();
   });
 
-  it('joins directly for somebody already signed in', async () => {
+  it('asks for a quantity and a mobile number, then joins with both', async () => {
     signedIn();
     mount(<WaitlistButton eventId={EVENT} returnTo="/events/e-1" />);
 
     await userEvent.click(screen.getByRole('button', { name: /tell me when/i }));
+    // Nothing is written by the press alone: the organiser needs the details.
+    expect(joinWaitlist).not.toHaveBeenCalled();
+    await fillAndJoin('+91 98765 43210', 2);
 
-    await waitFor(() => expect(joinWaitlist).toHaveBeenCalledWith(EVENT));
+    await waitFor(() =>
+      expect(joinWaitlist).toHaveBeenCalledWith(EVENT, { quantity: 3, phone: '+91 98765 43210' }),
+    );
     expect(screen.queryByText('sign-in sheet')).not.toBeInTheDocument();
+  });
+
+  it('will not join without a number to reach them on', async () => {
+    signedIn();
+    mount(<WaitlistButton eventId={EVENT} returnTo="/events/e-1" />);
+
+    await userEvent.click(screen.getByRole('button', { name: /tell me when/i }));
+    await screen.findByRole('dialog');
+    await userEvent.click(screen.getByRole('button', { name: /^join the waiting list$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/mobile number/i);
+    expect(joinWaitlist).not.toHaveBeenCalled();
   });
 
   it('shows the joined state for an event already on the list', async () => {
@@ -167,6 +197,7 @@ describe('WaitlistButton', () => {
     mount(<WaitlistButton eventId={EVENT} returnTo="/events/e-1" />);
 
     await userEvent.click(screen.getByRole('button', { name: /tell me when/i }));
+    await fillAndJoin();
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });

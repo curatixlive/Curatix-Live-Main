@@ -66,6 +66,22 @@ CONTEXTS: dict[str, dict[str, Any]] = {
         "invite_only": True,
         "url": f"{SITE}/events/3f1d9c22-0000-4000-8000-000000000001",
     },
+    NotificationType.WAITLIST_JOINED_ORGANIZER: {
+        "event_title": "Sunburn Jazz Night",
+        "person_name": "Asha Rao",
+        "person_email": "asha@example.com",
+        "phone": "+919876543210",
+        "quantity": 3,
+        "url": f"{SITE}/dashboard/events/3f1d9c22-0000-4000-8000-000000000001/waitlist",
+    },
+    NotificationType.PAYMENT_REMINDER: {
+        "name": "Asha Rao",
+        "event_title": "Sunburn Jazz Night",
+        "event_when": "Sat 23 Aug 2026, 20:10 IST",
+        "event_where": "Phoenix Arena, Mumbai",
+        "organiser": "Groove Collective",
+        "url": f"{SITE}/events/3f1d9c22-0000-4000-8000-000000000001",
+    },
     NotificationType.TICKET_DELIVERY: {
         "name": "Asha Rao",
         "event_title": "Sunburn Jazz Night",

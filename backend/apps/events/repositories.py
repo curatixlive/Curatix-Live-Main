@@ -1942,8 +1942,18 @@ class EventWaitlistRepository:
 
     # ── the customer's side ─────────────────────────────────────────────────
 
-    def join(self, *, user_id: uuid.UUID | str, event_id: uuid.UUID | str) -> bool:
+    def join(
+        self,
+        *,
+        user_id: uuid.UUID | str,
+        event_id: uuid.UUID | str,
+        quantity: int = 1,
+        phone: str = "",
+    ) -> bool:
         """Idempotent. True when a row was created, False when already waiting.
+
+        An existing row keeps its place in the queue but takes the new
+        quantity and number, so the form can be used to correct either.
 
         `get_or_create` rather than a check-then-insert: the control double-fires
         on a slow connection, and the unique constraint is what makes the second
@@ -1954,8 +1964,40 @@ class EventWaitlistRepository:
         not buy has been served; putting them back at the head of the queue by
         pressing the button again would let anybody skip it.
         """
-        _, created = EventWaitlist.objects.get_or_create(user_id=user_id, event_id=event_id)
+        row, created = EventWaitlist.objects.get_or_create(
+            user_id=user_id,
+            event_id=event_id,
+            defaults={"quantity": quantity, "phone": phone},
+        )
+        if not created and (row.quantity != quantity or (phone and row.phone != phone)):
+            EventWaitlist.objects.filter(pk=row.pk).update(
+                quantity=quantity, phone=phone or row.phone
+            )
         return created
+
+    def person(self, user_id: uuid.UUID | str):
+        from apps.accounts.models import User
+
+        return User.objects.only("id", "email", "full_name", "phone").get(pk=user_id)
+
+    def list_for_event(self, *, event_id: uuid.UUID | str):
+        """Everyone waiting on one event, in queue order, for its organiser."""
+        return list(
+            EventWaitlist.objects.filter(event_id=event_id)
+            .select_related("user")
+            .only(
+                "id",
+                "quantity",
+                "phone",
+                "created_at",
+                "notified_at",
+                "user__id",
+                "user__email",
+                "user__full_name",
+                "user__phone",
+            )
+            .order_by("created_at", "id")
+        )
 
     def leave(self, *, user_id: uuid.UUID | str, event_id: uuid.UUID | str) -> bool:
         deleted, _ = EventWaitlist.objects.filter(user_id=user_id, event_id=event_id).delete()
@@ -2230,36 +2272,135 @@ class EventCoHostRepository:
         return deleted
 
     def permissions_for(self, *, event_id, user_id) -> dict | None:
-        """The user's permission set on this event, or None when they are no co-host."""
-        from .models import EventCoHost
+        """The user's rights on this event, or None when they have none.
 
-        row = (
+        The UNION of their event-level co-host row and their organisation-wide
+        crew row — a key is granted if either grants it.
+        """
+        from .models import Event, EventCoHost, OrganizationCrew
+
+        own = (
             EventCoHost.objects.filter(event_id=event_id, user_id=user_id)
             .values_list("permissions", flat=True)
             .first()
         )
-        return None if row is None else dict(row)
+        crew = (
+            OrganizationCrew.objects.filter(
+                user_id=user_id,
+                organization_id__in=Event.objects.filter(pk=event_id).values("organization_id"),
+            )
+            .values_list("permissions", flat=True)
+            .first()
+        )
+        if own is None and crew is None:
+            return None
+        merged: dict = {}
+        for source in (own, crew):
+            for key, value in (source or {}).items():
+                merged[key] = bool(merged.get(key)) or bool(value)
+        return merged
 
     def has_permission(self, *, event_id, user_id, permission: str) -> bool:
         perms = self.permissions_for(event_id=event_id, user_id=user_id)
         return bool(perms and perms.get(permission))
 
     def events_for_user(self, user_id):
-        """Events somebody co-hosts, with their permissions — newest first."""
-        from .models import EventCoHost
+        """Events somebody helps run, with their merged permissions — newest first.
+
+        Rows are lightweight objects (`event_id`, `event`, `permissions`,
+        `via`): one per event, whether the right comes from a co-host row, the
+        whole-band crew role, or both.
+        """
+        from types import SimpleNamespace
+
+        from .models import Event, EventCoHost, OrganizationCrew
+
+        found: dict = {}
+        for row in EventCoHost.objects.filter(
+            user_id=user_id, event__deleted_at__isnull=True
+        ).select_related("event", "event__organization"):
+            found[row.event_id] = SimpleNamespace(
+                id=row.id,
+                event_id=row.event_id,
+                event=row.event,
+                permissions=dict(row.permissions or {}),
+                via="event",
+            )
+        crew = list(OrganizationCrew.objects.filter(user_id=user_id))
+        if crew:
+            perms_by_org = {c.organization_id: dict(c.permissions or {}) for c in crew}
+            for event in Event.objects.filter(
+                organization_id__in=list(perms_by_org), deleted_at__isnull=True
+            ).select_related("organization"):
+                base = perms_by_org[event.organization_id]
+                existing = found.get(event.id)
+                if existing is not None:
+                    merged = {
+                        k: bool(existing.permissions.get(k)) or bool(base.get(k))
+                        for k in {*existing.permissions, *base}
+                    }
+                    existing.permissions = merged
+                    existing.via = "both"
+                else:
+                    found[event.id] = SimpleNamespace(
+                        id=event.id,
+                        event_id=event.id,
+                        event=event,
+                        permissions=base,
+                        via="crew",
+                    )
+        return sorted(found.values(), key=lambda r: r.event.starts_at, reverse=True)
+
+
+class OrganizationCrewRepository:
+    """The whole-band crew of an organisation."""
+
+    def list_for_org(self, organization_id):
+        from .models import OrganizationCrew
 
         return list(
-            EventCoHost.objects.filter(user_id=user_id, event__deleted_at__isnull=True)
-            .select_related("event", "event__organization")
-            .only(
-                "id",
-                "permissions",
-                "event__id",
-                "event__title",
-                "event__status",
-                "event__starts_at",
-                "event__city",
-                "event__organization__name",
-            )
-            .order_by("-event__starts_at")
+            OrganizationCrew.objects.filter(organization_id=organization_id)
+            .select_related("user")
+            .order_by("created_at")
         )
+
+    def count_for_org(self, organization_id) -> int:
+        from .models import OrganizationCrew
+
+        return OrganizationCrew.objects.filter(organization_id=organization_id).count()
+
+    def get(self, *, organization_id, crew_id):
+        from .models import OrganizationCrew
+
+        return (
+            OrganizationCrew.objects.filter(pk=crew_id, organization_id=organization_id)
+            .select_related("user")
+            .first()
+        )
+
+    def exists(self, *, organization_id, user_id) -> bool:
+        from .models import OrganizationCrew
+
+        return OrganizationCrew.objects.filter(
+            organization_id=organization_id, user_id=user_id
+        ).exists()
+
+    def create(self, *, organization_id, user_id, permissions: dict):
+        from .models import OrganizationCrew
+
+        return OrganizationCrew.objects.create(
+            organization_id=organization_id, user_id=user_id, permissions=permissions
+        )
+
+    def set_permissions(self, crew_id, permissions: dict) -> None:
+        from .models import OrganizationCrew
+
+        OrganizationCrew.objects.filter(pk=crew_id).update(permissions=permissions)
+
+    def delete(self, *, organization_id, crew_id) -> int:
+        from .models import OrganizationCrew
+
+        deleted, _ = OrganizationCrew.objects.filter(
+            pk=crew_id, organization_id=organization_id
+        ).delete()
+        return deleted

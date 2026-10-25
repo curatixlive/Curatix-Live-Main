@@ -109,6 +109,11 @@ class NotificationType(models.TextChoices):
     # An organiser inviting somebody to an invite-only event or a pre-sale, with
     # the access code. The only mail that carries it.
     EVENT_INVITE = "event_invite", "Event invitation"
+    # Somebody joined the waiting list of a sold-out event: tells the organiser
+    # who, how many tickets and how to reach them.
+    WAITLIST_JOINED_ORGANIZER = "waitlist_joined_organizer", "Waitlist: new entry (organiser)"
+    # An organiser nudging a buyer whose payment did not complete.
+    PAYMENT_REMINDER = "payment_reminder", "Payment reminder"
 
 
 class NotificationLog(models.Model):

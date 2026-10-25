@@ -498,6 +498,68 @@ class EventCoHostDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class OrganizationCrewListView(APIView):
+    """GET/POST /organizations/{id}/team - the whole band, on every event. Owner only."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [WriteThrottle]
+
+    @extend_schema(responses={200: None})
+    def get(self, request: Request, organization_id: str) -> Response:
+        from config.di import build_organization_crew_service
+
+        rows = build_organization_crew_service().list(
+            organization_id=organization_id, actor_id=cast(User, request.user).id
+        )
+        return _no_store(Response({"data": [_present_cohost(row) for row in rows]}))
+
+    @extend_schema(request=CoHostWriteSerializer, responses={201: None})
+    def post(self, request: Request, organization_id: str) -> Response:
+        from config.di import build_organization_crew_service
+
+        payload = CoHostWriteSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        row = build_organization_crew_service().add(
+            organization_id=organization_id,
+            actor_id=cast(User, request.user).id,
+            email=payload.validated_data["email"],
+            permissions=dict(payload.validated_data.get("permissions") or {}),
+        )
+        return _no_store(Response(_present_cohost(row), status=status.HTTP_201_CREATED))
+
+
+class OrganizationCrewDetailView(APIView):
+    """PATCH/DELETE /organizations/{id}/team/{crew_id}."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [WriteThrottle]
+
+    @extend_schema(request=CoHostUpdateSerializer, responses={200: None})
+    def patch(self, request: Request, organization_id: str, crew_id: str) -> Response:
+        from config.di import build_organization_crew_service
+
+        payload = CoHostUpdateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        row = build_organization_crew_service().update(
+            organization_id=organization_id,
+            actor_id=cast(User, request.user).id,
+            crew_id=crew_id,
+            permissions=dict(payload.validated_data["permissions"]),
+        )
+        return _no_store(Response(_present_cohost(row)))
+
+    @extend_schema(responses={204: None})
+    def delete(self, request: Request, organization_id: str, crew_id: str) -> Response:
+        from config.di import build_organization_crew_service
+
+        build_organization_crew_service().remove(
+            organization_id=organization_id,
+            actor_id=cast(User, request.user).id,
+            crew_id=crew_id,
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class CoHostedEventsView(APIView):
     """GET /organizer/cohosted-events — the events somebody else lets me help run."""
 
@@ -520,6 +582,7 @@ class CoHostedEventsView(APIView):
                             "city": row.event.city,
                             "host": row.event.organization.name,
                             "permissions": dict(row.permissions or {}),
+                            "via": getattr(row, "via", "event"),
                         }
                         for row in rows
                     ]
@@ -1300,6 +1363,11 @@ class EventCrewView(_OwnerWriteView):
         return _no_store(Response({"data": EventCrewEntrySerializer(rows, many=True).data}))
 
 
+class WaitlistJoinSerializer(serializers.Serializer):
+    quantity = serializers.IntegerField(min_value=1, max_value=10, default=1)
+    phone = serializers.CharField(max_length=32, required=False, allow_blank=True, default="")
+
+
 class EventWaitlistView(APIView):
     """Join or leave the waiting list for one sold-out event.
 
@@ -1326,13 +1394,20 @@ class EventWaitlistView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [WriteThrottle]
 
-    @extend_schema(request=None, responses={200: WaitlistStateSerializer})
+    @extend_schema(request=WaitlistJoinSerializer, responses={200: WaitlistStateSerializer})
     def post(self, request: Request, event_id: str) -> Response:
         """Join. Idempotent — pressing twice is one row and one place in the
         queue, never a second of either."""
+        body = WaitlistJoinSerializer(data=request.data or {})
+        body.is_valid(raise_exception=True)
         service = build_waitlist_service()
         user_id = cast(User, request.user).id
-        service.join(user_id=user_id, event_id=event_id)
+        service.join(
+            user_id=user_id,
+            event_id=event_id,
+            quantity=body.validated_data["quantity"],
+            phone=body.validated_data["phone"],
+        )
         return _no_store(Response(self._state(user_id, event_id)))
 
     @extend_schema(responses={200: WaitlistStateSerializer})

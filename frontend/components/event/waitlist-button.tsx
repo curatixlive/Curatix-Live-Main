@@ -7,6 +7,17 @@ import { fetchMyWaitlist, joinWaitlist, leaveWaitlist } from '@/lib/api/waitlist
 import { errorMessage } from '@/lib/api/errors';
 import { useAuth } from '@/lib/auth/auth-provider';
 import { AuthSheet } from '@/components/auth/auth-sheet';
+import {
+  Modal,
+  ModalContent,
+  ModalDescription,
+  ModalFooter,
+  ModalHeader,
+  ModalTitle,
+} from '@/components/ui/modal';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils/cn';
 
 /**
@@ -68,6 +79,11 @@ export function WaitlistButton({
    * nothing having happened.
    */
   const pendingJoin = React.useRef(false);
+  // The join form: how many tickets, and a number the organiser can reach.
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [quantity, setQuantity] = React.useState(1);
+  const [phone, setPhone] = React.useState('');
+  const [formError, setFormError] = React.useState('');
 
   const state = useQuery({
     queryKey: ['my-waitlist'],
@@ -81,7 +97,8 @@ export function WaitlistButton({
   const joined = Boolean(state.data?.event_ids.includes(eventId));
 
   const write = useMutation({
-    mutationFn: (next: boolean) => (next ? joinWaitlist(eventId) : leaveWaitlist(eventId)),
+    mutationFn: (next: boolean) =>
+      next ? joinWaitlist(eventId, { quantity, phone: phone.trim() }) : leaveWaitlist(eventId),
     // The response carries the WHOLE set, so the cache is replaced rather than
     // reconciled — one shape for join, leave and the account read, and no way
     // for a dropped request to leave the button lying about its state.
@@ -94,9 +111,19 @@ export function WaitlistButton({
       // only correct from the server, so it is refetched rather than patched.
       void client.invalidateQueries({ queryKey: ['my-waitlist'] });
       setError(null);
+      setFormOpen(false);
     },
-    onError: (thrown) => setError(errorMessage(thrown)),
+    onError: (thrown) => {
+      setError(errorMessage(thrown));
+      setFormError(errorMessage(thrown));
+    },
   });
+
+  const openForm = () => {
+    setFormError('');
+    setPhone((current) => current || user?.phone || '');
+    setFormOpen(true);
+  };
 
   const press = () => {
     setError(null);
@@ -105,7 +132,10 @@ export function WaitlistButton({
       setAuthOpen(true);
       return;
     }
-    write.mutate(!joined);
+    // Leaving is one press. Joining first asks how many tickets and for a
+    // number, because the organiser sees both.
+    if (joined) write.mutate(false);
+    else openForm();
   };
 
   const busy = write.isPending || (Boolean(user) && state.isPending);
@@ -157,6 +187,86 @@ export function WaitlistButton({
         </p>
       ) : null}
 
+      <Modal open={formOpen} onOpenChange={setFormOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle>Join the waiting list</ModalTitle>
+            <ModalDescription>
+              Tell us how many tickets you need and where the organiser can reach you. We will email
+              you if tickets come back. Nothing is held for you.
+            </ModalDescription>
+          </ModalHeader>
+          <form
+            className="grid gap-4"
+            onSubmit={(submit) => {
+              submit.preventDefault();
+              if (!phone.trim()) {
+                setFormError('Enter a mobile number the organiser can reach you on.');
+                return;
+              }
+              write.mutate(true);
+            }}
+          >
+            <div className="grid gap-1.5">
+              <Label htmlFor="waitlist-quantity">How many tickets?</Label>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label="Fewer tickets"
+                  disabled={quantity <= 1}
+                  onClick={() => setQuantity((value) => Math.max(1, value - 1))}
+                >
+                  −
+                </Button>
+                <output
+                  id="waitlist-quantity"
+                  className="min-w-8 text-center text-body font-semibold"
+                >
+                  {quantity}
+                </output>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label="More tickets"
+                  disabled={quantity >= 10}
+                  onClick={() => setQuantity((value) => Math.min(10, value + 1))}
+                >
+                  +
+                </Button>
+              </div>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="waitlist-phone">Mobile number</Label>
+              <Input
+                id="waitlist-phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="+91 98765 43210"
+              />
+              <p className="text-caption text-muted-foreground">
+                We will use the email on your account: {user?.email}
+              </p>
+            </div>
+            {formError ? (
+              <p role="alert" className="text-body-sm text-muted-foreground">
+                {formError}
+              </p>
+            ) : null}
+            <ModalFooter>
+              <Button type="submit" disabled={write.isPending}>
+                {write.isPending ? 'Joining…' : 'Join the waiting list'}
+              </Button>
+            </ModalFooter>
+          </form>
+        </ModalContent>
+      </Modal>
+
       <AuthSheet
         open={authOpen}
         onOpenChange={(next) => {
@@ -169,7 +279,7 @@ export function WaitlistButton({
           setAuthOpen(false);
           if (pendingJoin.current) {
             pendingJoin.current = false;
-            write.mutate(true);
+            openForm();
           }
         }}
         next={returnTo}

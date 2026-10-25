@@ -135,6 +135,8 @@ CHANNEL_BY_TYPE: dict[str, str] = {
     # template and a decision about people who never subscribed a device.
     NotificationType.WAITLIST_AVAILABLE: NotificationChannel.EMAIL,
     NotificationType.EVENT_INVITE: NotificationChannel.EMAIL,
+    NotificationType.WAITLIST_JOINED_ORGANIZER: NotificationChannel.EMAIL,
+    NotificationType.PAYMENT_REMINDER: NotificationChannel.EMAIL,
 }
 
 
@@ -1433,6 +1435,87 @@ def _event_invite(ctx: dict) -> RenderedMessage:
     )
 
 
+def _waitlist_joined_organizer(ctx: dict) -> RenderedMessage:
+    """Tells the organiser a person joined the waiting list of their sold-out event."""
+    title = str(ctx["event_title"])
+    person = str(ctx.get("person_name") or "Someone")
+    quantity = int(ctx.get("quantity") or 1)
+    phone = str(ctx.get("phone") or "not given")
+    email = str(ctx.get("person_email") or "")
+    url = str(ctx.get("url") or "")
+    plural = "" if quantity == 1 else "s"
+    blocks = [
+        ui.heading(f"New waiting-list request: {title}"),
+        ui.paragraph(
+            f"{person} wants {quantity} ticket{plural} for {title}, which is sold out. "
+            "They will be emailed automatically if tickets become available."
+        ),
+        ui.facts(
+            [
+                ("Name", person),
+                ("Email", email or "not given"),
+                ("Mobile", phone),
+                ("Tickets wanted", str(quantity)),
+            ]
+        ),
+    ]
+    if url:
+        blocks.append(ui.button("See the waiting list", url))
+    return RenderedMessage(
+        subject=f"Waiting list: {person} wants {quantity} ticket{plural} for {title}",
+        body=(
+            f"{person} wants {quantity} ticket{plural} for {title} (sold out).\n\n"
+            f"Email:  {email or 'not given'}\nMobile: {phone}\n" + (f"\n{url}\n" if url else "")
+        ),
+        html=ui.render_email(
+            title=f"Waiting list: {title}",
+            preheader=f"{person} wants {quantity} ticket{plural}.",
+            masthead_label="Waiting list",
+            blocks=blocks,
+        ),
+    )
+
+
+def _payment_reminder(ctx: dict) -> RenderedMessage:
+    """A buyer started checking out and the payment did not go through."""
+    name = ctx.get("name") or "there"
+    title = str(ctx["event_title"])
+    organiser = str(ctx.get("organiser") or "the organiser")
+    url = str(ctx.get("url") or "")
+    blocks = [
+        ui.heading(f"Your tickets for {title} are not booked yet"),
+        ui.paragraph(
+            f"Hi {name}, your payment for {title} did not go through, so no tickets were "
+            f"issued and no money was kept. {organiser} would still love to see you there. "
+            "Tickets are first come, first served, so nothing is being held for you."
+        ),
+        ui.facts(
+            [
+                ("Event", title),
+                ("When", str(ctx["event_when"])),
+                ("Where", str(ctx["event_where"])),
+            ]
+        ),
+    ]
+    if url:
+        blocks.append(ui.button("Try booking again", url))
+    return RenderedMessage(
+        subject=f"Finish booking {title}",
+        body=(
+            f"Hi {name}, your payment for {title} did not go through, so no tickets were "
+            f"issued. {organiser} would still love to see you there.\n\n"
+            f"When:  {ctx['event_when']}\nWhere: {ctx['event_where']}\n"
+            + (f"\n{url}\n" if url else "")
+        ),
+        html=ui.render_email(
+            title=f"Finish booking {title}",
+            preheader="Your payment did not complete. Nothing was charged.",
+            masthead_label="Reminder",
+            blocks=blocks,
+        ),
+    )
+
+
 def _waitlist_available(ctx: dict) -> RenderedMessage:
     """A seat came back on a sold-out event and this person was waiting.
 
@@ -1537,6 +1620,8 @@ _TEMPLATES: dict[str, Callable[[dict], RenderedMessage]] = {
     NotificationType.HIRE_ENQUIRY_RECEIVED: _hire_enquiry_received,
     NotificationType.WAITLIST_AVAILABLE: _waitlist_available,
     NotificationType.EVENT_INVITE: _event_invite,
+    NotificationType.WAITLIST_JOINED_ORGANIZER: _waitlist_joined_organizer,
+    NotificationType.PAYMENT_REMINDER: _payment_reminder,
 }
 
 

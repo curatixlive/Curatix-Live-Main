@@ -956,6 +956,30 @@ def build_event_cohost_service():
     )
 
 
+def build_organization_crew_service():
+    """The owner naming the whole-band crew who help run every event."""
+    from apps.accounts.repositories import UserRepository
+    from apps.events.repositories import OrganizationCrewRepository
+    from apps.events.services import OrganizationCrewService
+    from apps.organizations.repositories import OrganizationRepository
+
+    return OrganizationCrewService(
+        organizations=OrganizationRepository(),
+        users=UserRepository(),
+        crew=OrganizationCrewRepository(),
+    )
+
+
+def build_payment_reminder_service():
+    """The organiser nudging buyers whose payment did not complete."""
+    from apps.organizer.repositories import OrganizerRepository
+    from apps.organizer.services import PaymentReminderService
+
+    return PaymentReminderService(
+        repository=OrganizerRepository(), notifier=build_notification_service()
+    )
+
+
 def build_event_invite_service():
     """Emails an event's access code to people the organiser names."""
     from apps.events.repositories import EventRepository

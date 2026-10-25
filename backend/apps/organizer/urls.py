@@ -49,4 +49,14 @@ urlpatterns = [
         api.EventAttendeeListView.as_view(),
         name="organizer-event-attendees",
     ),
+    path(
+        "organizer/events/<uuid:event_id>/waitlist",
+        api.EventWaitlistListView.as_view(),
+        name="organizer-event-waitlist",
+    ),
+    path(
+        "organizer/events/<uuid:event_id>/payment-failures",
+        api.PaymentFailureListView.as_view(),
+        name="organizer-event-payment-failures",
+    ),
 ]

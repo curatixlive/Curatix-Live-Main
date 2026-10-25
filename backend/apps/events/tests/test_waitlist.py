@@ -52,6 +52,10 @@ class RecordingNotifier:
         self.skip_for = skip_for or set()
 
     def notify(self, *, notification_type, recipient, context, dedupe_key, delay_seconds=0):
+        if notification_type == "waitlist_joined_organizer":
+            # The organiser's heads-up on a new entry is covered in
+            # organizer/tests; this suite is about who is told TICKETS CAME BACK.
+            return None
         if recipient in self.fail_for:
             raise KeyError("event_when")
         self.sent.append(

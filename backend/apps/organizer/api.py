@@ -572,3 +572,77 @@ class InsightsView(OrganizerView):
     def get(self, request: Request) -> Response:
         payload = selectors.get_insights(self.owner_id)
         return _no_store(Response({"data": OrganizerInsightSerializer(payload, many=True).data}))
+
+
+class EventWaitlistListView(OrganizerView):
+    """The people waiting on a sold-out event: who, how many tickets, how to reach them.
+
+    The host, or a co-host allowed to see attendees — it is the same personal
+    data (name, email, mobile) the attendee list carries.
+    """
+
+    @extend_schema(responses={200: None})
+    def get(self, request: Request, event_id: UUID) -> Response:
+        resolve_event_access(self.owner_id, event_id, "attendees")
+        from apps.events.repositories import EventWaitlistRepository
+
+        rows = EventWaitlistRepository().list_for_event(event_id=event_id)
+        data = [
+            {
+                "id": str(row.id),
+                "name": row.user.full_name,
+                "email": row.user.email,
+                "phone": row.phone or row.user.phone or "",
+                "quantity": row.quantity,
+                "joined_at": row.created_at.isoformat(),
+                "notified_at": row.notified_at.isoformat() if row.notified_at else None,
+            }
+            for row in rows
+        ]
+        return _no_store(
+            Response(
+                {
+                    "data": data,
+                    "meta": {
+                        "count": len(data),
+                        "tickets_wanted": sum(r["quantity"] for r in data),
+                    },
+                }
+            )
+        )
+
+
+class PaymentFailureListView(OrganizerView):
+    """Buyers who started checking out and never paid, with a way to nudge them."""
+
+    @extend_schema(responses={200: None})
+    def get(self, request: Request, event_id: UUID) -> Response:
+        resolve_event_access(self.owner_id, event_id, "attendees")
+        rows = OrganizerRepository().failed_payment_buyers(event_id)
+        data = [
+            {
+                "booking_id": str(r["booking_id"]),
+                "name": r["name"],
+                "email": r["email"],
+                "phone": r["phone"],
+                "tickets": r["tickets"],
+                "amount_minor": r["amount_minor"],
+                "status": r["status"],
+                "attempted_at": r["attempted_at"].isoformat(),
+            }
+            for r in rows
+        ]
+        return _no_store(Response({"data": data, "meta": {"count": len(data)}}))
+
+    @extend_schema(request=None, responses={200: None})
+    def post(self, request: Request, event_id: UUID) -> Response:
+        """Email a reminder to some (`booking_ids`) or all of them."""
+        resolve_event_access(self.owner_id, event_id, "attendees")
+        raw = request.data.get("booking_ids") if hasattr(request.data, "get") else None
+        ids = [str(v) for v in raw] if isinstance(raw, list) else None
+        from config.di import build_payment_reminder_service
+
+        result = build_payment_reminder_service().remind(
+            event_id=event_id, actor_id=self.owner_id, booking_ids=ids
+        )
+        return _no_store(Response(result))

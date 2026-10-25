@@ -514,6 +514,57 @@ class OrganizerRepository:
         "admitted": ("-used_at", "-id"),
     }
 
+    def notification_exists(self, dedupe_key: str) -> bool:
+        """Whether a message with this idempotency key has already been logged."""
+        from apps.notifications.models import NotificationLog
+
+        return NotificationLog.objects.filter(dedupe_key=dedupe_key).exists()
+
+    def failed_payment_buyers(self, event_id: UUID, *, limit: int = 200) -> list[dict]:
+        """People who started checking out and never paid, newest attempt first.
+
+        One row per person: their latest unpaid attempt on this event. Anyone
+        who has since PAID for the event is excluded — reminding someone who
+        already holds tickets is exactly the mistake this must not make.
+        """
+        from apps.booking.models import Booking, BookingStatus
+
+        paid_users = Booking.objects.filter(event_id=event_id, status=BookingStatus.PAID).values(
+            "user_id"
+        )
+        rows = (
+            Booking.objects.filter(
+                event_id=event_id,
+                status__in=[BookingStatus.EXPIRED, BookingStatus.CANCELLED],
+            )
+            .exclude(user_id__in=paid_users)
+            .select_related("user")
+            .annotate(ticket_count=Sum("items__quantity"))
+            .order_by("-created_at")[: limit * 3]
+        )
+        seen: set = set()
+        out: list[dict] = []
+        for booking in rows:
+            if booking.user_id in seen:
+                continue
+            seen.add(booking.user_id)
+            out.append(
+                {
+                    "booking_id": booking.id,
+                    "user_id": booking.user_id,
+                    "name": booking.user.full_name,
+                    "email": booking.user.email,
+                    "phone": booking.user.phone or "",
+                    "tickets": int(booking.ticket_count or 0),
+                    "amount_minor": booking.total_amount_minor,
+                    "status": booking.status,
+                    "attempted_at": booking.created_at,
+                }
+            )
+            if len(out) >= limit:
+                break
+        return out
+
     def event_attendees(
         self,
         event_id: UUID,

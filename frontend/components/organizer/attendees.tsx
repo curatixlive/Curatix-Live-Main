@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, QrCode, Users } from 'lucide-react';
+import { ArrowLeft, BellRing, QrCode, Users } from 'lucide-react';
 import { fetchAttendance } from '@/lib/api/organizer-writes';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils/cn';
@@ -91,6 +91,12 @@ function LiveCount({ eventId }: { eventId: string }) {
         <Link href={`/dashboard/check-in?event=${eventId}`}>
           <QrCode className="size-3.5" aria-hidden />
           Open the scan desk
+        </Link>
+      </Button>
+      <Button asChild variant="outline" size="sm" className="w-fit">
+        <Link href={`/dashboard/events/${eventId}/follow-ups`}>
+          <BellRing className="size-3.5" aria-hidden />
+          Waiting list and unpaid checkouts
         </Link>
       </Button>
     </header>

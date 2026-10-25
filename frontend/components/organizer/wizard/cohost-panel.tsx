@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { Trash2, UserPlus, Users } from 'lucide-react';
 import { Button, Input, Switch } from '@/components/ui';
 import { errorMessage } from '@/lib/api/errors';
@@ -13,7 +14,7 @@ import {
   type CoHostPermissions,
 } from '@/lib/api/event-access-admin';
 
-const LABELS: ReadonlyArray<[keyof CoHostPermissions, string, string]> = [
+export const PERMISSION_LABELS: ReadonlyArray<[keyof CoHostPermissions, string, string]> = [
   ['analytics', 'Event analytics', 'Views, bookings, attendance and audience.'],
   ['attendees', 'Attendee list', 'Names, contact details and check-in status.'],
   ['checkin', 'Scan tickets', 'Admit people at the door.'],
@@ -33,6 +34,9 @@ export function CoHostPanel({ eventId }: { eventId: string | null }) {
   const key = ['organizer', 'cohosts', eventId];
   const [email, setEmail] = React.useState('');
   const [failure, setFailure] = React.useState('');
+  // Addresses typed before the event exists. They are added the moment it does,
+  // so access can be arranged while creating, not only afterwards.
+  const [pending, setPending] = React.useState<string[]>([]);
 
   const list = useQuery({
     queryKey: key,
@@ -40,6 +44,24 @@ export function CoHostPanel({ eventId }: { eventId: string | null }) {
     enabled: Boolean(eventId),
   });
   const refresh = () => client.invalidateQueries({ queryKey: key });
+
+  React.useEffect(() => {
+    if (!eventId || pending.length === 0) return;
+    const queued = pending;
+    setPending([]);
+    void Promise.allSettled(queued.map((address) => addCoHost(eventId, address))).then(
+      (results) => {
+        const failed = results.filter((result) => result.status === 'rejected').length;
+        if (failed) {
+          setFailure(
+            `${failed} co-host${failed === 1 ? '' : 's'} could not be added. Each person needs a Curatix account first.`,
+          );
+        }
+        void client.invalidateQueries({ queryKey: ['organizer', 'cohosts', eventId] });
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
 
   const add = useMutation({
     mutationFn: () => addCoHost(eventId as string, email.trim()),
@@ -77,10 +99,63 @@ export function CoHostPanel({ eventId }: { eventId: string | null }) {
         </div>
       </div>
 
+      <p className="text-caption text-muted-foreground">
+        People on your{' '}
+        <Link href="/dashboard/team" className="underline underline-offset-4">
+          whole-band team
+        </Link>{' '}
+        can already help with every event. Add someone here to give them just this one.
+      </p>
+
       {!eventId ? (
-        <p className="text-body-sm text-muted-foreground">
-          Save the event first, then add co-hosts here.
-        </p>
+        <>
+          <form
+            className="flex flex-wrap gap-2"
+            onSubmit={(submit) => {
+              submit.preventDefault();
+              const next = email.trim().toLowerCase();
+              if (next && !pending.includes(next)) setPending([...pending, next]);
+              setEmail('');
+            }}
+          >
+            <Input
+              aria-label="Co-host email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="their-account@example.com"
+              className="max-w-72"
+            />
+            <Button type="submit" variant="outline" disabled={!email.trim()}>
+              <UserPlus className="size-4" aria-hidden /> Add co-host
+            </Button>
+          </form>
+          {pending.length ? (
+            <ul
+              className="flex flex-col gap-1"
+              aria-label="Co-hosts to add when the event is created"
+            >
+              {pending.map((address) => (
+                <li key={address} className="flex items-center justify-between gap-2 text-body-sm">
+                  <span className="truncate">{address}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Remove ${address}`}
+                    onClick={() => setPending(pending.filter((value) => value !== address))}
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="text-caption text-muted-foreground">
+            They are added with the usual access (everything except money) as soon as the event is
+            created. You can change what each can see afterwards.
+          </p>
+        </>
       ) : (
         <>
           <form
@@ -143,7 +218,7 @@ export function CoHostPanel({ eventId }: { eventId: string | null }) {
                     </Button>
                   </div>
                   <ul className="flex flex-col gap-2">
-                    {LABELS.map(([permission, label, hint]) => (
+                    {PERMISSION_LABELS.map(([permission, label, hint]) => (
                       <li key={permission} className="flex items-center justify-between gap-3">
                         <span>
                           <span className="block text-body-sm">{label}</span>
