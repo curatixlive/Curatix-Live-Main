@@ -724,26 +724,34 @@ export function EventWizard({
               </p>
             ) : null}
 
-            {/* The form's only actions, exactly three: keep it, look at it, send it. */}
-            <div className="sticky bottom-0 -mx-1 flex flex-col gap-3 rounded-3xl border border-border bg-surface/90 p-3 shadow-lg backdrop-blur sm:flex-row">
+            {/* The form's only actions, exactly three: keep it, look at it,
+                send it. At the END of the form, not pinned over it: a sticky
+                bar covered the fields being edited on a phone, and the draft
+                autosaves anyway. Bottom padding clears the mobile tab bar. */}
+            <div className="flex flex-col gap-3 pb-24 pt-2 sm:flex-row sm:pb-0">
               <Button
                 variant="outline"
                 size="lg"
-                className="flex-1"
+                className="border-2 text-body font-semibold sm:flex-1"
                 onClick={() => void wizard.saveNow()}
               >
-                Save Draft
+                Save draft
               </Button>
-              <Button variant="outline" size="lg" className="flex-1" onClick={openPreview}>
-                Preview Event
+              <Button
+                variant="outline"
+                size="lg"
+                className="border-2 text-body font-semibold sm:flex-1"
+                onClick={openPreview}
+              >
+                Preview event
               </Button>
               <Button
                 size="lg"
-                className="flex-[1.4]"
+                className="text-body font-bold sm:flex-[1.4]"
                 loading={publishing}
                 onClick={() => void publish()}
               >
-                Create Event
+                Create event
               </Button>
             </div>
           </div>

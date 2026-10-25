@@ -860,6 +860,46 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
   const [multiDayOverride, setMultiDayOverride] = React.useState<boolean | null>(null);
   const multiDay = multiDayOverride ?? spansMultipleDays(draft.startsAt, draft.endsAt);
 
+  // ── HALF A DATETIME IS HELD HERE, NOT DROPPED ─────────────────────────
+  // The draft stores ONE `YYYY-MM-DDTHH:mm` string, and `joinDateTime` returns
+  // '' until it has both halves. In one-day mode the date and the time are
+  // separate controls, so whichever was picked first used to be thrown away —
+  // a time chosen before a date snapped back to `--:--`, and the reverse. The
+  // half that arrives first waits here until the other one does.
+  const [pending, setPending] = React.useState({ day: '', time: '', endTime: '' });
+  const startDay = dayPart(draft.startsAt) || pending.day;
+  const startTime = timePart(draft.startsAt) || pending.time;
+  const endTime = timePart(draft.endsAt) || pending.endTime;
+
+  const setStart = (day: string, time: string) => {
+    if (!day || !time) {
+      setPending((current) => ({ ...current, day, time }));
+      return;
+    }
+    const startsAt = joinDateTime(day, time);
+    // The end follows the start's DATE while they are on one day — otherwise
+    // moving the event to next week leaves the end behind on the old date and
+    // the event finishes before it begins.
+    const nextEndTime = timePart(draft.endsAt) || pending.endTime;
+    const endsAt = nextEndTime ? joinDateTime(day, nextEndTime) : draft.endsAt;
+    setPending({ day: '', time: '', endTime: '' });
+    update({ startsAt, endsAt });
+  };
+
+  const setEnd = (time: string) => {
+    if (!time) {
+      setPending((current) => ({ ...current, endTime: '' }));
+      update({ endsAt: '' });
+      return;
+    }
+    const day = dayPart(draft.startsAt);
+    if (!day) {
+      setPending((current) => ({ ...current, endTime: time }));
+      return;
+    }
+    update({ endsAt: joinDateTime(day, time) });
+  };
+
   return (
     <div className="flex flex-col gap-block">
       <StepHeader title="Schedule" step={3} />
@@ -944,18 +984,9 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
             <DateTimeField
               id="event-starts"
               label="Starts"
-              day={dayPart(draft.startsAt)}
-              time={timePart(draft.startsAt)}
-              onChange={({ day, time }) => {
-                const startsAt = joinDateTime(day, time);
-                // The end follows the start's DATE while they are on one day —
-                // otherwise moving the event to next week leaves the end behind
-                // on the old date and the event finishes before it begins.
-                const endsAt = draft.endsAt
-                  ? joinDateTime(day || dayPart(draft.endsAt), timePart(draft.endsAt))
-                  : draft.endsAt;
-                update({ startsAt, endsAt });
-              }}
+              day={startDay}
+              time={startTime}
+              onChange={({ day, time }) => setStart(day, time)}
               min={nowLocal}
               error={errorFor(issues, 'startsAt')}
               hint="Has to be in the future."
@@ -966,12 +997,8 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
               label="Ends"
               /* The DATE is the start's, always, in this mode. Only the time is
                the organiser's to set — which is the whole point of the split. */
-              value={timePart(draft.endsAt)}
-              onChange={(time) =>
-                update({
-                  endsAt: time ? joinDateTime(dayPart(draft.startsAt), time) : '',
-                })
-              }
+              value={endTime}
+              onChange={setEnd}
               error={errorFor(issues, 'endsAt')}
               hint="Optional. Drives the check-in window and the payout date."
             />
