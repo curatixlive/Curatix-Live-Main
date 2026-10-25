@@ -60,9 +60,18 @@ export function PolicyEditor({
   return (
     <div className="flex flex-col gap-stack-lg">
       {policies.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border bg-sunken p-card text-body-sm text-muted-foreground">
+        // A BUTTON, not a paragraph. The empty state is drawn like an empty text
+        // field — dashed, sunken, placeholder-grey — and nothing happened when
+        // it was pressed (typing into it scrolled the page instead). Whatever
+        // looks like the place to start typing has to start it.
+        <button
+          type="button"
+          onClick={add}
+          className="rounded-lg border border-dashed border-border bg-sunken p-card text-left text-body-sm text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           Entry conditions, prohibited items, your own refund terms, what happens if it rains.
-        </p>
+          <span className="mt-1 block font-medium text-foreground">Add your first rule</span>
+        </button>
       ) : (
         <ul className="flex flex-col gap-3">
           {policies.map((policy, index) => {

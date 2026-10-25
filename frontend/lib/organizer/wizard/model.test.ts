@@ -157,6 +157,19 @@ describe('resolveOrganizationId', () => {
     expect(resolveOrganizationId('', ['org-1', 'org-2'])).toBe('');
   });
 
+  it('uses the organisation last created under, when several are owned and it still is', () => {
+    expect(resolveOrganizationId('', ['org-1', 'org-2'], 'org-2')).toBe('org-2');
+  });
+
+  it('ignores a remembered organisation the account no longer owns', () => {
+    // Left behind by another account on a shared browser: honouring it is the 403.
+    expect(resolveOrganizationId('', ['org-1', 'org-2'], 'gone')).toBe('');
+  });
+
+  it('never lets a remembered organisation override one the draft already chose', () => {
+    expect(resolveOrganizationId('org-1', ['org-1', 'org-2'], 'org-2')).toBe('org-1');
+  });
+
   it('leaves an empty id empty when the account owns none', () => {
     expect(resolveOrganizationId('', [])).toBe('');
   });

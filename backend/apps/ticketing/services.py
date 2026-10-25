@@ -55,6 +55,7 @@ from .exceptions import (
     QuantityBelowCommittedError,
     SlotNotFoundError,
     StaleTicketTypeVersionError,
+    TicketTypeInUseError,
     TicketTypeNotFoundError,
 )
 from .models import PricingChangeKind, PricingFeature, TicketType
@@ -336,6 +337,35 @@ class TicketingService:
 
         logger.info("ticket_type_created", extra={"ticket_type_id": str(tt.id)})
         return tt
+
+    def delete_ticket_type(
+        self, *, ticket_type_id: uuid.UUID | str, actor_id: uuid.UUID | str
+    ) -> None:
+        """Remove a ticket type nothing has been sold, held or issued against.
+
+        A mistake in a ticket used to be permanent: a saved tier could be edited
+        and never deleted, on the grounds that it might have sales. That is true
+        of a tier with sales and false of the common case — a typo, or a tier
+        added by accident — so the rule is now what it was always protecting:
+        a tier something refers to stays.
+        """
+        tt = self._ticket_types.get_with_event_owner(ticket_type_id)
+        if tt is None:
+            raise TicketTypeNotFoundError(str(ticket_type_id))
+        if str(tt.event.organization.owner_id) != str(actor_id):
+            raise NotTicketTypeOwnerError()
+        event_id = tt.event_id
+
+        with UnitOfWork():
+            if not self._ticket_types.soft_delete_if_unused(ticket_type_id):
+                raise TicketTypeInUseError()
+            record_audit(
+                actor_id=str(actor_id),
+                action="ticket_type.deleted",
+                target_type="ticket_type",
+                target_id=str(ticket_type_id),
+            )
+            transaction.on_commit(lambda: self._after_availability_change(event_id))
 
     def update_ticket_type(
         self,

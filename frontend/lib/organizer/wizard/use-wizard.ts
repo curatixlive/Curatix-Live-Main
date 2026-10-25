@@ -23,6 +23,7 @@ import {
   discardLegacyDraft,
   draftStorageKey,
   emptyDraft,
+  LAST_ORGANIZATION_KEY,
   patchFingerprint,
   resolveOrganizationId,
   asStrings,
@@ -138,6 +139,22 @@ export type WizardInput = {
     content: Parameters<typeof cloneDraftFrom>[2];
   } | null;
 };
+
+function readLastOrganization(): string {
+  try {
+    return window.localStorage.getItem(LAST_ORGANIZATION_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function rememberOrganization(id: string): void {
+  try {
+    if (id) window.localStorage.setItem(LAST_ORGANIZATION_KEY, id);
+  } catch {
+    // Private mode or blocked storage: the convenience is simply absent.
+  }
+}
 
 export function useWizard({ userId, organizationIds, ready, existing, cloneSource }: WizardInput) {
   const [draft, setDraftState] = React.useState<Draft>(() => emptyDraft());
@@ -416,7 +433,7 @@ export function useWizard({ userId, organizationIds, ready, existing, cloneSourc
   React.useEffect(() => {
     if (!hydrated) return;
     const current = latest.current.organizationId;
-    const resolved = resolveOrganizationId(current, organizationIds);
+    const resolved = resolveOrganizationId(current, organizationIds, readLastOrganization());
     if (resolved === current) return;
     commit({ ...latest.current, organizationId: resolved }, { history: false });
     if (resolved) schedule();
@@ -510,6 +527,7 @@ export function useWizard({ userId, organizationIds, ready, existing, cloneSourc
       if (!working.eventId) {
         const created = await createEvent(toCreateInput(working));
         working = { ...working, eventId: created.id, version: created.version };
+        rememberOrganization(working.organizationId);
         // NOT `patchFingerprint(working)`. `toCreateInput` sends only the basics —
         // title, description, venue, city, category, schedule, pin — so recording
         // the whole draft as "saved" told the engine that the one-line summary,

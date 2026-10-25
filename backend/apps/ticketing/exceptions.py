@@ -26,6 +26,18 @@ class NotTicketTypeOwnerError(PermissionDeniedError):
         super().__init__("Only the owning organization can manage this event's tickets.")
 
 
+class TicketTypeInUseError(ConflictError):
+    """The tier has sales, holds, tickets or seats attached, so it cannot be removed."""
+
+    code = "ticket_type_in_use"
+
+    def __init__(self) -> None:
+        super().__init__(
+            "This ticket type already has sales, holds or seats attached, so it can't be "
+            "deleted. Lower its quantity to what has sold instead."
+        )
+
+
 class StaleTicketTypeVersionError(ConflictError):
     """The tier was edited by someone else since this client last read it."""
 

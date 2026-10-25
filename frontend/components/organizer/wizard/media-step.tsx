@@ -482,7 +482,10 @@ export function MediaStep({
 
         return (
           <ZoneFrame key={zone.kind} zone={zone} filled={filled}>
-            {full ? (
+            {/* While a file is staged the zone is "full" only because of that
+                file, and saying "already has its portrait poster" over the
+                alt-text form for the very image being added contradicted it. */}
+            {full && zoneStaged.length ? null : full ? (
               <p className="rounded-lg border border-dashed border-border bg-sunken px-card py-stack text-caption text-muted-foreground">
                 {/* WHY it is full and HOW to free it, in one line. A zone that
                     just hides its picker is a zone somebody presses ⌘V at and
@@ -505,8 +508,8 @@ export function MediaStep({
             {zoneStaged.length ? (
               <section className="flex flex-col gap-stack rounded-xl border border-border bg-surface p-card shadow-sm">
                 <h3 className="text-body-sm font-semibold">
-                  Describe {zoneStaged.length === 1 ? 'this image' : 'these images'} before
-                  uploading
+                  Describe {zoneStaged.length === 1 ? 'this image' : 'these images'}, then{' '}
+                  {eventId ? 'upload' : 'add'}
                 </h3>
                 <ul className="flex flex-col gap-stack">
                   {zoneStaged.map((row) => (

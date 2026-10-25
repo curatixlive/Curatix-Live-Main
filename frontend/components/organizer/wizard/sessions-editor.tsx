@@ -16,6 +16,7 @@ import { Button, Input } from '@/components/ui';
 import { tempId, toIso, type PendingSlot } from '@/lib/organizer/wizard/model';
 import { cn } from '@/lib/utils/cn';
 import { openPicker } from '@/lib/utils/open-picker';
+import { formatWhen } from '@/lib/organizer/wizard/when';
 
 /**
  * Sessions — the showtimes an event runs at.
@@ -61,14 +62,6 @@ import { openPicker } from '@/lib/utils/open-picker';
  * bound to a ticket tier — both are server operations on a row that does not
  * exist yet. Removing one is a local delete, which is why that control stays.
  */
-
-const TIME_FORMAT: Intl.DateTimeFormatOptions = {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-  hour: 'numeric',
-  minute: '2-digit',
-};
 
 export function SessionsEditor({
   eventId,
@@ -306,9 +299,7 @@ function PendingSessionRow({ slot, onRemove }: { slot: PendingSlot; onRemove: ()
     <li className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-border-strong bg-sunken p-3">
       <span className="min-w-0 flex-1">
         <span className="block text-body-sm font-medium tabular-nums">
-          {when && !Number.isNaN(when.valueOf())
-            ? when.toLocaleString('en-IN', TIME_FORMAT)
-            : slot.startsAt}
+          {when && !Number.isNaN(when.valueOf()) ? formatWhen(when) : slot.startsAt}
         </span>
         <span className="block text-caption text-muted-foreground">
           {slot.label || 'No name'} · saves with the draft
@@ -348,9 +339,7 @@ function SessionRow({
     >
       <span className="min-w-0 flex-1">
         <span className="block text-body-sm font-medium tabular-nums">
-          {Number.isNaN(when.valueOf())
-            ? slot.starts_at
-            : when.toLocaleString('en-IN', TIME_FORMAT)}
+          {Number.isNaN(when.valueOf()) ? slot.starts_at : formatWhen(when)}
         </span>
         <span className="block text-caption text-muted-foreground">
           {slot.label || 'No name'}

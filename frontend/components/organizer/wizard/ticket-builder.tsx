@@ -25,7 +25,9 @@ import {
   type DraftPhase,
   type DraftTier,
 } from '@/lib/organizer/wizard/model';
-import { Button, Input } from '@/components/ui';
+import { Button, Input, useToast } from '@/components/ui';
+import { deleteTicketType } from '@/lib/api/organizer-writes';
+import { errorMessage } from '@/lib/api/errors';
 import { AccordionCard } from './fields';
 import { cn } from '@/lib/utils/cn';
 import { EmptyState } from '../primitives';
@@ -112,6 +114,8 @@ export function TicketBuilder({
   sessions?: EventSlot[];
 }) {
   const [open, setOpen] = React.useState<string | null>(null);
+  const [deleting, setDeleting] = React.useState<string | null>(null);
+  const { toast } = useToast();
   const dragging = React.useRef<number | null>(null);
   const [dragOver, setDragOver] = React.useState<number | null>(null);
 
@@ -124,6 +128,31 @@ export function TicketBuilder({
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     onChange(next);
+  };
+
+  /**
+   * Delete a SAVED ticket. Only reachable when nothing is sold or held against
+   * it, and the server checks again under the tier's lock — so a refusal here
+   * means somebody bought one in the last few seconds, and the message says so.
+   * The row leaves the form only after the server agrees.
+   */
+  const removeSaved = async (tier: DraftTier) => {
+    if (!tier.serverId) return;
+    const label = tier.name || 'this ticket';
+    if (!window.confirm(`Delete “${label}”? This can’t be undone.`)) return;
+    setDeleting(tier.key);
+    try {
+      await deleteTicketType(tier.serverId);
+      onChange(tiers.filter((candidate) => candidate.key !== tier.key));
+    } catch (error) {
+      toast({
+        variant: 'warning',
+        title: 'Could not delete the ticket',
+        description: errorMessage(error),
+      });
+    } finally {
+      setDeleting(null);
+    }
   };
 
   const add = () => {
@@ -286,13 +315,22 @@ export function TicketBuilder({
                     >
                       <Trash2 className="size-4" aria-hidden />
                     </IconButton>
+                  ) : !tier.committed ? (
+                    <IconButton
+                      destructive
+                      disabled={deleting === tier.key}
+                      label={`Delete ${tier.name || `ticket ${index + 1}`}`}
+                      onClick={() => void removeSaved(tier)}
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </IconButton>
                   ) : (
                     <span
-                      title="Saved tiers cannot be deleted — they may already have sales attached"
+                      title={`${tier.committed} sold or on hold, so this ticket can't be deleted — lower its quantity instead`}
                       className="inline-flex size-control items-center justify-center text-success-subtle-foreground"
                     >
                       <Check className="size-4" aria-hidden />
-                      <span className="sr-only">Saved</span>
+                      <span className="sr-only">Saved — {tier.committed} sold or on hold</span>
                     </span>
                   )}
                 </div>

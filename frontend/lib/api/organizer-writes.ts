@@ -285,18 +285,22 @@ export type UpdateTicketTypeInput = Partial<CreateTicketTypeInput> & { version: 
 export const createTicketType = (eventId: string, input: CreateTicketTypeInput) =>
   api.post<TicketTier>(`/events/${encodeURIComponent(eventId)}/ticket-types`, input);
 
+export const deleteTicketType = (ticketTypeId: string) =>
+  api.delete<void>(`/ticket-types/${encodeURIComponent(ticketTypeId)}`);
+
 export const updateTicketType = (ticketTypeId: string, input: UpdateTicketTypeInput) =>
   api.patch<TicketTier>(`/ticket-types/${encodeURIComponent(ticketTypeId)}`, input);
 
 /**
- * There is deliberately NO `deleteTicketType`.
+ * Delete a ticket type that nothing refers to.
  *
- * `apps/ticketing` exposes GET and PATCH on `/ticket-types/{id}` and nothing
- * else — which is correct on a money path: a tier with `sold > 0` is referenced
- * by issued tickets and by the settlement that will pay them out, so deleting
- * it would orphan real orders. The wizard can only remove a tier it has not
- * saved yet; once created, a tier is edited, not deleted. `BACKLOG.md` covers
- * the archive flag this would need.
+ * This used to say there was deliberately no delete, on the grounds that a tier
+ * with sales is referenced by issued tickets and the settlement that will pay
+ * them out. That is still true — the server refuses (`409 ticket_type_in_use`)
+ * while anything is sold, held, booked, issued or seated — but it made a typo in
+ * a ticket permanent. The control is only OFFERED when the tier has nothing
+ * committed (`DraftTier.committed`), so a refusal here is the race case, not
+ * the ordinary one.
  */
 
 /**

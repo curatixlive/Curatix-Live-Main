@@ -49,6 +49,7 @@ import { CrewPicker } from './crew-picker';
 import { StartFromEvent } from './start-from-event';
 import { EVENT_TYPES } from '@/lib/events/taxonomy';
 import { RunningOrder } from './running-order';
+import { formatWhen } from '@/lib/organizer/wizard/when';
 
 type StepProps = {
   draft: Draft;
@@ -1028,18 +1029,14 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
           <ol className="flex flex-col gap-2.5">
             <TimelineRow
               label="Doors and check-in open"
-              value={new Date(starts.getTime() - 60 * 60_000).toLocaleString('en-IN', TIME_FORMAT)}
+              value={formatWhen(new Date(starts.getTime() - 60 * 60_000))}
               note="One hour before doors"
             />
-            <TimelineRow
-              label="Event starts"
-              value={starts.toLocaleString('en-IN', TIME_FORMAT)}
-              emphasis
-            />
+            <TimelineRow label="Event starts" value={formatWhen(starts)} emphasis />
             {ends && !Number.isNaN(ends.valueOf()) && ends > starts ? (
               <TimelineRow
                 label="Event ends"
-                value={ends.toLocaleString('en-IN', TIME_FORMAT)}
+                value={formatWhen(ends)}
                 note={durationHours ? `${durationHours} hours long` : undefined}
               />
             ) : null}
@@ -1103,14 +1100,6 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
     </div>
   );
 }
-
-const TIME_FORMAT: Intl.DateTimeFormatOptions = {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-  hour: 'numeric',
-  minute: '2-digit',
-};
 
 /**
  * A city shortcut.

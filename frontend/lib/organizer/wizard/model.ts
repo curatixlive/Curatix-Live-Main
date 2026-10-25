@@ -125,6 +125,13 @@ export type DraftTier = {
   serverId?: string;
   /** Optimistic-lock version, present only for server-backed tiers. */
   version?: number;
+  /**
+   * Seats sold or held against this tier when it was loaded. Absent means none:
+   * a tier created in this session has nothing against it. It decides whether
+   * the Delete control is offered — the server is the authority, this only stops
+   * the form offering a control whose every press would be refused.
+   */
+  committed?: number;
   name: string;
   /**
    * What this tier IS, in the organiser's words. Blank is the norm — most
@@ -548,10 +555,27 @@ export function discardLegacyDraft(): void {
  *   choose from, picking the first is a GUESS, and the cost of guessing wrong
  *   is an event — and its payouts — attached to the wrong company.
  */
-export function resolveOrganizationId(candidate: string, owned: readonly string[]): string {
+export function resolveOrganizationId(
+  candidate: string,
+  owned: readonly string[],
+  /**
+   * The organisation the last event was created under, if this browser
+   * remembers one. It is not a guess in the sense the paragraph above warns
+   * about — the organiser chose it last time, and nearly everybody who runs
+   * several organisations runs one of them far more than the others — and it is
+   * never hidden: the picker shows it chosen, one press from changing. Still
+   * only honoured when the account owns it, for the same reason a stored draft's
+   * organisation is.
+   */
+  lastUsed = '',
+): string {
   if (candidate && owned.includes(candidate)) return candidate;
-  return owned.length === 1 ? owned[0] : '';
+  if (owned.length === 1) return owned[0] ?? '';
+  return lastUsed && owned.includes(lastUsed) ? lastUsed : '';
 }
+
+/** Where the last-used organisation is remembered. Per browser, never synced. */
+export const LAST_ORGANIZATION_KEY = 'ee-last-organization';
 
 /**
  * Rebuild a draft from whatever `localStorage` holds.
@@ -741,7 +765,19 @@ export function newPhase(index: number): DraftPhase {
 
 /* ─────────────────────────── validation ─────────────────────────── */
 
-export type Issue = { step: StepId; field: string; message: string };
+export type Issue = {
+  step: StepId;
+  field: string;
+  message: string;
+  /**
+   * `'required'` marks "this field is empty" — true of EVERY field on a form
+   * nobody has touched yet. The form holds these back until the organiser has
+   * tried to save or the draft exists, so a blank form is not drawn as a page of
+   * red errors. Wrong values (too long, in the past) are not of this kind and
+   * show as soon as they exist.
+   */
+  kind?: 'required';
+};
 
 export const TITLE_MAX = 200;
 export const VENUE_MAX = 255;
@@ -1050,11 +1086,17 @@ export function validate(draft: Draft, now = new Date()): Issue[] {
       step: 'basics',
       field: 'organizationId',
       message: 'Choose which organisation is running this event.',
+      kind: 'required',
     });
   }
 
   if (!draft.title.trim()) {
-    issues.push({ step: 'basics', field: 'title', message: 'A title is required.' });
+    issues.push({
+      step: 'basics',
+      field: 'title',
+      message: 'A title is required.',
+      kind: 'required',
+    });
   } else if (draft.title.length > TITLE_MAX) {
     issues.push({
       step: 'basics',
@@ -1064,18 +1106,33 @@ export function validate(draft: Draft, now = new Date()): Issue[] {
   }
 
   if (!draft.venue.trim()) {
-    issues.push({ step: 'venue', field: 'venue', message: 'A venue is required.' });
+    issues.push({
+      step: 'venue',
+      field: 'venue',
+      message: 'A venue is required.',
+      kind: 'required',
+    });
   } else if (draft.venue.length > VENUE_MAX) {
     issues.push({ step: 'venue', field: 'venue', message: `Capped at ${VENUE_MAX} characters.` });
   }
   if (!draft.city.trim()) {
-    issues.push({ step: 'venue', field: 'city', message: 'A city is required.' });
+    issues.push({
+      step: 'venue',
+      field: 'city',
+      message: 'A city is required.',
+      kind: 'required',
+    });
   } else if (draft.city.length > CITY_MAX) {
     issues.push({ step: 'venue', field: 'city', message: `Capped at ${CITY_MAX} characters.` });
   }
 
   if (!draft.startsAt) {
-    issues.push({ step: 'schedule', field: 'startsAt', message: 'A start time is required.' });
+    issues.push({
+      step: 'schedule',
+      field: 'startsAt',
+      message: 'A start time is required.',
+      kind: 'required',
+    });
   } else {
     const starts = new Date(draft.startsAt);
     if (Number.isNaN(starts.valueOf())) {
@@ -1612,6 +1669,8 @@ export function tiersToDraft(tiers: readonly TicketTier[]): DraftTier[] {
     key: tier.id,
     serverId: tier.id,
     version: tier.version,
+    // `available` is quantity − sold − reserved, so the difference is both.
+    committed: Math.max(0, tier.quantity - tier.available),
     name: tier.name,
     description: tier.description ?? '',
     perks: tier.perks ?? [],

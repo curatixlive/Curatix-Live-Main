@@ -150,6 +150,14 @@ class TicketTypeListCreateView(APIView):
 class TicketTypeDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses={204: None})
+    def delete(self, request: Request, ticket_type_id: str) -> Response:
+        """DELETE /ticket-types/{id} — only while nothing is sold, held or issued."""
+        build_ticketing_service().delete_ticket_type(
+            ticket_type_id=ticket_type_id, actor_id=cast(User, request.user).id
+        )
+        return _no_store(Response(status=status.HTTP_204_NO_CONTENT))
+
     @extend_schema(request=UpdateTicketTypeRequestSerializer, responses={200: TicketTypeSerializer})
     def patch(self, request: Request, ticket_type_id: str) -> Response:
         payload = UpdateTicketTypeRequestSerializer(data=request.data)

@@ -16,6 +16,7 @@ import { Button, Input } from '@/components/ui';
 import { tempId, toIso, type PendingTimelineEntry } from '@/lib/organizer/wizard/model';
 import { cn } from '@/lib/utils/cn';
 import { openPicker } from '@/lib/utils/open-picker';
+import { formatWhen } from '@/lib/organizer/wizard/when';
 
 /**
  * The running order.
@@ -62,13 +63,6 @@ const KIND_LABEL = Object.fromEntries(KINDS.map((kind) => [kind.value, kind.labe
   TimelineKind,
   string
 >;
-
-const TIME_FORMAT: Intl.DateTimeFormatOptions = {
-  day: 'numeric',
-  month: 'short',
-  hour: 'numeric',
-  minute: '2-digit',
-};
 
 /**
  * ── IT WORKS BEFORE THE EVENT EXISTS ──────────────────────────────────────
@@ -297,9 +291,7 @@ export function RunningOrder({
                     </span>
                   </span>
                   <span className="block text-caption tabular-nums text-muted-foreground">
-                    {entry.startsAt
-                      ? new Date(entry.startsAt).toLocaleString('en-IN', TIME_FORMAT)
-                      : 'Time to be confirmed'}
+                    {entry.startsAt ? formatWhen(new Date(entry.startsAt)) : 'Time to be confirmed'}
                     {entry.staged ? ' · saves with the draft' : ''}
                   </span>
                   {entry.description ? (

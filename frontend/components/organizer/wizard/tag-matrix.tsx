@@ -111,7 +111,9 @@ export function TagMatrix({
                       locked && 'cursor-not-allowed opacity-40 hover:border-border',
                     )}
                   >
-                    {active ? <Check className="size-3.5" aria-hidden /> : null}
+                    {/* Always laid out, hidden when unchosen: a tick that only appears on
+                        selection widens the chip and reflows the row under the next tap. */}
+                    <Check className={cn('size-3.5', !active && 'invisible')} aria-hidden />
                     {tag.label}
                   </button>
                 </li>

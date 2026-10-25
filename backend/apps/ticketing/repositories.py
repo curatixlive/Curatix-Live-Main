@@ -68,6 +68,30 @@ class TicketTypeRepository(BaseRepository[TicketType]):
             .first()
         )
 
+    def soft_delete_if_unused(self, ticket_type_id: uuid.UUID | str) -> bool:
+        """Retire a tier that nothing refers to, under its row lock.
+
+        "Nothing" is checked three ways, all under the SAME lock a reserve takes:
+        the counters (`sold`/`reserved`), and then every table that holds a
+        reference to the tier — booking lines, issued tickets and seats. The
+        counters alone are not enough: a refunded sale returns `sold` to zero
+        while the booking line and the ticket still exist, and deleting under
+        those would orphan an order somebody paid for.
+
+        Soft-deleted (`deleted_at`), never removed, so the audit and pricing
+        history rows that point at it stay intact. Returns False — and writes
+        nothing — when anything refers to it.
+        """
+        row = self.lock_for_update(ticket_type_id)
+        if row is None or row.sold or row.reserved:
+            return False
+        if row.booking_items.exists() or row.tickets.exists() or row.seats.exists():
+            return False
+        self.get_queryset().filter(pk=ticket_type_id).update(
+            deleted_at=timezone.now(), version=F("version") + 1
+        )
+        return True
+
     def phases_for_pricing(self, ticket_type_id: uuid.UUID | str) -> list[Phase]:
         """The tier's schedule, ascending position, as the pure rule's input.
 

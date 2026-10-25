@@ -24,6 +24,7 @@ import { useInvalidateOrganizer } from '@/lib/organizer/queries';
 import { describePublishFailure } from '@/lib/organizer/publish-error';
 import { FlatFormContext } from './fields';
 import { completion, stepStatus, validate, type StepId } from '@/lib/organizer/wizard/model';
+import { checklistItems } from '@/lib/organizer/wizard/checklist';
 import {
   PHASES,
   memberAnchor,
@@ -52,7 +53,9 @@ import { useWizard, type SaveState } from '@/lib/organizer/wizard/use-wizard';
 import { cn } from '@/lib/utils/cn';
 import { Skeleton } from '../primitives';
 import { BasicsStep, ScheduleStep, VenueStep } from './steps';
-import { DetailsStep } from './details-step';
+import { DetailsStep, missingForSave } from './details-step';
+import { PublishChecklist } from './publish-checklist';
+import { SeatedGenderPrices } from './seated-gender-prices';
 import { MediaStep } from './media-step';
 import { SeoStep } from './seo-step';
 import { TicketBuilder } from './ticket-builder';
@@ -141,6 +144,8 @@ export function EventWizard({
   // about which organisations exist.
   const organizationsQuery = useOrganizations();
   const { toast } = useToast();
+  // A pressed "Save draft" gets an acknowledgement; autosave stays silent.
+  const manualSaveRef = React.useRef(false);
   const orgs = React.useMemo(() => organizationsQuery.data?.data ?? [], [organizationsQuery.data]);
   const organizationIds = React.useMemo(() => orgs.map((org) => org.id), [orgs]);
 
@@ -279,6 +284,12 @@ export function EventWizard({
     existing,
     cloneSource,
   });
+
+  React.useEffect(() => {
+    if (!manualSaveRef.current || wizard.savedAt == null) return;
+    manualSaveRef.current = false;
+    toast({ title: 'Draft saved', description: 'Everything so far is stored.' });
+  }, [wizard.savedAt, toast]);
   const { draft, update, setTiers } = wizard;
   // A co-host with the `edit` right opens the SAME editor on somebody else's
   // event. They change the page, never the sale: tickets, coupons, access and
@@ -348,6 +359,19 @@ export function EventWizard({
   const [publishError, setPublishError] = React.useState<unknown>(null);
 
   const issues = React.useMemo(() => validate(draft), [draft]);
+  // Holding back "this is empty" until the organiser has engaged. A blank form
+  // used to open as a column of red borders and "A title is required" under every
+  // field — errors about work nobody had been asked to do yet.
+  const [attempted, setAttempted] = React.useState(false);
+  const shownIssues = React.useMemo(
+    () =>
+      attempted || draft.eventId ? issues : issues.filter((issue) => issue.kind !== 'required'),
+    [attempted, draft.eventId, issues],
+  );
+  const checklist = React.useMemo(
+    () => checklistItems(draft, issues, missingForSave(draft), orgs),
+    [draft, issues, orgs],
+  );
   const status = React.useMemo(() => stepStatus(draft, issues), [draft, issues]);
   const percent = completion(draft);
 
@@ -426,17 +450,19 @@ export function EventWizard({
   const renderMember = (member: PhaseMember) => {
     switch (member) {
       case 'basics':
-        return <BasicsStep draft={draft} update={update} issues={issues} organizations={orgs} />;
+        return (
+          <BasicsStep draft={draft} update={update} issues={shownIssues} organizations={orgs} />
+        );
       case 'venue':
-        return <VenueStep draft={draft} update={update} issues={issues} />;
+        return <VenueStep draft={draft} update={update} issues={shownIssues} />;
       case 'media':
         return <MediaStep draft={draft} onPoster={onPoster} posterFile={posterFile} save={save} />;
       case 'details':
-        return <DetailsStep draft={draft} update={update} issues={issues} />;
+        return <DetailsStep draft={draft} update={update} issues={shownIssues} />;
       case 'coupons':
         return <CouponsStep draft={draft} save={save} />;
       case 'schedule':
-        return <ScheduleStep draft={draft} update={update} issues={issues} save={save} />;
+        return <ScheduleStep draft={draft} update={update} issues={shownIssues} save={save} />;
       case 'tickets':
         return (
           <div className="flex flex-col gap-block">
@@ -454,9 +480,12 @@ export function EventWizard({
             <AccessPanel draft={draft} update={update} save={save} />
             <CoHostPanel eventId={draft.eventId} />
             {seatedTiers ? (
-              <p className="text-body-sm text-muted-foreground">
-                Each seating section is its own ticket type, priced above.
-              </p>
+              <>
+                <p className="text-body-sm text-muted-foreground">
+                  Each seating section is its own ticket type, priced above.
+                </p>
+                <SeatedGenderPrices tiers={draft.tiers} onChange={setTiers} />
+              </>
             ) : (
               <TicketBuilder
                 tiers={draft.tiers}
@@ -468,7 +497,7 @@ export function EventWizard({
           </div>
         );
       case 'seo':
-        return <SeoStep draft={draft} update={update} issues={issues} />;
+        return <SeoStep draft={draft} update={update} issues={shownIssues} />;
       case 'review':
       default:
         return (
@@ -588,6 +617,7 @@ export function EventWizard({
   };
 
   const publish = async () => {
+    setAttempted(true);
     // A REF, not the `publishing` state, is what makes this safe to press
     // twice. `setPublishing(true)` only disables the button on the NEXT
     // render, so two fast clicks both get past a state check and fire two
@@ -759,12 +789,18 @@ export function EventWizard({
                 send it. At the END of the form, not pinned over it: a sticky
                 bar covered the fields being edited on a phone, and the draft
                 autosaves anyway. Bottom padding clears the mobile tab bar. */}
+            {coHostEditing ? null : <PublishChecklist items={checklist} onJump={jumpToStep} />}
+            <SaveBadge state={wizard.state} error={wizard.error} savedAt={wizard.savedAt} />
             <div className="flex flex-col gap-3 pb-24 pt-2 sm:flex-row sm:pb-0">
               <Button
                 variant="outline"
                 size="lg"
                 className="border-2 text-body font-semibold sm:flex-1"
-                onClick={() => void wizard.saveNow()}
+                onClick={() => {
+                  setAttempted(true);
+                  manualSaveRef.current = true;
+                  void wizard.saveNow();
+                }}
               >
                 Save draft
               </Button>
