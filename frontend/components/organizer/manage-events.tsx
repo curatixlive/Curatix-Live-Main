@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   BarChart3,
   CalendarDays,
+  CopyPlus,
   MapPin,
   Pencil,
   QrCode,
@@ -262,7 +263,7 @@ function ActionRow({ row }: { row: EventRow }) {
     row.status === 'archived';
 
   return (
-    <div className="mt-auto grid grid-cols-4 gap-1.5 border-t border-border pt-stack">
+    <div className="mt-auto grid grid-cols-5 gap-1 border-t border-border pt-stack">
       {/* ── THE DOOR, AT THE TWO POINTS IT MATTERS ────────────────────
           While the event is selling, the job is scanning; once its sale window
           has passed, the job is "who came". Same tile position, because it is
@@ -291,6 +292,11 @@ function ActionRow({ row }: { row: EventRow }) {
       />
       <ActionTile icon={Star} label="Reviews" href={`/dashboard/reviews?event=${row.id}`} />
       <ActionTile icon={Wallet} label="Payouts" href="/dashboard/payouts" />
+      <ActionTile
+        icon={CopyPlus}
+        label="Clone"
+        href={`/dashboard/events/new?from=${encodeURIComponent(row.id)}`}
+      />
     </div>
   );
 }

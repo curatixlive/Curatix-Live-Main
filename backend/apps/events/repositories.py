@@ -2265,6 +2265,22 @@ class EventCoHostRepository:
 
         EventCoHost.objects.filter(pk=cohost_id).update(permissions=permissions)
 
+    def merge_permissions(self, cohost_id, changes: dict) -> None:
+        """Apply ONLY these keys over what is stored, under the row's lock.
+
+        Two toggles pressed close together are two PATCHes. Read-merge-write
+        outside a lock lets both read the same old set and the later write
+        discard the earlier one; `SELECT ... FOR UPDATE` makes them queue.
+        """
+        from django.db import transaction
+
+        from .models import COHOST_DEFAULTS, EventCoHost
+
+        with transaction.atomic():
+            row = EventCoHost.objects.select_for_update().get(pk=cohost_id)
+            merged = {**COHOST_DEFAULTS, **(row.permissions or {}), **changes}
+            EventCoHost.objects.filter(pk=cohost_id).update(permissions=merged)
+
     def delete(self, *, event_id, cohost_id) -> int:
         from .models import EventCoHost
 
@@ -2396,6 +2412,17 @@ class OrganizationCrewRepository:
         from .models import OrganizationCrew
 
         OrganizationCrew.objects.filter(pk=crew_id).update(permissions=permissions)
+
+    def merge_permissions(self, crew_id, changes: dict) -> None:
+        """See `EventCoHostRepository.merge_permissions` — same lock, same reason."""
+        from django.db import transaction
+
+        from .models import COHOST_DEFAULTS, OrganizationCrew
+
+        with transaction.atomic():
+            row = OrganizationCrew.objects.select_for_update().get(pk=crew_id)
+            merged = {**COHOST_DEFAULTS, **(row.permissions or {}), **changes}
+            OrganizationCrew.objects.filter(pk=crew_id).update(permissions=merged)
 
     def delete(self, *, organization_id, crew_id) -> int:
         from .models import OrganizationCrew

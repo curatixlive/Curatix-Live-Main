@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import {
   EVENT_IMAGE,
+  EVENT_PORTRAIT,
   EVENT_IMAGE_HINT,
   addMedia,
   checkImageFile,
@@ -739,10 +740,16 @@ function ZoneFrame({
             `EVENT_IMAGE_SPEC` refuses anything outside 1.5:1–2:1 at 1280x720
             or better, and the commonest wrong upload is a portrait poster
             somebody has paid a designer for. */}
+        {/* The PORTRAIT zone used to read "Landscape 3:4 · 1920 × 1080 ideal" —
+            two contradictions in one line, because the sentence was written for
+            the landscape zones and reused. Each zone now quotes ITS OWN spec. */}
         <p className="text-caption text-muted-foreground">
-          Landscape {zone.targetLabel} · {EVENT_IMAGE.recommendedWidth} ×{' '}
-          {EVENT_IMAGE.recommendedHeight} ideal, {EVENT_IMAGE.minWidth} × {EVENT_IMAGE.minHeight}{' '}
-          minimum · JPEG, PNG, WebP, AVIF or GIF up to 10 MB
+          {(() => {
+            const portrait = zone.targetRatio < 1;
+            const spec = portrait ? EVENT_PORTRAIT : EVENT_IMAGE;
+            return `${portrait ? 'Portrait' : 'Landscape'} ${zone.targetLabel} · ${spec.recommendedWidth} × ${spec.recommendedHeight} ideal, ${spec.minWidth} × ${spec.minHeight} minimum`;
+          })()}{' '}
+          · JPEG, PNG, WebP, AVIF or GIF up to 10 MB
         </p>
       </div>
       {children}

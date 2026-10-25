@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/api/errors';
-import { createEvent } from '@/lib/api/organizer-writes';
+import { createEvent, updateEvent } from '@/lib/api/organizer-writes';
 import { draftStorageKey } from './model';
 import { useWizard } from './use-wizard';
 
@@ -27,6 +27,7 @@ vi.mock('@/lib/api/organizer-writes', () => ({
 }));
 
 const mockCreate = vi.mocked(createEvent);
+const mockUpdate = vi.mocked(updateEvent);
 
 /** Past the 1200ms autosave delay. */
 const AUTOSAVE_WAIT_MS = 1300;
@@ -53,6 +54,8 @@ describe('useWizard save engine', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     window.localStorage.setItem(draftStorageKey('user-1'), JSON.stringify(COMPLETE_DRAFT));
+    // A first save is now create THEN update, so the update needs an answer too.
+    mockUpdate.mockResolvedValue({ id: 'evt', version: 2 } as never);
   });
 
   afterEach(() => {
@@ -77,6 +80,37 @@ describe('useWizard save engine', () => {
     expect(mockCreate).toHaveBeenCalledTimes(1);
     expect(result.current.draft.eventId).toBe('evt-1');
     expect(result.current.state).toBe('saved');
+  });
+
+  it('sends the fields typed BEFORE the first save in the same save, not never', async () => {
+    // `createEvent` carries only the basics. The summary, language and age limit
+    // were typed before the draft existed, and used to be recorded as "saved"
+    // the moment it was created — so no PATCH ever carried them.
+    window.localStorage.setItem(
+      draftStorageKey('user-1'),
+      JSON.stringify({
+        ...COMPLETE_DRAFT,
+        shortDescription: 'A one-line summary',
+        language: 'English, Hindi',
+        ageRestriction: '18+',
+      }),
+    );
+    mockCreate.mockResolvedValue({ id: 'evt-2', version: 1 } as never);
+    mockUpdate.mockResolvedValue({ id: 'evt-2', version: 2 } as never);
+    mount();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUTOSAVE_WAIT_MS);
+    });
+
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockUpdate.mock.calls[0]?.[0]).toBe('evt-2');
+    expect(mockUpdate.mock.calls[0]?.[1]).toMatchObject({
+      short_description: 'A one-line summary',
+      language: 'English, Hindi',
+      age_restriction: '18+',
+    });
   });
 
   it('retries ONCE with backoff after a network-ish failure, then succeeds', async () => {

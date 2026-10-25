@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  CopyPlus,
   Eye,
   Redo2,
   RefreshCw,
@@ -701,6 +702,17 @@ export function EventWizard({
               </Link>
             </Button>
             <SaveBadge state={wizard.state} error={wizard.error} savedAt={wizard.savedAt} />
+            {editing && draft.eventId && !coHostEditing ? (
+              <Button variant="outline" size="sm" className="ml-auto" asChild>
+                <Link
+                  href={`/dashboard/events/new?from=${encodeURIComponent(draft.eventId)}`}
+                  title="Start a new event pre-filled from this one — nothing is saved yet"
+                >
+                  <CopyPlus className="size-4" aria-hidden />
+                  Clone event
+                </Link>
+              </Button>
+            ) : null}
           </div>
 
           <header className="flex flex-col items-center gap-1 text-center">

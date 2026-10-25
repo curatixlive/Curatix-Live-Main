@@ -89,21 +89,52 @@ export function StartFromEvent({ className }: { className?: string }) {
       >
         <p className="flex min-w-0 items-start gap-2 text-body-sm text-muted-foreground sm:flex-1 sm:items-center">
           <CopyPlus className="mt-0.5 size-4 shrink-0 sm:mt-0" aria-hidden />
-          <span>Running this again? Copy a previous event instead of retyping it.</span>
+          <span>Running this again? Clone an event instead of retyping it.</span>
         </p>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full sm:w-auto"
-          onClick={() => setOpen(true)}
-        >
-          Copy a previous event
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <CloneLatest />
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={() => setOpen(true)}
+          >
+            Choose another event
+          </Button>
+        </div>
       </div>
     );
   }
 
   return <ClonePanel className={className} onDismiss={() => setOpen(false)} />;
+}
+
+/**
+ * "Clone event" — one press, the organiser's most recent event.
+ *
+ * The usual reason to copy is running the same night again, and the night they
+ * ran last is the newest row. Making them open a list and find it is a step
+ * for the common case. Absent while loading and when they have no events: a
+ * button that cannot yet name what it clones would be a promise with nothing
+ * behind it.
+ */
+function CloneLatest() {
+  const query = useEventRows({});
+  const { clone, cloning } = useCloneEvent();
+  const latest = query.data?.pages[0]?.data[0];
+  if (!latest) return null;
+  return (
+    <Button
+      size="sm"
+      className="w-full sm:w-auto"
+      disabled={cloning}
+      onClick={() => void clone(latest.id)}
+      title={CLONE_HINT}
+    >
+      <CopyPlus className="size-4" aria-hidden />
+      <span className="max-w-[16rem] truncate">Clone event: {latest.title}</span>
+    </Button>
+  );
 }
 
 function ClonePanel({ className, onDismiss }: { className?: string; onDismiss: () => void }) {

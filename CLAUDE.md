@@ -3276,6 +3276,31 @@ already wrote; `GET /organizer/campaigns/history` reads the actor's own rows. No
 table: a campaign is write-once and the audit log is already the append-only
 record. Recipient addresses are never stored there.
 
+**Found by creating five events through the live portal** (each has a regression test):
+
+- **The first save used to forget everything typed before it.** `toCreateInput`
+  sends only the basics, but the engine recorded the WHOLE draft as saved, so the
+  summary, language, age limit, tags, policies and invite-only switch typed before
+  the draft first reached the server were never sent and nothing said so. The first
+  save is now create THEN update.
+- **A PATCH naming one co-host/crew permission reset all the others to defaults.**
+  `_normalise` fills defaults, which is right for creating a row and wrong for
+  changing one. Updates now validate only the keys named and merge under a row lock
+  (`merge_permissions`), so two quick toggles cannot lose each other either.
+- **A one-day event can end after midnight.** An end clock time at or before the
+  start is the NEXT day (`endDateTimeFor`). It used to be refused, which shut
+  nightlife out of One day mode.
+- **A ticket's session is chosen first.** The tier autosaves once name/price/quantity
+  are valid and the session is fixed from then on, so the field sits above them.
+- **Date pickers open at the earliest allowed day** when that is in the future
+  (an "Ends" picker constrained to 18 Dec opened on October).
+- **Clone event** is a visible action: a row icon in the events table, a tile on the
+  mobile card, a header button in the editor, and a one-tap "clone your latest event"
+  on the create screen. A clone deliberately keeps the real title (see `lib/organizer/clone.ts`).
+
+Known and NOT fixed: a saved ticket tier cannot be deleted even on a draft with no
+sales; the seated-sections form has no screen for per-section gender prices.
+
 ## Build order
 
 `accounts` (done) → `organizations` (done) → `events` (done, plus the crew

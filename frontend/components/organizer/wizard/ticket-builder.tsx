@@ -301,6 +301,22 @@ export function TicketBuilder({
               {expanded ? (
                 <div className="border-t border-border bg-sunken p-card">
                   <div className="grid gap-stack-lg sm:grid-cols-2">
+                    {/* FIRST, not fifth. A tier saves itself the moment its name,
+                        price and quantity are valid, and the session is FIXED
+                        from then on ("tickets are issued against it"). With this
+                        field below those three, an organiser filling the form
+                        top to bottom reached it after the tier was already saved
+                        as "Every session" — and, since a saved tier cannot be
+                        deleted, had no way back. */}
+                    {sessions.length ? (
+                      <div className="sm:col-span-2">
+                        <SessionField
+                          tier={tier}
+                          sessions={sessions}
+                          onChange={(slotId) => patch(tier.key, { slotId })}
+                        />
+                      </div>
+                    ) : null}
                     <Field
                       label="Name"
                       id={`${tier.key}-name`}
@@ -333,13 +349,6 @@ export function TicketBuilder({
                       min="1"
                       placeholder="100"
                     />
-                    {sessions.length ? (
-                      <SessionField
-                        tier={tier}
-                        sessions={sessions}
-                        onChange={(slotId) => patch(tier.key, { slotId })}
-                      />
-                    ) : null}
                     <Field
                       label="Max per order"
                       id={`${tier.key}-max`}

@@ -447,7 +447,7 @@ function CloneEventButton({ eventId, onClose }: { eventId: string; onClose: () =
       className={TOOLBAR_CONTROL}
     >
       {cloning ? <Loader2 className="size-4 animate-spin" /> : <CopyPlus className="size-4" />}
-      <span>{cloning ? 'Copying…' : 'Duplicate'}</span>
+      <span>{cloning ? 'Opening…' : 'Clone event'}</span>
     </Button>
   );
 }

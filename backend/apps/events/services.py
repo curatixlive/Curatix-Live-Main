@@ -3190,6 +3190,24 @@ class EventCoHostService:
             merged[key] = bool(value)
         return merged
 
+    @staticmethod
+    def _only_known(requested: dict | None) -> dict:
+        """The keys a PATCH names, validated and coerced — and NOTHING else.
+
+        `_normalise` starts from the defaults, which is right for creating a row
+        and wrong for changing one: a PATCH naming a single permission went
+        through it, came out as a full set, and overwrote every OTHER permission
+        with its default. Turning Bookings on silently turned Edit off again.
+        """
+        from .models import COHOST_PERMISSIONS
+
+        changes: dict = {}
+        for key, value in (requested or {}).items():
+            if key not in COHOST_PERMISSIONS:
+                raise InvalidInputError(f"Unknown permission: {key}.")
+            changes[key] = bool(value)
+        return changes
+
     def list(self, *, event_id, actor_id) -> list:
         self._owned_event(event_id, actor_id)
         return self._cohosts.list_for_event(event_id)
@@ -3226,8 +3244,7 @@ class EventCoHostService:
         row = self._cohosts.get(event_id=event.id, cohost_id=cohost_id)
         if row is None:
             raise EventNotFoundError(str(cohost_id))
-        merged = {**(row.permissions or {}), **self._normalise(permissions)}
-        self._cohosts.set_permissions(row.id, self._normalise(merged))
+        self._cohosts.merge_permissions(row.id, self._only_known(permissions))
         record_audit(
             actor_id=str(actor_id),
             action="event.cohost_updated",
@@ -3316,8 +3333,7 @@ class OrganizationCrewService:
         row = self._crew.get(organization_id=org.id, crew_id=crew_id)
         if row is None:
             raise EventNotFoundError(str(crew_id))
-        merged = {**(row.permissions or {}), **EventCoHostService._normalise(permissions)}
-        self._crew.set_permissions(row.id, EventCoHostService._normalise(merged))
+        self._crew.merge_permissions(row.id, EventCoHostService._only_known(permissions))
         record_audit(
             actor_id=str(actor_id),
             action="organization.crew_updated",

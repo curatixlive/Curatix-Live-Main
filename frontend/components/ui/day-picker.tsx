@@ -73,16 +73,23 @@ export function DayPicker({
   // Which month the grid is showing. Opens on the chosen date when there is
   // one — a picker that opens on today while holding a 2003 birthday makes
   // somebody navigate back to what they already chose.
-  const [cursor, setCursor] = React.useState(value || max || today);
-  const [focused, setFocused] = React.useState(value || max || today);
+  //
+  // With nothing chosen it opens at the earliest allowed day when that is in
+  // the FUTURE, not at today: an "Ends" picker constrained to start on 18 Dec
+  // opened on October and made the organiser press the month arrow back out to
+  // the month they had just picked, with a popover that moves as it changes
+  // height.
+  const origin = value || max || (min && min > today ? min : today);
+  const [cursor, setCursor] = React.useState(origin);
+  const [focused, setFocused] = React.useState(origin);
 
   React.useEffect(() => {
     if (open) {
-      const start = value || max || today;
+      const start = value || max || (min && min > today ? min : today);
       setCursor(start);
       setFocused(start);
     }
-  }, [open, value, max, today]);
+  }, [open, value, max, min, today]);
 
   const cells = monthGrid(cursor);
   const years = React.useMemo(() => {

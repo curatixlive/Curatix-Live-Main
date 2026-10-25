@@ -10,6 +10,7 @@ import {
   canCreate,
   completion,
   countWords,
+  endDateTimeFor,
   draftStorageKey,
   dayPart,
   emptyDraft,
@@ -1334,5 +1335,33 @@ describe('address, state and postal code', () => {
     delete old.postalCode;
     const restored = restoreDraft(old, ['org']);
     expect([restored.address, restored.state, restored.postalCode]).toEqual(['', '', '']);
+  });
+});
+
+describe('endDateTimeFor — an event that runs past midnight', () => {
+  it('keeps the start day when the end is later that day', () => {
+    expect(endDateTimeFor('2026-12-26', '20:00', '23:30')).toBe('2026-12-26T23:30');
+  });
+
+  it('moves the end to the NEXT day when the clock time is earlier than the start', () => {
+    expect(endDateTimeFor('2026-12-26', '20:00', '01:00')).toBe('2026-12-27T01:00');
+  });
+
+  it('crosses a month and a year boundary correctly', () => {
+    expect(endDateTimeFor('2026-12-31', '22:00', '02:00')).toBe('2027-01-01T02:00');
+    expect(endDateTimeFor('2028-02-28', '22:00', '02:00')).toBe('2028-02-29T02:00');
+  });
+
+  it('treats an equal time as 24 hours later, never as an empty event', () => {
+    expect(endDateTimeFor('2026-12-26', '20:00', '20:00')).toBe('2026-12-27T20:00');
+  });
+
+  it('is empty until it has what it needs', () => {
+    expect(endDateTimeFor('', '20:00', '01:00')).toBe('');
+    expect(endDateTimeFor('2026-12-26', '20:00', '')).toBe('');
+  });
+
+  it('with no start time yet, simply uses the start day', () => {
+    expect(endDateTimeFor('2026-12-26', '', '01:00')).toBe('2026-12-26T01:00');
   });
 });

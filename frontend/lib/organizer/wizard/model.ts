@@ -1544,6 +1544,29 @@ export function joinDateTime(day: string, time: string): string {
 }
 
 /**
+ * The end of a ONE-DAY event, given the day it starts and the two clock times.
+ *
+ * An end time at or before the start time means the event runs PAST MIDNIGHT —
+ * a club night from 8 pm to 1 am — so the end falls on the NEXT day. Gluing the
+ * end time onto the start's day (as this used to) produced an end before the
+ * start, which the form refused with "The end time has to be after the start"
+ * and the server with "ends_at must be after starts_at": nightlife, the busiest
+ * category on the platform, could not be entered in One day mode at all.
+ *
+ * An equal time is treated as 24 hours later rather than as an empty event; an
+ * organiser who really means "ends when it starts" is not describing an event.
+ */
+export function endDateTimeFor(day: string, startTime: string, endTime: string): string {
+  if (!day || !endTime) return '';
+  if (startTime && endTime <= startTime) {
+    const next = new Date(`${day}T00:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    return joinDateTime(next.toISOString().slice(0, 10), endTime);
+  }
+  return joinDateTime(day, endTime);
+}
+
+/**
  * Minor units back to the MAJOR-unit string the price fields hold.
  *
  * The editors work in rupees because an organizer types 499 and means 499;

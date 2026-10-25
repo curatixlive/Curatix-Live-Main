@@ -9,6 +9,7 @@ import {
   VENUE_MAX,
   dayPart,
   isDraftUntouched,
+  endDateTimeFor,
   joinDateTime,
   spansMultipleDays,
   timePart,
@@ -881,7 +882,7 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
     // moving the event to next week leaves the end behind on the old date and
     // the event finishes before it begins.
     const nextEndTime = timePart(draft.endsAt) || pending.endTime;
-    const endsAt = nextEndTime ? joinDateTime(day, nextEndTime) : draft.endsAt;
+    const endsAt = nextEndTime ? endDateTimeFor(day, time, nextEndTime) : draft.endsAt;
     setPending({ day: '', time: '', endTime: '' });
     update({ startsAt, endsAt });
   };
@@ -897,7 +898,12 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
       setPending((current) => ({ ...current, endTime: time }));
       return;
     }
-    update({ endsAt: joinDateTime(day, time) });
+    const startClock = timePart(draft.startsAt) || pending.time;
+    const endsAt = endDateTimeFor(day, startClock, time);
+    // Past midnight: keep the One day layout the organiser chose rather than
+    // letting the next-day end flip the section into the several-days form.
+    if (dayPart(endsAt) !== day) setMultiDayOverride(false);
+    update({ endsAt });
   };
 
   return (
@@ -948,7 +954,13 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
               // check-in window and a payout date the organiser had set;
               // moving it is the reading that loses nothing.
               if (!next && draft.startsAt && draft.endsAt) {
-                update({ endsAt: joinDateTime(dayPart(draft.startsAt), timePart(draft.endsAt)) });
+                update({
+                  endsAt: endDateTimeFor(
+                    dayPart(draft.startsAt),
+                    timePart(draft.startsAt),
+                    timePart(draft.endsAt),
+                  ),
+                });
               }
             }}
             options={[
@@ -1000,7 +1012,11 @@ export function ScheduleStep({ draft, update, issues }: StepProps) {
               value={endTime}
               onChange={setEnd}
               error={errorFor(issues, 'endsAt')}
-              hint="Optional. Drives the check-in window and the payout date."
+              hint={
+                endTime && startTime && endTime <= startTime
+                  ? 'Ends after midnight, on the next day. Drives the check-in window and the payout date.'
+                  : 'Optional. Drives the check-in window and the payout date.'
+              }
             />
           </div>
         )}

@@ -52,6 +52,14 @@ const deck = (rows: EventRow[], hasMore = false) =>
   );
 
 describe('the action row', () => {
+  it('offers Clone, which opens the create form pre-filled from THIS event', () => {
+    deck([row()]);
+
+    expect(screen.getByRole('link', { name: 'Clone' }).getAttribute('href')).toBe(
+      '/dashboard/events/new?from=evt-1',
+    );
+  });
+
   it('carries the event id into every place it sends you', () => {
     // The whole difference between this row and four decorations. A link that
     // loses the id still navigates, to a screen about a different event.

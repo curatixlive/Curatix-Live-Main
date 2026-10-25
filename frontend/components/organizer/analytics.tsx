@@ -136,7 +136,7 @@ export function Analytics() {
             for no reason. Two native date inputs — the platform's own picker
             is keyboard-accessible, localised and understood, and a bespoke
             calendar here would be a second, worse one to maintain. */}
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <label className="sr-only" htmlFor="analytics-from">
             From
           </label>
@@ -151,7 +151,7 @@ export function Analytics() {
               if (!from) return setRange(null);
               setRange({ from, to: range?.to && range.to >= from ? range.to : istToday() });
             }}
-            className="h-control rounded-full border border-border bg-surface px-3 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-control min-w-0 flex-1 rounded-full border border-border bg-surface px-3 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-none"
           />
           <span aria-hidden className="text-caption text-muted-foreground">
             to
@@ -172,7 +172,7 @@ export function Analytics() {
               setRange({ from: range.from, to });
             }}
             disabled={!range?.from}
-            className="h-control rounded-full border border-border bg-surface px-3 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            className="h-control min-w-0 flex-1 rounded-full border border-border bg-surface px-3 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 sm:flex-none"
           />
           {range ? (
             <Button

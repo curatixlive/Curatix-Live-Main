@@ -396,9 +396,9 @@ export function EventsTable() {
             sentence. */}
         <BulkButton
           icon={CopyPlus}
-          label="Duplicate"
+          label="Clone event"
           disabled={busy || cloning || selectedRows.length !== 1}
-          title={selectedRows.length > 1 ? 'Select one event to duplicate.' : CLONE_HINT}
+          title={selectedRows.length > 1 ? 'Select one event to clone.' : CLONE_HINT}
           onClick={() => {
             const row = selectedRows[0];
             if (row) void clone(row.id);
@@ -642,8 +642,8 @@ const COLUMNS: ColumnDef<EventRow>[] = [
     // padding a side, which left a 44px column exactly 20px of content box —
     // and the icon button was 28px, so the only action in the table was being
     // CLIPPED. 64 gives a 40px box, which fits a 36px control with room.
-    width: 64,
-    minWidth: 64,
+    width: 112,
+    minWidth: 112,
     // Not sortable and not exportable — it is a door, not a value. Omitting
     // `sortValue` is what makes the header unsortable; `exportValue` returning
     // empty keeps a column of identical link text out of every CSV.
@@ -671,6 +671,18 @@ const COLUMNS: ColumnDef<EventRow>[] = [
           className="inline-flex size-control-sm items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <BarChart3 className="size-4" aria-hidden />
+        </Link>
+        {/* The third door: start a new event pre-filled from this one. It was
+            only reachable by selecting a row and finding "Duplicate" in the bulk
+            bar — an organiser looking at last month's show did not see it. */}
+        <Link
+          href={`/dashboard/events/new?from=${encodeURIComponent(row.id)}`}
+          onClick={(event) => event.stopPropagation()}
+          aria-label={`Clone ${row.title}`}
+          title={CLONE_HINT}
+          className="inline-flex size-control-sm items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <CopyPlus className="size-4" aria-hidden />
         </Link>
       </div>
     ),

@@ -228,3 +228,27 @@ class TestBookingsAndEditRights:
                 format="json",
             )
             assert response.status_code in (403, 404), (action, response.status_code)
+
+
+class TestOnePermissionAtATime:
+    """A PATCH naming one permission must change that one and leave the rest."""
+
+    def test_toggling_one_permission_does_not_reset_the_others(self, world, helper) -> None:
+        row = add(world, helper, permissions={"finance": True, "edit": True}).json()
+        url = f"{cohosts_url(world.event.id)}/{row['id']}"
+        # Turn Bookings on: Finance and Edit, set earlier, must survive it.
+        body = auth(world.owner).patch(url, {"permissions": {"bookings": True}}, format="json")
+        perms = body.json()["permissions"]
+        assert perms["bookings"] is True
+        assert perms["finance"] is True and perms["edit"] is True
+        # And turning one OFF leaves the defaults-on ones alone, too.
+        body = auth(world.owner).patch(url, {"permissions": {"checkin": False}}, format="json")
+        perms = body.json()["permissions"]
+        assert perms["checkin"] is False
+        assert perms["finance"] is True and perms["edit"] is True and perms["bookings"] is True
+
+    def test_an_unknown_key_is_still_refused_on_update(self, world, helper) -> None:
+        row = add(world, helper).json()
+        url = f"{cohosts_url(world.event.id)}/{row['id']}"
+        response = auth(world.owner).patch(url, {"permissions": {"payouts": True}}, format="json")
+        assert response.status_code == 422

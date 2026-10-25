@@ -510,8 +510,17 @@ export function useWizard({ userId, organizationIds, ready, existing, cloneSourc
       if (!working.eventId) {
         const created = await createEvent(toCreateInput(working));
         working = { ...working, eventId: created.id, version: created.version };
-        savedEvent.current = patchFingerprint(working);
-      } else if (patchFingerprint(working) !== savedEvent.current) {
+        // NOT `patchFingerprint(working)`. `toCreateInput` sends only the basics —
+        // title, description, venue, city, category, schedule, pin — so recording
+        // the whole draft as "saved" told the engine that the one-line summary,
+        // language, age limit, tags, policies and every other field typed BEFORE
+        // the draft first reached the server were already there. They were not,
+        // and nothing ever sent them: an organiser who filled the form top to
+        // bottom lost everything below the title and never saw an error. The
+        // empty marker makes the PATCH below run in the same save.
+        savedEvent.current = '';
+      }
+      if (working.eventId && patchFingerprint(working) !== savedEvent.current) {
         const updated = await updateEvent(working.eventId, toPatchInput(working));
         working = { ...working, version: updated.version };
         savedEvent.current = patchFingerprint(working);
