@@ -80,15 +80,23 @@ export function StartFromEvent({ className }: { className?: string }) {
     return (
       <div
         className={cn(
-          'bg-subtle flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-border px-4 py-3',
+          // Stacked on a phone — the sentence across the full width, the button
+          // under it — and one row from `sm`. Side by side at 375px squeezed the
+          // sentence into a one-word-per-line column beside the button.
+          'bg-subtle flex flex-col gap-3 rounded-lg border border-dashed border-border px-4 py-3 sm:flex-row sm:items-center',
           className,
         )}
       >
-        <CopyPlus className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        <p className="min-w-0 flex-1 text-body-sm text-muted-foreground">
-          Running this again? Copy a previous event instead of retyping it.
+        <p className="flex min-w-0 items-start gap-2 text-body-sm text-muted-foreground sm:flex-1 sm:items-center">
+          <CopyPlus className="mt-0.5 size-4 shrink-0 sm:mt-0" aria-hidden />
+          <span>Running this again? Copy a previous event instead of retyping it.</span>
         </p>
-        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={() => setOpen(true)}
+        >
           Copy a previous event
         </Button>
       </div>

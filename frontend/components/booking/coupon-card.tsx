@@ -84,7 +84,11 @@ export function CouponCard({
   // Nothing to apply a code to and nothing to advertise — so nothing to draw.
   // The section is absent rather than an empty card, exactly like the gallery
   // and the disclosure rows on the event page.
-  if (disabled && !appliedCode && offers.length === 0) return null;
+  //
+  // ALSO absent when the organiser has no codes for this event, and while there
+  // is no live hold: a row that cannot be pressed, or that opens onto an empty
+  // list, is a dead end. An applied code always shows, so it can be removed.
+  if (!appliedCode && (offers.length === 0 || disabled)) return null;
 
   const count = offers.length;
   const hint = appliedCode

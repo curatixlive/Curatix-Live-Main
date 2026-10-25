@@ -91,7 +91,10 @@ export function EventsFilterBar({
           // The REAL glass: this is chrome the deck scrolls under. `z-[999]`
           // is one below the shell header's `z-sticky`, so it pins beneath the
           // header instead of sliding over its edge; `top-14` is that header.
-          'glass sticky top-14 z-[999] border-b lg:rounded-t-xl',
+          // In the page flow on a phone: pinned there, the glass bar slid over
+          // the first card and hid its title and status. From `lg` there is
+          // room for it to pin under the header without covering a card.
+          'glass relative z-[999] border-b lg:sticky lg:top-14 lg:rounded-t-xl',
         )}
       >
         <div
