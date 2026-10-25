@@ -17,6 +17,7 @@ import { TierPicker } from './tier-picker';
 import { AccessGate } from './access-gate';
 import { SeatPicker } from './seat-picker';
 import { SessionPicker } from '@/components/event/session-picker';
+import { ticketsBySession } from '@/lib/event/sessions';
 import { Questionnaire } from './questionnaire';
 
 /**
@@ -195,7 +196,12 @@ export function BookingStep() {
             would be asking half a question in one place and half in another. */}
         {sessionDays.length > 0 && session ? (
           <Rise index={1}>
-            <SessionPicker days={sessionDays} selected={session} onSelect={setSession} />
+            <SessionPicker
+              days={sessionDays}
+              selected={session}
+              onSelect={setSession}
+              counts={ticketsBySession(totals.lines)}
+            />
           </Rise>
         ) : null}
 
@@ -244,19 +250,15 @@ export function BookingStep() {
           </Rise>
         ) : null}
 
-        {/* One booking cannot admit somebody to two evenings, and the server
-            cannot refuse it — `POST /bookings` receives tier ids and nothing
-            about sessions. So the guard has to be here, and it has to BLOCK
-            rather than warn: a basket spanning two showtimes that reaches
-            payment issues tickets to a show the buyer did not choose. */}
+        {/* One order may span several days: the basket survives switching
+            session, and each ticket carries its own session through to the
+            door. Saying so HERE is what stops somebody who picked Saturday and
+            then browsed Sunday wondering whether the first choice was lost. */}
         {totals.crossSession ? (
           <Rise index={2}>
-            <p
-              role="alert"
-              className="rounded-xl border border-border bg-muted p-card text-body-sm text-foreground"
-            >
-              Those tickets are for different showtimes. Pick one session — a single booking admits
-              you to one show.
+            <p className="rounded-xl border border-border bg-muted p-card text-body-sm text-foreground">
+              Your order covers more than one session. Each ticket admits to the session it was
+              bought for.
             </p>
           </Rise>
         ) : null}
@@ -288,13 +290,7 @@ export function BookingStep() {
         <Button
           size="lg"
           onClick={advance}
-          disabled={
-            !chosen ||
-            inviteBlocked ||
-            totals.overAvailable ||
-            totals.crossSession ||
-            totals.notOnSale
-          }
+          disabled={!chosen || inviteBlocked || totals.overAvailable || totals.notOnSale}
           className={cn(CTA_PILL_LG, 'shrink-0')}
         >
           Proceed

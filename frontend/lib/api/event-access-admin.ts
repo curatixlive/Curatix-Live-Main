@@ -14,6 +14,10 @@ export type CoHostPermissions = {
   checkin: boolean;
   /** Revenue, refunds and payouts. Off by default. */
   finance: boolean;
+  /** The purchases list for this event — buyer names and emails. Off by default. */
+  bookings: boolean;
+  /** Change the event's details. Never tickets, price, status or the access code. */
+  edit: boolean;
 };
 
 export type CoHost = {

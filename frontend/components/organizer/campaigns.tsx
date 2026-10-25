@@ -2,10 +2,11 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { MapPin, Megaphone, MessageCircle, Send } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { History, MapPin, Megaphone, MessageCircle, Send } from 'lucide-react';
 import { errorMessage } from '@/lib/api/errors';
 import {
+  fetchCampaignHistory,
   fetchCampaignOverview,
   previewCampaign,
   sendCampaign,
@@ -153,6 +154,8 @@ export function Campaigns() {
             </Panel>
           </div>
 
+          <CampaignHistory />
+
           <Panel title="Payment reminders" subtitle="Nudge people whose payment did not complete">
             <p className="p-card text-body-sm text-muted-foreground">
               Open an event&rsquo;s{' '}
@@ -174,6 +177,7 @@ function Composer({ audience }: { audience: Record<'all' | 'repeat' | 'recent', 
   const [message, setMessage] = React.useState('');
   const [result, setResult] = React.useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
   const recipients = audience[segment];
+  const queryClient = useQueryClient();
 
   const send = useMutation({
     mutationFn: async () => {
@@ -191,6 +195,9 @@ function Composer({ audience }: { audience: Record<'all' | 'repeat' | 'recent', 
     },
     onSuccess: (outcome) => {
       if (!outcome) return;
+      // The history is a read of what was just written; refetch rather than
+      // splice a row in, so the list can never show something the server does not.
+      void queryClient.invalidateQueries({ queryKey: ['organizer', 'campaigns', 'history'] });
       setResult({
         tone: 'ok',
         text: `Sent to ${outcome.sent} ${outcome.sent === 1 ? 'person' : 'people'}.${outcome.failed ? ` ${outcome.failed} could not be sent.` : ''}`,
@@ -286,6 +293,57 @@ function Composer({ audience }: { audience: Record<'all' | 'repeat' | 'recent', 
           </p>
         ) : null}
       </form>
+    </Panel>
+  );
+}
+
+const SEGMENT_LABELS: Record<string, string> = {
+  all: 'Everyone who bought',
+  repeat: 'Regulars',
+  recent: 'Recent buyers',
+  event: 'One event',
+};
+
+/**
+ * What has already gone out. Absent while empty or loading: "No campaigns yet"
+ * above the composer would read as something missing rather than as a fact, and
+ * a failed read is not worth a panel of its own — the composer still works.
+ */
+function CampaignHistory() {
+  const history = useQuery({
+    queryKey: ['organizer', 'campaigns', 'history'],
+    queryFn: fetchCampaignHistory,
+  });
+  const rows = history.data ?? [];
+  if (!rows.length) return null;
+
+  return (
+    <Panel title="Past campaigns" subtitle="Everything you have sent, newest first">
+      <ul className="divide-y divide-border">
+        {rows.map((row) => (
+          <li key={row.id} className="flex flex-col gap-1 px-card py-3">
+            <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-body-sm font-semibold">
+                <History className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="truncate">{row.subject}</span>
+              </span>
+              <span className="text-caption text-muted-foreground">
+                {formatEventDateTime(row.sent_at)}
+              </span>
+            </span>
+            {row.message_preview ? (
+              <span className="line-clamp-2 text-caption text-muted-foreground">
+                {row.message_preview}
+              </span>
+            ) : null}
+            <span className="text-caption text-muted-foreground">
+              {SEGMENT_LABELS[row.segment] ?? 'Your customers'} · sent to {row.sent} of{' '}
+              {row.recipients} {row.recipients === 1 ? 'person' : 'people'}
+              {row.failed ? ` · ${row.failed} could not be sent` : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
     </Panel>
   );
 }

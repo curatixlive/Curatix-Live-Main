@@ -324,6 +324,11 @@ class SeatingService:
             tally[seat.ticket_type_id] = tally.get(seat.ticket_type_id, 0) + 1
         return HeldSeats(seats=held, lines=list(tally.items()))
 
+    def record_genders(self, *, booking_id: uuid.UUID | str, seat_genders: dict[str, str]) -> None:
+        """Remember each held seat's priced gender, in the booking's transaction."""
+        if seat_genders:
+            self._seats.set_held_genders(booking_id=booking_id, seat_genders=seat_genders)
+
     def release_for_booking(self, *, booking_id: uuid.UUID | str) -> int:
         return self._seats.release_for_booking(booking_id)
 

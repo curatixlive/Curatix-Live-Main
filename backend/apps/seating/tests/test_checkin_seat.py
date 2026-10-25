@@ -136,3 +136,73 @@ def test_case_2_and_4_a_seated_gender_priced_ticket_shows_section_seat_and_gende
     assert result.allowed is True
     assert (result.ticket_type, result.seat_label, result.seat_section) == ("VIP", "B2", "VIP")
     assert result.gender == "female"
+
+
+def test_one_order_can_mix_genders_per_seat(booking_service, buyer, seated_event):
+    """Each seat is priced at ITS gender, and its ticket carries that gender."""
+    from apps.booking.models import BookingItem
+    from apps.seating.models import EventSeat
+    from apps.ticketing.models import TicketType
+
+    TicketType.objects.filter(event_id=seated_event.id, name="VIP").update(
+        gender_prices={"female": 1}
+    )
+    male_seat = EventSeat.objects.get(event_id=seated_event.id, label="B2")
+    vip = EventSeat.objects.filter(event_id=seated_event.id, section_name="VIP")
+    female_seat = vip.get(label="A1")
+    other_seat = vip.get(label="A2")
+
+    booking = booking_service.create_booking(
+        user_id=buyer.id,
+        event_id=seated_event.id,
+        items=[],
+        seat_ids=[str(male_seat.id), str(female_seat.id), str(other_seat.id)],
+        # `male` has NO price on this section, so it falls back to standard.
+        seat_genders={str(male_seat.id): "male", str(female_seat.id): "female"},
+    ).booking
+
+    genders = {item.gender: item.quantity for item in BookingItem.objects.filter(booking=booking)}
+    assert genders == {"": 2, "female": 1}
+    held = {s.label: s.held_gender for s in EventSeat.objects.filter(booking=booking)}
+    assert held == {"B2": "", "A1": "female", "A2": ""}
+
+    booking_service.confirm_booking(booking_id=booking.id, payment_ref="pay_mixed")
+    by_label = {t.seat_label: t.gender for t in Ticket.objects.filter(booking=booking)}
+    assert by_label == {"B2": "", "A1": "female", "A2": ""}
+
+
+def test_a_seat_gender_for_a_seat_not_in_the_order_is_refused(booking_service, buyer, seated_event):
+    from apps.booking.exceptions import InvalidBookingItemsError
+    from apps.seating.models import EventSeat
+
+    seat = EventSeat.objects.get(event_id=seated_event.id, label="B2")
+    stranger = EventSeat.objects.get(event_id=seated_event.id, label="A1")
+    with pytest.raises(InvalidBookingItemsError):
+        booking_service.create_booking(
+            user_id=buyer.id,
+            event_id=seated_event.id,
+            items=[],
+            seat_ids=[str(seat.id)],
+            seat_genders={str(stranger.id): "female"},
+        )
+
+
+def test_releasing_a_hold_clears_the_remembered_gender(booking_service, buyer, seated_event):
+    from apps.seating.models import EventSeat
+    from apps.ticketing.models import TicketType
+
+    TicketType.objects.filter(event_id=seated_event.id, name="VIP").update(
+        gender_prices={"female": 1}
+    )
+    seat = EventSeat.objects.get(event_id=seated_event.id, label="B2")
+    booking = booking_service.create_booking(
+        user_id=buyer.id,
+        event_id=seated_event.id,
+        items=[],
+        seat_ids=[str(seat.id)],
+        seat_genders={str(seat.id): "female"},
+    ).booking
+    assert EventSeat.objects.get(pk=seat.id).held_gender == "female"
+    booking_service.cancel_booking(booking_id=booking.id, actor_id=buyer.id)
+    seat.refresh_from_db()
+    assert seat.status == "available" and seat.held_gender == ""

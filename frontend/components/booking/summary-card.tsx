@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { CalendarDays, MapPin } from 'lucide-react';
 import { inferCategory } from '@/lib/discovery/categories';
 import { formatEventDateTime, formatFromPrice } from '@/lib/discovery/format';
+import { sessionTagFor } from '@/lib/event/sessions';
 import { cn } from '@/lib/utils/cn';
 import { AnimatedNumber, EASE_OUT } from './motion';
 import { PosterFrame } from './poster-frame';
@@ -50,7 +51,7 @@ import { HoldTimer } from './hold-timer';
  * looking like a broken image.
  */
 export function SummaryCard({ className }: { className?: string }) {
-  const { event, totals, booking, tiersLoading } = useBooking();
+  const { event, totals, booking, tiersLoading, tiers, sessionDays } = useBooking();
   const reduced = useReducedMotion();
   const category = inferCategory(event);
 
@@ -68,14 +69,20 @@ export function SummaryCard({ className }: { className?: string }) {
   const lines = booking?.items?.length
     ? booking.items.map((item) => ({
         id: item.ticket_type_id,
-        name: item.ticket_type_name,
+        name: withSession(
+          item.ticket_type_name,
+          sessionTagFor(
+            sessionDays,
+            tiers.find((tier) => tier.id === item.ticket_type_id)?.slot_id,
+          ),
+        ),
         phaseName: item.phase_name ?? null,
         quantity: item.quantity,
         subtotal: item.unit_price * item.quantity,
       }))
     : totals.lines.map((line) => ({
         id: line.tier.id,
-        name: line.tier.name,
+        name: withSession(line.tier.name, sessionTagFor(sessionDays, line.tier.slot_id)),
         phaseName: line.phaseName,
         quantity: line.quantity,
         subtotal: line.subtotal,
@@ -236,3 +243,6 @@ export function SummaryCard({ className }: { className?: string }) {
     </motion.aside>
   );
 }
+
+/** "General — Sat, 14 Mar, 6:30 pm" when the order spans sessions; the bare name otherwise. */
+const withSession = (name: string, tag: string | null) => (tag ? `${name} — ${tag}` : name);

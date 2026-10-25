@@ -43,6 +43,8 @@ class TestManaging:
             "attendees": True,
             "checkin": True,
             "finance": False,
+            "bookings": False,
+            "edit": False,
         }
 
     def test_the_host_can_choose_per_person(self, world, helper) -> None:
@@ -145,3 +147,84 @@ class TestWhatACoHostSees:
         body = auth(helper).get(url).json()
         assert "access_code" not in body
         assert auth(world.owner).get(url).json()["access_code"] == "SECRET1"
+
+
+class TestBookingsAndEditRights:
+    """`bookings` (purchases list) and `edit` (event details) are opt-in per person."""
+
+    def _bookings_url(self, world) -> str:
+        return f"/api/v1/organizer/bookings?event_id={world.event.id}"
+
+    def test_bookings_are_hidden_from_a_cohost_by_default(self, world, helper) -> None:
+        add(world, helper)
+        assert auth(helper).get(self._bookings_url(world)).status_code == 404
+
+    def test_a_stranger_cannot_read_an_events_bookings(self, world, helper) -> None:
+        assert auth(helper).get(self._bookings_url(world)).status_code == 404
+
+    def test_a_cohost_with_bookings_sees_them_without_the_money(self, world, helper) -> None:
+        add(world, helper, permissions={"bookings": True})
+        response = auth(helper).get(self._bookings_url(world))
+        assert response.status_code == 200
+        rows = response.json()["data"]
+        assert rows, "the world fixture has bookings for this event"
+        for row in rows:
+            assert row["total_amount_minor"] is None
+            assert row["platform_fee_minor"] is None
+            assert row["payment_ref"] == "" and row["payment_id"] is None
+            assert row["event_id"] == str(world.event.id)
+
+    def test_finance_on_shows_the_amounts(self, world, helper) -> None:
+        add(world, helper, permissions={"bookings": True, "finance": True})
+        rows = auth(helper).get(self._bookings_url(world)).json()["data"]
+        assert any(row["total_amount_minor"] for row in rows)
+
+    def test_bookings_right_is_per_event(self, world, helper) -> None:
+        add(world, helper, permissions={"bookings": True})
+        url = f"/api/v1/organizer/bookings?event_id={world.second_event.id}"
+        assert auth(helper).get(url).status_code == 404
+
+    def test_the_unfiltered_list_never_includes_the_hosts_bookings(self, world, helper) -> None:
+        add(world, helper, permissions={"bookings": True})
+        rows = auth(helper).get("/api/v1/organizer/bookings").json()["data"]
+        assert rows == []
+
+    def _patch(self, world, user: User, **fields):
+        from apps.events.models import Event
+
+        version = Event.objects.get(pk=world.event.id).version
+        return auth(user).patch(
+            f"/api/v1/events/{world.event.id}",
+            {"version": version, **fields},
+            format="json",
+        )
+
+    def test_edit_is_refused_by_default(self, world, helper) -> None:
+        add(world, helper)
+        assert self._patch(world, helper, title="Hijacked").status_code == 403
+
+    def test_a_cohost_with_edit_changes_the_details(self, world, helper) -> None:
+        from apps.events.models import Event
+
+        add(world, helper, permissions={"edit": True})
+        response = self._patch(world, helper, title="A better title")
+        assert response.status_code == 200, response.json()
+        assert Event.objects.get(pk=world.event.id).title == "A better title"
+
+    def test_edit_never_reaches_the_access_code(self, world, helper) -> None:
+        from apps.events.models import Event
+
+        before = Event.objects.get(pk=world.event.id).access_code
+        add(world, helper, permissions={"edit": True})
+        self._patch(world, helper, access_code="STOLEN")
+        assert Event.objects.get(pk=world.event.id).access_code == before
+
+    def test_edit_does_not_let_a_cohost_publish_or_cancel(self, world, helper) -> None:
+        add(world, helper, permissions={"edit": True})
+        for action in ("publish", "cancel"):
+            response = auth(helper).post(
+                f"/api/v1/events/{world.event.id}/{action}",
+                {"reason": "The co-host has no business doing this."},
+                format="json",
+            )
+            assert response.status_code in (403, 404), (action, response.status_code)

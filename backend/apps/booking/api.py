@@ -71,6 +71,7 @@ class BookingCreateView(APIView):
             gateway=data.get("payment_gateway") or "",
             seat_ids=[str(s) for s in data.get("seat_ids") or []] or None,
             seat_gender=data.get("seat_gender") or "",
+            seat_genders={str(k): str(v) for k, v in (data.get("seat_genders") or {}).items()},
             access_code=data.get("access_code") or "",
         )
 

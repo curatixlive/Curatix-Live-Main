@@ -340,11 +340,12 @@ const COLUMNS: ColumnDef<OrganizerBooking>[] = [
     header: 'Total',
     width: 120,
     numeric: true,
-    sortValue: (row) => row.total_amount_minor,
+    // A co-host without the finance right gets null: sorted last, drawn "—".
+    sortValue: (row) => row.total_amount_minor ?? -1,
     render: (row) => formatMoney(row.total_amount_minor),
     // Major units, so a finance spreadsheet summing this column is not out by
     // a factor of a hundred.
-    exportValue: (row) => row.total_amount_minor / 100,
+    exportValue: (row) => (row.total_amount_minor === null ? '' : row.total_amount_minor / 100),
   },
   {
     key: 'platform_fee_minor',
@@ -352,9 +353,9 @@ const COLUMNS: ColumnDef<OrganizerBooking>[] = [
     width: 100,
     numeric: true,
     defaultHidden: true,
-    sortValue: (row) => row.platform_fee_minor,
+    sortValue: (row) => row.platform_fee_minor ?? -1,
     render: (row) => formatMoney(row.platform_fee_minor),
-    exportValue: (row) => row.platform_fee_minor / 100,
+    exportValue: (row) => (row.platform_fee_minor === null ? '' : row.platform_fee_minor / 100),
   },
   {
     key: 'created_at',

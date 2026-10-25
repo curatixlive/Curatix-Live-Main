@@ -318,6 +318,7 @@ class BookingService:
         gateway: str = "",
         seat_ids: list[str] | None = None,
         seat_gender: str = "",
+        seat_genders: dict[str, str] | None = None,
         access_code: str = "",
     ) -> BookingCreationResult:
         if not items and not seat_ids:
@@ -346,6 +347,7 @@ class BookingService:
         if seated:
             requested = []
             seat_gender = self._clean_gender(seat_gender)
+            seat_genders = self._clean_seat_genders(seat_genders, seat_ids or [])
         else:
             tiers = {str(t.id): t for t in self._ticket_types.list_for_event(event_id)}
             requested = self._validate_items(items, tiers)
@@ -411,6 +413,7 @@ class BookingService:
                     checked_answers,
                     seat_ids=seat_ids,
                     seat_gender=seat_gender,
+                    seat_genders=seat_genders,
                     presale_access=access.granted,
                 )
         else:
@@ -423,6 +426,7 @@ class BookingService:
                 checked_answers,
                 seat_ids=seat_ids,
                 seat_gender=seat_gender,
+                seat_genders=seat_genders,
                 presale_access=access.granted,
             )
 
@@ -553,6 +557,20 @@ class BookingService:
             raise InvalidBookingItemsError("Gender must be male or female, or left out.")
         return text
 
+    def _clean_seat_genders(
+        self, value: dict[str, str] | None, seat_ids: list[str]
+    ) -> dict[str, str]:
+        """`{seat_id: gender}` for the seats actually being bought, or `{}`."""
+        cleaned: dict[str, str] = {}
+        chosen = {str(s) for s in seat_ids}
+        for seat_id, gender in (value or {}).items():
+            if str(seat_id) not in chosen:
+                raise InvalidBookingItemsError("A seat gender names a seat not in the order.")
+            text = self._clean_gender(gender)
+            if text:
+                cleaned[str(seat_id)] = text
+        return cleaned
+
     def _validate_items(
         self, items: list[dict], tiers: dict
     ) -> list[tuple[uuid.UUID | str, int, str]]:
@@ -588,6 +606,7 @@ class BookingService:
         answers: dict[str, str] | None = None,
         seat_ids: list[str] | None = None,
         seat_gender: str = "",
+        seat_genders: dict[str, str] | None = None,
         presale_access: bool = False,
     ) -> Booking:
         booking_id = uuid.uuid4()
@@ -632,7 +651,28 @@ class BookingService:
                     held = self._seating.hold_for_booking(
                         event_id=event_id, booking_id=booking_id, seat_ids=seat_ids
                     )
-                    requested = [(tier, qty, seat_gender) for tier, qty in held.lines]
+                    # ONE line per (section, gender): a single order may mix
+                    # prices, and each seat remembers the gender it was priced
+                    # at so its ticket carries the right one. A gender only
+                    # applies where the section actually has a price for it —
+                    # the lock decides the price, this only decides the lines.
+                    tiers_by_id = {
+                        str(t.id): t for t in self._ticket_types.list_for_event(event_id)
+                    }
+                    tally: dict[tuple[uuid.UUID, str], int] = {}
+                    effective: dict[str, str] = {}
+                    for seat in held.seats:
+                        gender = (seat_genders or {}).get(str(seat.id), seat_gender)
+                        tier = tiers_by_id.get(str(seat.ticket_type_id))
+                        prices = (tier.gender_prices or {}) if tier else {}
+                        if not gender or prices.get(gender) is None:
+                            gender = ""
+                        if gender:
+                            effective[str(seat.id)] = gender
+                        key = (seat.ticket_type_id, gender)
+                        tally[key] = tally.get(key, 0) + 1
+                    self._seating.record_genders(booking_id=booking_id, seat_genders=effective)
+                    requested = [(tier_id, qty, gender) for (tier_id, gender), qty in tally.items()]
                 for tier_id, quantity, gender in requested:
                     outcome = self._ticketing.reserve(
                         ticket_type_id=tier_id,
@@ -1741,7 +1781,12 @@ class BookingService:
                 seat = None
                 pool = by_tier.get(uuid.UUID(str(item.ticket_type_id)))
                 if pool:
-                    seat = pool.pop(0)
+                    # The seat that was PRICED at this line's gender, so a mixed
+                    # order puts each gender on its own seat. Falls back to the
+                    # next seat in the section for a booking taken before seats
+                    # remembered a gender.
+                    match = next((i for i, s in enumerate(pool) if s.held_gender == item.gender), 0)
+                    seat = pool.pop(match)
                 ticket_id = uuid.uuid4()
                 token = sign_ticket(
                     ticket_id=ticket_id, event_id=booking.event_id, secret=self._qr_secret

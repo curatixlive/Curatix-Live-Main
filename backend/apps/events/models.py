@@ -1222,11 +1222,25 @@ class EventEngagementDay(models.Model):
 #: What a co-host can be allowed to do on ONE event. A closed list: every key is
 #: wired to a real check, and a permission nothing enforces would be a switch
 #: that reads as protection.
-COHOST_PERMISSIONS = ("analytics", "attendees", "checkin", "finance")
+COHOST_PERMISSIONS = ("analytics", "attendees", "checkin", "finance", "bookings", "edit")
 
 #: What a new co-host gets: everything except money. Payouts, refunds and every
 #: revenue figure stay with the host unless they are switched on, per person.
-COHOST_DEFAULTS = {"analytics": True, "attendees": True, "checkin": True, "finance": False}
+#:
+#: `bookings` (the purchases list, with buyer names and emails) and `edit`
+#: (changing the event's details — never its tickets, price, status or access
+#: code) are OFF by default for the same reason `finance` is: each hands over
+#: something the host did not necessarily mean to share, so the host opts in
+#: per person. Both live in the existing `permissions` JSON column, so no
+#: migration is involved.
+COHOST_DEFAULTS = {
+    "analytics": True,
+    "attendees": True,
+    "checkin": True,
+    "finance": False,
+    "bookings": False,
+    "edit": False,
+}
 
 
 class EventCoHost(models.Model):

@@ -29,11 +29,15 @@ export function SessionPicker({
   days,
   selected,
   onSelect,
+  counts,
   className,
 }: {
   days: SessionDay[];
   selected: Session | null;
   onSelect: (session: Session) => void;
+  /** Tickets already in the order per session id, so a buyer building a
+   *  multi-day order can see what the other days already hold. */
+  counts?: Record<string, number>;
   className?: string;
 }) {
   const multiDay = days.length > 1;
@@ -91,6 +95,14 @@ export function SessionPicker({
                 )}
               >
                 {day.dayLabel}
+                {dayCount(day, counts) ? (
+                  <span
+                    className="ml-2 rounded-full bg-primary px-1.5 text-caption font-bold text-primary-foreground"
+                    aria-label={`${dayCount(day, counts)} tickets in your order`}
+                  >
+                    {dayCount(day, counts)}
+                  </span>
+                ) : null}
               </button>
             );
           })}
@@ -113,6 +125,7 @@ export function SessionPicker({
             key={session.slot.id}
             session={session}
             selected={selected?.slot.id === session.slot.id}
+            inOrder={counts?.[session.slot.id] ?? 0}
             onSelect={() => onSelect(session)}
           />
         ))}
@@ -121,13 +134,18 @@ export function SessionPicker({
   );
 }
 
+const dayCount = (day: SessionDay, counts?: Record<string, number>) =>
+  day.sessions.reduce((sum, session) => sum + (counts?.[session.slot.id] ?? 0), 0);
+
 function SessionChip({
   session,
   selected,
+  inOrder,
   onSelect,
 }: {
   session: Session;
   selected: boolean;
+  inOrder: number;
   onSelect: () => void;
 }) {
   const note = sessionNote(session);
@@ -161,6 +179,9 @@ function SessionChip({
           not produce. */}
       {session.label ? (
         <span className="text-caption text-muted-foreground">{session.label}</span>
+      ) : null}
+      {inOrder ? (
+        <span className="text-caption font-semibold text-primary">{inOrder} in your order</span>
       ) : null}
       {note ? (
         <span

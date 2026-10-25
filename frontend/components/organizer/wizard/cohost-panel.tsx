@@ -19,6 +19,16 @@ export const PERMISSION_LABELS: ReadonlyArray<[keyof CoHostPermissions, string, 
   ['attendees', 'Attendee list', 'Names, contact details and check-in status.'],
   ['checkin', 'Scan tickets', 'Admit people at the door.'],
   ['finance', 'Revenue, refunds and payouts', 'Off by default. Money figures stay hidden.'],
+  [
+    'bookings',
+    'Bookings list',
+    'Who bought what. Off by default; amounts follow the revenue setting.',
+  ],
+  [
+    'edit',
+    'Edit event details',
+    'Off by default. Never tickets, prices, publishing or the access code.',
+  ],
 ];
 
 /**

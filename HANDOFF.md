@@ -274,9 +274,14 @@ any account reads automatically.
   with an admin fee override shows the real fee from the review screen onwards.
 - **Organiser fee override** in the admin page takes a pasted organisation id
   (events have a search picker).
-- **Not built yet**: multi-day booking, co-host access to the bookings list and
-  event editing, per-seat gender in seated orders, a whole-site alignment pass,
-  campaign history.
+- **Built since the 25 Oct handoff** (see CLAUDE.md "The four handoff items"):
+  multi-day orders (one booking across several sessions), co-host `bookings` and
+  `edit` rights, per-seat gender in seated orders (**needs migration
+  `seating.0002_eventseat_held_gender` on production BEFORE the push**), and a
+  Past campaigns list. A first alignment pass also landed (bottom tab bars,
+  event page width on tablet, rail gutters, funnel action bar, truncated copy).
+- **Still not built**: a whole-site visual QA on a real device matrix, and the
+  items in `PENDING_TASKS.md` / `frontend/BACKLOG.md`.
 - Full list: `PENDING_TASKS.md` and `frontend/BACKLOG.md`.
 
 ---

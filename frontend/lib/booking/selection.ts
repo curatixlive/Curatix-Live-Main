@@ -168,11 +168,14 @@ export type SelectionTotals = {
   /** True when a line asks for more than that tier still has. */
   overAvailable: boolean;
   /**
-   * The basket holds tiers from two different showtimes.
+   * The basket holds tiers from two different showtimes — a MULTI-DAY order.
    *
-   * Blocks Checkout, like `overAvailable` beside it. One booking cannot admit
-   * somebody to two evenings, and the server has no way to refuse it — it only
-   * ever sees tier ids.
+   * Informational, not a blocker: it used to stop Checkout on the belief that
+   * one booking could not admit somebody to two evenings. That was true of the
+   * ticket, not the booking — every ticket belongs to its own tier and slot, the
+   * door checks each against ITS session's window, and the reserve is
+   * all-or-nothing across tiers. The flag now only drives the note telling the
+   * buyer their order spans sessions.
    */
   crossSession: boolean;
   /**

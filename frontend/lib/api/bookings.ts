@@ -51,7 +51,12 @@ export function createBooking(
    * whether a code or a relationship opens a pre-sale / invite-only event, and
    * whether a gender earns a different price.
    */
-  extra?: { seatGender?: string; accessCode?: string },
+  extra?: {
+    seatGender?: string;
+    /** Per seat, `{ seatId: gender }`; wins over `seatGender` for the seats it names. */
+    seatGenders?: Record<string, string>;
+    accessCode?: string;
+  },
 ): Promise<CreateBookingResponse> {
   const hasAnswers = answers && Object.keys(answers).length > 0;
   return api.post<CreateBookingResponse>(
@@ -61,6 +66,9 @@ export function createBooking(
       ...(seatIds && seatIds.length ? { seat_ids: seatIds } : { items }),
       ...(hasAnswers ? { answers } : {}),
       ...(extra?.seatGender && seatIds?.length ? { seat_gender: extra.seatGender } : {}),
+      ...(extra?.seatGenders && seatIds?.length && Object.keys(extra.seatGenders).length
+        ? { seat_genders: extra.seatGenders }
+        : {}),
       ...(extra?.accessCode ? { access_code: extra.accessCode } : {}),
       // A REQUEST, not an instruction: the server falls back to the
       // deployment default for anything it does not offer, so a stale value

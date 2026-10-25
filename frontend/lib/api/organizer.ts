@@ -114,8 +114,9 @@ export type BookingStatus = 'reserved' | 'paid' | 'cancelled' | 'expired';
 export type OrganizerBooking = {
   id: string;
   status: BookingStatus;
-  total_amount_minor: number;
-  platform_fee_minor: number;
+  /** Null for a co-host without the finance right on this event. */
+  total_amount_minor: number | null;
+  platform_fee_minor: number | null;
   payment_ref: string;
   /** The refundable payment's own id, or null when there is nothing to refund
    *  (never captured, or already refunded). The refund action enables on THIS,

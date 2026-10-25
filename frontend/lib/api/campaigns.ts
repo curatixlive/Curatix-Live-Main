@@ -38,3 +38,19 @@ export const sendCampaign = (input: {
     message: input.message,
     ...(input.eventId ? { event_id: input.eventId } : {}),
   });
+
+export type CampaignHistoryRow = {
+  id: string;
+  sent_at: string;
+  subject: string;
+  message_preview: string;
+  segment: CampaignSegment | '';
+  event_id: string | null;
+  recipients: number;
+  sent: number;
+  failed: number;
+};
+
+/** What this organiser has already sent, newest first. */
+export const fetchCampaignHistory = () =>
+  api.get<{ data: CampaignHistoryRow[] }>('/organizer/campaigns/history').then((r) => r.data);

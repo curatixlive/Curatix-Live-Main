@@ -82,7 +82,7 @@ export function RefundAction({ booking }: { booking: OrganizerBooking }) {
   // Compared in MAJOR units because that is the figure on screen beside it —
   // asking somebody to type the paise count of a number rendered as ₹1,200
   // would be a puzzle rather than a confirmation.
-  const expected = String(Math.round(booking.total_amount_minor / 100));
+  const expected = String(Math.round((booking.total_amount_minor ?? 0) / 100));
   const armed = confirm.trim() === expected && !refund.isPending;
 
   return (

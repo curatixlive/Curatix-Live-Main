@@ -38,6 +38,14 @@ class CreateBookingRequestSerializer(serializers.Serializer):
     seat_gender = serializers.ChoiceField(
         choices=["male", "female"], required=False, allow_blank=True, default=""
     )
+    #: Per seat, `{seat_id: "male" | "female"}`: one order can mix prices. A seat
+    #: not named here falls back to `seat_gender`. Every key must be one of
+    #: `seat_ids` (the service refuses a stray one).
+    seat_genders = serializers.DictField(
+        child=serializers.ChoiceField(choices=["male", "female"]),
+        required=False,
+        default=dict,
+    )
     #: The questionnaire, as `{question_id: answer}`.
     #:
     #: A MAP rather than a list of `{question_id, answer}` objects, because one

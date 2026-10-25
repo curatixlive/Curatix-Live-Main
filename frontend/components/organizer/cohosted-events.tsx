@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, QrCode, Users } from 'lucide-react';
+import { BarChart3, Pencil, QrCode, ReceiptText, Users } from 'lucide-react';
 import { fetchCoHostedEvents } from '@/lib/api/event-access-admin';
 import { formatEventDateTime } from '@/lib/discovery/format';
 
@@ -53,6 +53,22 @@ export function CoHostedEvents() {
                   className="inline-flex items-center gap-1 underline underline-offset-4"
                 >
                   <Users className="size-3.5" aria-hidden /> Attendees
+                </Link>
+              ) : null}
+              {row.permissions.bookings ? (
+                <Link
+                  href={`/dashboard/bookings?event_id=${row.event_id}`}
+                  className="inline-flex items-center gap-1 underline underline-offset-4"
+                >
+                  <ReceiptText className="size-3.5" aria-hidden /> Bookings
+                </Link>
+              ) : null}
+              {row.permissions.edit ? (
+                <Link
+                  href={`/dashboard/events/${row.event_id}/edit`}
+                  className="inline-flex items-center gap-1 underline underline-offset-4"
+                >
+                  <Pencil className="size-3.5" aria-hidden /> Edit details
                 </Link>
               ) : null}
               {row.permissions.checkin ? (

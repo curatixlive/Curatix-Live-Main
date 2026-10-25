@@ -105,6 +105,8 @@ class PaymentReminderService:
 
 #: The most people one campaign may reach, and the shape of a campaign's text.
 MAX_CAMPAIGN_AUDIENCE = 500
+#: The audit action a send is recorded under — also what the history reads.
+CAMPAIGN_SENT_ACTION = "organizer.campaign_sent"
 SEGMENTS = ("all", "repeat", "recent", "event")
 
 
@@ -183,8 +185,23 @@ class CampaignService:
                 failed += 1
         record_audit(
             actor_id=str(owner_id),
-            action="organizer.campaign_sent",
+            action=CAMPAIGN_SENT_ACTION,
             target_type="organization",
             target_id=str(org.id) if org else "",
+            # The history IS this row: no separate table, because a campaign
+            # is write-once and the audit trail already is the append-only
+            # record of it. Only what the history screen shows is kept — the
+            # subject and the first part of the message, never recipient
+            # addresses.
+            metadata={
+                "campaign_id": campaign_id,
+                "subject": subject,
+                "message_preview": message[:200],
+                "segment": segment,
+                "event_id": str(event_id) if event_id else "",
+                "recipients": len(audience),
+                "sent": sent,
+                "failed": failed,
+            },
         )
         return {"sent": sent, "failed": failed}

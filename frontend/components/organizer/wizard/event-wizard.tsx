@@ -279,6 +279,14 @@ export function EventWizard({
     cloneSource,
   });
   const { draft, update, setTiers } = wizard;
+  // A co-host with the `edit` right opens the SAME editor on somebody else's
+  // event. They change the page, never the sale: tickets, coupons, access and
+  // publishing stay with the host (the API refuses them anyway — hiding them is
+  // so the editor does not offer controls whose every press would fail).
+  const coHostEditing =
+    editing &&
+    Boolean(existing) &&
+    !organizationIds.includes(existing?.event.organization_id ?? '');
   const [seatedTiers, setSeatedTiers] = React.useState(false);
   // The save engine's health, handed to the steps that render a
   // NeedsSavedDraft panel and to Review — one object, so the badge, the
@@ -705,7 +713,18 @@ export function EventWizard({
           </header>
 
           <div className="flex flex-col gap-block-lg">
-            {SINGLE_PAGE_ORDER.map((member) => (
+            {coHostEditing ? (
+              <p
+                role="note"
+                className="rounded-xl border border-border bg-muted px-card py-3 text-body-sm"
+              >
+                You are helping run this event. You can change its details; tickets, prices,
+                publishing and the access code stay with the host.
+              </p>
+            ) : null}
+            {SINGLE_PAGE_ORDER.filter(
+              (member) => !(coHostEditing && (member === 'tickets' || member === 'coupons')),
+            ).map((member) => (
               <section
                 key={member}
                 id={memberAnchor(member)}
@@ -745,14 +764,16 @@ export function EventWizard({
               >
                 Preview event
               </Button>
-              <Button
-                size="lg"
-                className="text-body font-bold sm:flex-[1.4]"
-                loading={publishing}
-                onClick={() => void publish()}
-              >
-                Create event
-              </Button>
+              {coHostEditing ? null : (
+                <Button
+                  size="lg"
+                  className="text-body font-bold sm:flex-[1.4]"
+                  loading={publishing}
+                  onClick={() => void publish()}
+                >
+                  Create event
+                </Button>
+              )}
             </div>
           </div>
         </div>

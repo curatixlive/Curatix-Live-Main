@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { EventSlot } from '@/lib/api/event-content';
 import type { TicketTier } from '@/lib/api/types';
-import { defaultSession, groupSessions, sessionNote, tiersForSession } from '@/lib/event/sessions';
+import {
+  defaultSession,
+  groupSessions,
+  sessionNote,
+  sessionTagFor,
+  ticketsBySession,
+  tiersForSession,
+} from '@/lib/event/sessions';
 
 function slot(overrides: Partial<EventSlot> & { id: string; starts_at: string }): EventSlot {
   return {
@@ -206,5 +213,40 @@ describe('the note under a chip', () => {
   it('says sold out and not on sale in their own words', () => {
     expect(sessionNote(days(0)[0]!.sessions[0]!)).toBe('Sold out');
     expect(sessionNote(days(5, false)[0]!.sessions[0]!)).toBe('Not on sale');
+  });
+});
+
+describe('multi-day orders', () => {
+  const days = groupSessions(
+    [
+      slot({ id: 's1', starts_at: '2026-03-14T12:30:00Z' }),
+      slot({ id: 's2', starts_at: '2026-03-15T12:30:00Z' }),
+    ],
+    [tier({ id: 't1', slot_id: 's1' }), tier({ id: 't2', slot_id: 's2' })],
+  );
+
+  it('names the session a line belongs to', () => {
+    expect(sessionTagFor(days, 's2')).toMatch(/Sun, 15 Mar/);
+  });
+
+  it('says nothing for an event-wide tier or an unknown slot', () => {
+    expect(sessionTagFor(days, null)).toBeNull();
+    expect(sessionTagFor(days, 'gone')).toBeNull();
+  });
+
+  it('says nothing when the event has a single session', () => {
+    const one = groupSessions([slot({ id: 's1', starts_at: '2026-03-14T12:30:00Z' })], []);
+    expect(sessionTagFor(one, 's1')).toBeNull();
+  });
+
+  it('counts tickets per session, ignoring event-wide tiers', () => {
+    expect(
+      ticketsBySession([
+        { tier: { slot_id: 's1' }, quantity: 2 },
+        { tier: { slot_id: 's2' }, quantity: 1 },
+        { tier: { slot_id: 's1' }, quantity: 3 },
+        { tier: { slot_id: null }, quantity: 4 },
+      ]),
+    ).toEqual({ s1: 5, s2: 1 });
   });
 });

@@ -3241,6 +3241,41 @@ The rules that carry weight:
   the soonest events. That reverses an earlier decision (the page had stopped reading
   what the Studio writes); `lib/discovery/upcoming.test.ts` pins the new contract.
 
+## The four handoff items: what they decided
+
+Built after the 25 Oct handoff; each one has a reason that is not obvious from
+the code.
+
+**Co-hosts gained `bookings` and `edit`** (`COHOST_PERMISSIONS`), both OFF by
+default like `finance`, and both stored in the existing JSON column so there is
+no migration. `bookings` opens `GET /organizer/bookings?event_id=` for ONE event
+(the unfiltered list never includes a host's bookings for a co-host) and nulls the
+amounts and payment references unless `finance` is also on — null, not zero, for
+the same reason every rate here is. `edit` lets `update_event` through
+`_load_owned_for_write(cohost_permission="edit")`; publish, cancel, delete, tickets
+and the access code stay owner-only (the code is stripped from a co-host's PATCH).
+The wizard opens details-only for a co-host: tickets and coupons are not offered.
+
+**Per-seat gender.** One seated order can mix prices, so `EventSeat.held_gender`
+remembers what each seat was priced at; `create_booking` takes `seat_genders`
+(`{seat_id: gender}`, falling back to `seat_gender`) and reserves one line per
+(section, gender), only where the section has a price for that gender. Ticket
+issuance picks the seat whose `held_gender` matches the line, so each ticket
+carries its own seat AND gender. Release clears it. The URL carries `sg` (default)
+and `sgo` (per-seat overrides, `m|f|s`, where `s` is an explicit standard price).
+
+**Multi-day orders.** The basket now survives switching session — each tier
+belongs to one slot, the door checks each ticket against ITS slot's window, and
+reserve is all-or-nothing across tiers, so nothing in the money path needed to
+change. `totals.crossSession` is a note, no longer a blocker. Order lines name
+their session when the event has more than one (`sessionTagFor`).
+
+**Campaign history is the audit trail.** `CampaignService.send` records subject,
+segment, recipient counts and a 200-character preview in the `AuditLog` row it
+already wrote; `GET /organizer/campaigns/history` reads the actor's own rows. No
+table: a campaign is write-once and the audit log is already the append-only
+record. Recipient addresses are never stored there.
+
 ## Build order
 
 `accounts` (done) → `organizations` (done) → `events` (done, plus the crew

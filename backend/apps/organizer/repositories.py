@@ -706,6 +706,40 @@ class OrganizerRepository:
             order_by=("-lifetime_value_minor", "email"),
         )
 
+    def campaign_history(self, owner_id: UUID, limit: int = 50) -> list[dict]:
+        """The organiser's own past campaigns, newest first.
+
+        Read from the audit trail (`CampaignService.send` writes the detail into
+        the row's metadata), scoped by ACTOR — an organiser sees only what they
+        sent. Bounded: a history screen is a recent-first list, not an export.
+        """
+        from core.models import AuditLog
+
+        rows = AuditLog.objects.filter(
+            actor_id=str(owner_id), action="organizer.campaign_sent"
+        ).order_by("-created_at")[:limit]
+        history = []
+        for row in rows:
+            meta = row.metadata or {}
+            if not meta.get("subject"):
+                # Sends from before details were recorded: there is nothing
+                # truthful to show about them beyond the fact of a send.
+                continue
+            history.append(
+                {
+                    "id": str(row.id),
+                    "sent_at": row.created_at.isoformat(),
+                    "subject": meta.get("subject", ""),
+                    "message_preview": meta.get("message_preview", ""),
+                    "segment": meta.get("segment", ""),
+                    "event_id": meta.get("event_id") or None,
+                    "recipients": int(meta.get("recipients") or 0),
+                    "sent": int(meta.get("sent") or 0),
+                    "failed": int(meta.get("failed") or 0),
+                }
+            )
+        return history
+
     def campaign_audience(
         self, owner_id: UUID, segment: str, event_id: UUID | None = None, limit: int = 500
     ) -> list[dict]:

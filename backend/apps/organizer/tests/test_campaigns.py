@@ -71,3 +71,30 @@ def test_empty_text_and_empty_audience_are_refused(world) -> None:
     nobody = User.objects.create_user(email="new@example.com", password="x" * 14)
     r = auth(nobody).post(url, {"segment": "all", "subject": "Hi", "message": "x"}, format="json")
     assert r.status_code == 422
+
+
+def test_history_lists_what_was_sent_newest_first_and_only_mine(world) -> None:
+    owner = auth(world.owner)
+    url = "/api/v1/organizer/campaigns"
+    assert owner.get(f"{url}/history").json() == {"data": []}
+
+    owner.post(url, {"segment": "all", "subject": "First", "message": "One"}, format="json")
+    owner.post(url, {"segment": "repeat", "subject": "Second", "message": "Two"}, format="json")
+    owner.post(url, {"segment": "all", "subject": "Third", "message": "Three"}, format="json")
+
+    rows = owner.get(f"{url}/history").json()["data"]
+    assert [row["subject"] for row in rows][0] == "Third"
+    assert {row["subject"] for row in rows} >= {"First", "Third"}
+    first = next(row for row in rows if row["subject"] == "First")
+    assert first["segment"] == "all"
+    assert first["recipients"] == 2 and first["sent"] == 2 and first["failed"] == 0
+    assert first["message_preview"] == "One"
+    # No addresses ever leave through the history.
+    assert "asha@example.com" not in str(rows)
+
+    # A rival organiser sees none of it.
+    assert auth(world.rival).get(f"{url}/history").json() == {"data": []}
+
+
+def test_history_requires_a_login() -> None:
+    assert APIClient().get("/api/v1/organizer/campaigns/history").status_code in (401, 403)

@@ -80,8 +80,21 @@ class EventSeatRepository(BaseRepository[EventSeat]):
 
     def release_for_booking(self, booking_id: uuid.UUID | str) -> int:
         return EventSeat.objects.filter(booking_id=booking_id, status=SeatStatus.HELD).update(
-            status=SeatStatus.AVAILABLE, booking=None
+            status=SeatStatus.AVAILABLE, booking=None, held_gender=""
         )
+
+    def set_held_genders(
+        self, *, booking_id: uuid.UUID | str, seat_genders: dict[str, str]
+    ) -> None:
+        """Record which gender each of this booking's seats was priced at.
+
+        One UPDATE per gender (two at most), never one per seat.
+        """
+        by_gender: dict[str, list[str]] = {}
+        for seat_id, gender in seat_genders.items():
+            by_gender.setdefault(gender, []).append(seat_id)
+        for gender, ids in by_gender.items():
+            EventSeat.objects.filter(booking_id=booking_id, id__in=ids).update(held_gender=gender)
 
     def mark_sold_for_booking(self, booking_id: uuid.UUID | str) -> int:
         return EventSeat.objects.filter(booking_id=booking_id, status=SeatStatus.HELD).update(

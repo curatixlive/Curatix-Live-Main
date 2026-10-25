@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { formatMoney } from '@/lib/discovery/format';
 import { MAX_SEATS_PER_BOOKING } from '@/lib/booking/selection';
+import { seatGenderFor } from '@/lib/booking/seat-gender';
 import { cn } from '@/lib/utils/cn';
 import { useBooking } from './booking-context';
 
@@ -28,7 +29,16 @@ const TINTS = [
 ];
 
 export function SeatPicker({ className }: { className?: string }) {
-  const { seatMap, seatMapLoading, seatIds, toggleSeat, seatGender, setSeatGender } = useBooking();
+  const {
+    seatMap,
+    seatMapLoading,
+    seatIds,
+    toggleSeat,
+    seatGender,
+    setSeatGender,
+    seatGenderOverrides,
+    setSeatGenderFor,
+  } = useBooking();
 
   if (seatMapLoading) {
     return <p className="text-body-sm text-muted-foreground">Loading the seat map…</p>;
@@ -42,6 +52,25 @@ export function SeatPicker({ className }: { className?: string }) {
   }
 
   const chosen = new Set(seatIds);
+  // The chosen seats whose section prices by gender — the ones a per-seat choice
+  // means anything for. A seat in a section with no gender price is left out
+  // rather than shown a control whose every option costs the same.
+  const sectionById = new Map(seatMap.sections.map((section) => [section.id, section]));
+  const pricedSeats = seatMap.seats
+    .filter((seat) => chosen.has(seat.id))
+    .flatMap((seat) => {
+      const section = sectionById.get(seat.section_id);
+      return section && hasGenderPrice(section)
+        ? [
+            {
+              id: seat.id,
+              label: seat.label,
+              sectionName: section.name,
+              prices: section.gender_prices ?? {},
+            },
+          ]
+        : [];
+    });
   const sectionIndex = new Map(seatMap.sections.map((section, i) => [section.id, i]));
   const sections = new Map(seatMap.sections.map((section) => [section.id, section]));
   const byCell = new Map(seatMap.seats.map((seat) => [`${seat.row}:${seat.col}`, seat]));
@@ -64,7 +93,7 @@ export function SeatPicker({ className }: { className?: string }) {
       {seatMap.sections.some((section) => hasGenderPrice(section)) ? (
         <fieldset className="flex flex-col gap-1.5">
           <legend className="text-caption font-bold uppercase tracking-wide text-muted-foreground">
-            Pricing for these seats
+            Price all selected seats as
           </legend>
           <div role="group" aria-label="Pricing for these seats" className="flex flex-wrap gap-2">
             {(
@@ -94,6 +123,60 @@ export function SeatPicker({ className }: { className?: string }) {
           <p className="text-caption text-muted-foreground">
             Optional. Pick one only if you want that price — the door sees what you chose.
           </p>
+          {pricedSeats.length ? (
+            <ul
+              aria-label="Price each seat"
+              className="mt-1 flex flex-col divide-y divide-border rounded-xl border border-border bg-surface"
+            >
+              {pricedSeats.map((seat) => {
+                const current = seatGenderFor(seat.id, seatGender, seatGenderOverrides);
+                return (
+                  <li
+                    key={seat.id}
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-3 py-2"
+                  >
+                    <span className="text-body-sm">
+                      <span className="font-semibold">Seat {seat.label}</span>
+                      <span className="text-muted-foreground"> · {seat.sectionName}</span>
+                    </span>
+                    <div
+                      role="group"
+                      aria-label={`Price for seat ${seat.label}`}
+                      className="flex gap-1.5"
+                    >
+                      {(
+                        [
+                          [undefined, 'Standard'],
+                          ['male', 'Male'],
+                          ['female', 'Female'],
+                        ] as const
+                      )
+                        .filter(
+                          ([value]) => value === undefined || seat.prices[value] !== undefined,
+                        )
+                        .map(([value, label]) => (
+                          <button
+                            key={label}
+                            type="button"
+                            aria-pressed={current === value}
+                            onClick={() => setSeatGenderFor(seat.id, value)}
+                            className={cn(
+                              'rounded-full border px-3 py-1 text-caption transition-colors',
+                              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                              current === value
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border bg-surface text-foreground hover:bg-muted',
+                            )}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
         </fieldset>
       ) : null}
 
@@ -116,7 +199,13 @@ export function SeatPicker({ className }: { className?: string }) {
         <p className="mb-2 text-center text-caption font-bold uppercase tracking-[0.2em] text-muted-foreground">
           Stage
         </p>
-        <div className="overflow-x-auto">
+        {/* On a phone the room is wider than the screen and scrolls sideways; a
+            seat cut off at the edge looks like a seat that does not exist, so
+            say it scrolls. Hidden from `sm`, where the whole room fits. */}
+        <p className="mb-2 text-center text-caption text-muted-foreground sm:hidden">
+          Swipe sideways to see every seat
+        </p>
+        <div className="overflow-x-auto overscroll-x-contain">
           <div role="group" aria-label="Seats" className="mx-auto flex w-max flex-col gap-1.5">
             {rows.map((r) => {
               // The sections present in this row, left to right. A heading is

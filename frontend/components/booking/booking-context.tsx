@@ -33,6 +33,13 @@ import {
   setQuantity as setQuantityIn,
   totalsFor,
 } from '@/lib/booking/selection';
+import {
+  type SeatGenderOverrides,
+  parseSeatGenders,
+  seatGenderFor,
+  serialiseSeatGenders,
+  withSeatGender,
+} from '@/lib/booking/seat-gender';
 import { type StepId, currentStep } from '@/lib/booking/steps';
 
 /**
@@ -71,7 +78,12 @@ type BookingContextValue = {
   accessLoading: boolean;
   /** For a seated order: the one gender declared for every seat (URL `sg=`). */
   seatGender: Gender | undefined;
+  /** Sets the gender for EVERY seat and clears per-seat choices (URL `sg=`). */
   setSeatGender: (gender: Gender | undefined) => void;
+  /** Per-seat choices over the default (URL `sgo=`); see `lib/booking/seat-gender`. */
+  seatGenderOverrides: SeatGenderOverrides;
+  /** Prices ONE seat at a gender (`undefined` = standard), leaving the others alone. */
+  setSeatGenderFor: (seatId: string, gender: Gender | undefined) => void;
   clearSelection: () => void;
   /** Assigned seating: the live seat map, null for general admission. */
   seatMap: SeatMap | null;
@@ -244,6 +256,11 @@ export function BookingProvider({
   const rawSeatGender = searchParams?.get('sg');
   const seatGender: Gender | undefined =
     rawSeatGender === 'male' || rawSeatGender === 'female' ? rawSeatGender : undefined;
+  const rawSeatOverrides = searchParams?.get('sgo');
+  const seatGenderOverrides = React.useMemo(
+    () => parseSeatGenders(rawSeatOverrides),
+    [rawSeatOverrides],
+  );
   const tierById = React.useMemo(() => new Map(tiers.map((tier) => [tier.id, tier])), [tiers]);
   const tierQuery = searchParams?.get(SELECTION_PARAM);
   const selection = React.useMemo<Selection>(() => {
@@ -251,21 +268,28 @@ export function BookingProvider({
     if (!seatMap) return [];
     const bySeat = new Map(seatMap.seats.map((seat) => [seat.id, seat]));
     const tierOfSection = new Map(seatMap.sections.map((sec) => [sec.id, sec.ticket_type_id]));
-    const lines = new Map<string, string[]>();
+    // One line per (section, gender): a single order can mix prices, so each
+    // seat is priced at ITS gender — its own choice, else the order's default —
+    // and only where that section actually has a price for it.
+    const lines = new Map<string, { tierId: string; gender?: Gender; ids: string[] }>();
     for (const id of seatIds) {
       const seat = bySeat.get(id);
       const tierId = seat ? tierOfSection.get(seat.section_id) : undefined;
       if (!tierId) continue;
-      lines.set(tierId, [...(lines.get(tierId) ?? []), id]);
+      const wanted = seatGenderFor(id, seatGender, seatGenderOverrides);
+      const gender =
+        wanted && tierById.get(tierId)?.gender_prices?.[wanted] !== undefined ? wanted : undefined;
+      const key = `${tierId}:${gender ?? ''}`;
+      const line = lines.get(key) ?? { tierId, gender, ids: [] };
+      line.ids.push(id);
+      lines.set(key, line);
     }
-    return [...lines.entries()].map(([tierId, ids]) => {
-      // The one declared gender rides on a section only where it earns a price.
-      const priced = seatGender && tierById.get(tierId)?.gender_prices?.[seatGender] !== undefined;
-      return priced
-        ? { tierId, quantity: ids.length, seatIds: ids, gender: seatGender }
-        : { tierId, quantity: ids.length, seatIds: ids };
-    });
-  }, [seated, seatMap, seatIds, tierQuery, seatGender, tierById]);
+    return [...lines.values()].map(({ tierId, gender, ids }) =>
+      gender
+        ? { tierId, quantity: ids.length, seatIds: ids, gender }
+        : { tierId, quantity: ids.length, seatIds: ids },
+    );
+  }, [seated, seatMap, seatIds, tierQuery, seatGender, seatGenderOverrides, tierById]);
 
   /**
    * The hold and what it was reserved for, as ONE value.
@@ -354,7 +378,24 @@ export function BookingProvider({
     [writeParam],
   );
   const setSeatGender = React.useCallback(
-    (gender: Gender | undefined) => writeParam('sg', gender ?? null),
+    (gender: Gender | undefined) => {
+      // "Apply to all": a per-seat choice made earlier must not outlive it.
+      const params = new URLSearchParams(window.location.search);
+      params.delete('sgo');
+      if (gender) params.set('sg', gender);
+      else params.delete('sg');
+      const query = params.toString();
+      window.history.replaceState(null, '', query ? `${pathname}?${query}` : pathname);
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router],
+  );
+  const setSeatGenderFor = React.useCallback(
+    (seatId: string, gender: Gender | undefined) => {
+      const current = parseSeatGenders(new URLSearchParams(window.location.search).get('sgo'));
+      const next = serialiseSeatGenders(withSeatGender(current, seatId, gender));
+      writeParam('sgo', next || null);
+    },
     [writeParam],
   );
 
@@ -426,11 +467,10 @@ export function BookingProvider({
     (next: Session) => {
       const params = new URLSearchParams(window.location.search);
       params.set(SESSION_PARAM, next.slot.id);
-      // The previous session's tiers do not exist in this one, so the basket
-      // cannot survive the switch. Dropped here rather than left to
-      // `totalsFor`, which silently ignores a tier id it cannot resolve — the
-      // failure would be a basket that quietly empties on the way to pay.
-      params.delete(SELECTION_PARAM);
+      // The basket SURVIVES the switch: one order may span several days. Tier
+      // ids are session-specific, so what was chosen for another day stays
+      // addressable by its own tier id, and `totals` resolves against ALL of the
+      // event's tiers rather than the visible session's.
       const query = params.toString();
       window.history.replaceState(null, '', query ? `${pathname}?${query}` : pathname);
       router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
@@ -489,6 +529,8 @@ export function BookingProvider({
       accessLoading: needsAccess && accessQuery.isPending && authStatus !== 'unknown',
       seatGender,
       setSeatGender,
+      seatGenderOverrides,
+      setSeatGenderFor,
       clearSelection,
       seatMap,
       seatMapLoading: seated && seatQuery.isPending,
@@ -530,6 +572,8 @@ export function BookingProvider({
       authStatus,
       seatGender,
       setSeatGender,
+      seatGenderOverrides,
+      setSeatGenderFor,
       clearSelection,
       seatMap,
       seated,

@@ -141,8 +141,9 @@ class AttendeeRowSerializer(serializers.Serializer):
 class OrganizerBookingSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     status = serializers.CharField()
-    total_amount_minor = serializers.IntegerField()
-    platform_fee_minor = serializers.IntegerField()
+    # Null only for a co-host without the `finance` right on this event.
+    total_amount_minor = serializers.IntegerField(allow_null=True)
+    platform_fee_minor = serializers.IntegerField(allow_null=True)
     payment_ref = serializers.CharField(allow_blank=True)
     # The refundable payment's own id, or null. `payment_ref` is the VENDOR's
     # string and is not what the refund endpoint takes — a UI that guessed one

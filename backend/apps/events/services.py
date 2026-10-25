@@ -312,12 +312,16 @@ class EventService:
         storage: StoragePort,
         task_queue: TaskQueuePort,
         categories: OrganizerCategoryRepository | None = None,
+        cohosts: EventCoHostRepository | None = None,
     ) -> None:
         self._events = events
         self._organizations = organizations
         self._users = users
         self._storage = storage
         self._task_queue = task_queue
+        # Defaulted for the same reason `categories` is: hand-built services in
+        # tests keep working. Only asked whether somebody holds a per-event right.
+        self._cohosts = cohosts or EventCoHostRepository()
         # DEFAULTED, so every existing construction site — including the tests
         # that build this service by hand with fake adapters — keeps working
         # unchanged. It is only ever used to answer one question: does this
@@ -364,8 +368,13 @@ class EventService:
         event_id: uuid.UUID | str,
         actor_id: uuid.UUID | str,
         require_owner: bool = True,
+        cohost_permission: str | None = None,
     ) -> Event:
         """Load an event this actor may write to.
+
+        `cohost_permission` names ONE co-host right (e.g. `"edit"`) that lets a
+        non-owner through. It is opt-in per caller and defaults to none, so every
+        other write path — publish, cancel, delete, tickets — stays owner-only.
 
         `require_owner=False` is for a PLATFORM OPERATOR acting through
         `EventModerationService`, which proves staff for itself before calling
@@ -376,7 +385,16 @@ class EventService:
         event = self._events.get_active_for_write(event_id)
         if event is None:
             raise EventNotFoundError(str(event_id))
-        if require_owner and str(event.organization.owner_id) != str(actor_id):
+        if (
+            require_owner
+            and str(event.organization.owner_id) != str(actor_id)
+            and (
+                cohost_permission is None
+                or not self._cohosts.has_permission(
+                    event_id=event.id, user_id=actor_id, permission=cohost_permission
+                )
+            )
+        ):
             raise NotEventOwnerError()
         return event
 
@@ -533,10 +551,17 @@ class EventService:
         require_owner: bool = True,
     ) -> Event:
         event = self._load_owned_for_write(
-            event_id=event_id, actor_id=actor_id, require_owner=require_owner
+            event_id=event_id,
+            actor_id=actor_id,
+            require_owner=require_owner,
+            cohost_permission="edit",
         )
 
         applied_changes = {k: v for k, v in changes.items() if k in _EDITABLE_FIELDS}
+        if str(event.organization.owner_id) != str(actor_id) and require_owner:
+            # A co-host edits the PAGE, not the gate: the access code is how the
+            # host controls who can buy, and a co-host never reads it either.
+            applied_changes.pop("access_code", None)
         if "access_code" in applied_changes:
             applied_changes["access_code"] = (
                 str(applied_changes["access_code"] or "").strip().upper()

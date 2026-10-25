@@ -118,7 +118,11 @@ export function BookingInspector({
                 <Cell
                   icon={User}
                   label="Your share"
-                  value={formatMoney(shown.total_amount_minor - shown.platform_fee_minor)}
+                  value={formatMoney(
+                    shown.total_amount_minor === null || shown.platform_fee_minor === null
+                      ? null
+                      : shown.total_amount_minor - shown.platform_fee_minor,
+                  )}
                   hint="Before refunds; released after the event"
                 />
               </section>

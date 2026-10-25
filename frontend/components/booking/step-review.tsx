@@ -21,6 +21,8 @@ import type { Booking } from '@/lib/api/types';
 import { attemptFor, bumpAttempt } from '@/lib/booking/attempt';
 import { answersFor, clearAnswers } from '@/lib/booking/answers';
 import { useAuth } from '@/lib/auth/auth-provider';
+import { seatGendersFromSelection } from '@/lib/booking/seat-gender';
+import { sessionTagFor } from '@/lib/event/sessions';
 import { rememberProvider } from '@/lib/booking/payment-provider';
 import { rememberCashfreeMode } from '@/lib/booking/cashfree';
 import { rememberKeyId } from '@/lib/booking/razorpay';
@@ -113,7 +115,8 @@ export function ReviewStep() {
     seatMapLoading,
     seatIds,
     accessCode,
-    seatGender,
+    tiers,
+    sessionDays,
   } = useBooking();
   const { status, user } = useAuth();
   const router = useRouter();
@@ -161,8 +164,14 @@ export function ReviewStep() {
    *  would take inventory as fast as the network allows. */
   // Read at reserve time rather than listed as effect dependencies: the reserve
   // effect must never re-fire (a second run is a second hold on real inventory).
-  const extraRef = React.useRef({ seatGender, accessCode });
-  extraRef.current = { seatGender, accessCode };
+  // The per-seat map comes from the SELECTION, which already applied the
+  // "only where the section has a price" rule — the same lines the buyer saw
+  // priced, not a second derivation that could disagree with them. The order's
+  // default is deliberately NOT sent alongside it: every seat that should carry
+  // a gender is named in the map.
+  const seatGenders = seatGendersFromSelection(selection);
+  const extraRef = React.useRef({ seatGenders, accessCode });
+  extraRef.current = { seatGenders, accessCode };
   const retried = React.useRef(false);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
 
@@ -961,6 +970,13 @@ export function ReviewStep() {
                   <div className="flex min-w-0 flex-col items-start gap-0.5">
                     <span className="text-body text-foreground">
                       {line.quantity} x {line.ticket_type_name}
+                      {(() => {
+                        const tag = sessionTagFor(
+                          sessionDays,
+                          tiers.find((tier) => tier.id === line.ticket_type_id)?.slot_id,
+                        );
+                        return tag ? ` — ${tag}` : '';
+                      })()}
                       {line.gender ? ` · ${line.gender === 'male' ? 'Male' : 'Female'}` : ''}
                     </span>
                     {/* "Change", not "Remove". Dropping one line of a LIVE hold

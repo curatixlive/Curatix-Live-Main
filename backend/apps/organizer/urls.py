@@ -62,5 +62,10 @@ urlpatterns = [
     path(
         "organizer/campaigns/overview", api.CampaignOverviewView.as_view(), name="campaign-overview"
     ),
+    path(
+        "organizer/campaigns/history",
+        api.CampaignHistoryView.as_view(),
+        name="campaign-history",
+    ),
     path("organizer/campaigns", api.CampaignSendView.as_view(), name="campaign-send"),
 ]

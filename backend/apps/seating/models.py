@@ -91,6 +91,11 @@ class EventSeat(models.Model):
     booking = models.ForeignKey(
         "booking.Booking", null=True, blank=True, on_delete=models.SET_NULL, related_name="seats"
     )
+    #: The self-declared gender THIS seat was priced at (`male`/`female`), blank
+    #: when no gender price applied. Per seat rather than per booking because one
+    #: order can mix prices; it is what lets ticket issuance put the right gender
+    #: on the right seat. Cleared whenever the seat is released.
+    held_gender = models.CharField(max_length=8, blank=True, default="")
 
     class Meta:
         db_table = "seating_event_seat"

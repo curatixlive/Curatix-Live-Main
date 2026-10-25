@@ -308,9 +308,18 @@ class BookingListView(OrganizerView):
         # A malformed filter is an empty filter, not a 500. The list is already
         # scoped to the caller, so this can only ever widen to "all my
         # bookings".
+        event_id = _uuid_param(request, "event_id")
+        scope_id = self.owner_id
+        hide_money = False
+        if event_id is not None and not OrganizerRepository().owns_event(scope_id, event_id):
+            # A co-host the host allowed to see PURCHASES of this one event. Same
+            # 404 as a missing event for everyone else; without `finance` the
+            # amounts and payment references are withheld, not zeroed.
+            scope_id, perms = resolve_event_access(scope_id, event_id, "bookings")
+            hide_money = not (perms or {}).get("finance")
         queryset = OrganizerRepository().bookings(
-            self.owner_id,
-            event_id=_uuid_param(request, "event_id"),
+            scope_id,
+            event_id=event_id,
             status=request.query_params.get("status"),
             search=request.query_params.get("q"),
             created_after=_datetime_param(request, "created_after"),
@@ -320,6 +329,12 @@ class BookingListView(OrganizerView):
         page = paginator.paginate_queryset(queryset, request, view=self)
         rows = selectors.decorate_bookings(list(page or []))
         data = cast(list, OrganizerBookingSerializer(rows, many=True).data)
+        if hide_money:
+            for row in data:
+                row["total_amount_minor"] = None
+                row["platform_fee_minor"] = None
+                row["payment_ref"] = ""
+                row["payment_id"] = None
         return _no_store(paginator.get_paginated_response(data))
 
 
@@ -679,6 +694,14 @@ class CampaignOverviewView(OrganizerView):
                 }
             )
         )
+
+
+class CampaignHistoryView(OrganizerView):
+    """GET /organizer/campaigns/history — what this organiser has already sent."""
+
+    @extend_schema(responses={200: None})
+    def get(self, request: Request) -> Response:
+        return _no_store(Response({"data": OrganizerRepository().campaign_history(self.owner_id)}))
 
 
 class CampaignSendView(OrganizerView):

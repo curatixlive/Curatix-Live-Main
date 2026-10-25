@@ -178,3 +178,35 @@ export function sessionNote(session: Session): string | null {
       return null;
   }
 }
+
+/**
+ * "Sat, 14 Mar, 6:30 pm" for the session a tier sells — what tells two lines of
+ * the same tier apart in an order that spans several days.
+ *
+ * `null` for an event-wide tier (it admits to every show, so there is nothing to
+ * say) and for an event with a single session (a tag on every line of a one-show
+ * order is noise). The caller decides nothing: both rules live here so the
+ * summary, the review and any future surface cannot disagree.
+ */
+export function sessionTagFor(
+  days: SessionDay[],
+  slotId: string | null | undefined,
+): string | null {
+  if (!slotId) return null;
+  const all = days.flatMap((day) => day.sessions);
+  if (all.length < 2) return null;
+  const found = all.find((session) => session.slot.id === slotId);
+  return found ? `${found.dayLabel}, ${found.timeLabel}` : null;
+}
+
+/** Tickets in the basket per session — for the "N in your order" marks on the picker. */
+export function ticketsBySession(
+  lines: ReadonlyArray<{ tier: { slot_id: string | null }; quantity: number }>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const line of lines) {
+    const slot = line.tier.slot_id;
+    if (slot) out[slot] = (out[slot] ?? 0) + line.quantity;
+  }
+  return out;
+}
