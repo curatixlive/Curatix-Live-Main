@@ -14,6 +14,7 @@ import type { EventRow } from '@/lib/api/organizer';
 import { EmptyState, ErrorState, Panel, Poster, Skeleton, StatusPill } from './primitives';
 import { ActivityFeed } from './activity-feed';
 import { EarningsStrip, InsightsCard } from './earnings';
+import { GrowthCard } from './growth-card';
 import { TodayPanel } from './today-panel';
 import { StatusBadge } from './status-badge';
 
@@ -101,6 +102,7 @@ export function DashboardHome() {
 
         <div className="flex min-w-0 flex-col gap-block">
           <InsightsCard />
+          <GrowthCard />
           <MoneyStrip />
           <section className="flex flex-col gap-stack">
             <SectionHeading title="Activity" href="/dashboard/activity" linkLabel="Full timeline" />

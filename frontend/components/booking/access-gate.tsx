@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { KeyRound, ShieldCheck } from 'lucide-react';
 import { Button, Input } from '@/components/ui';
 import { needsAccessGate } from '@/lib/booking/access';
@@ -70,6 +71,13 @@ export function AccessGate() {
           {accessLoading ? 'Checking…' : 'Apply'}
         </Button>
       </div>
+      <p className="text-caption text-muted-foreground">
+        No code?{' '}
+        <Link href={`/organizers/${event.organization_id}`} className="font-medium underline">
+          Follow {event.organization_name}
+        </Link>{' '}
+        — followers are let in automatically.
+      </p>
       {tried && accessCode && !accessLoading ? (
         <p role="status" className="text-caption text-muted-foreground">
           That code didn’t unlock anything. Check it and try again.
