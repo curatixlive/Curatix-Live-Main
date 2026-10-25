@@ -310,7 +310,7 @@ function Card({
           {value}
         </p>
       )}
-      <p className="truncate text-caption text-muted-foreground">{note}</p>
+      <p className="text-caption text-muted-foreground">{note}</p>
     </div>
   );
 }

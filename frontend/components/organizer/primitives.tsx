@@ -69,9 +69,7 @@ export function Panel({
         <header className="flex items-center gap-stack border-b border-border px-card py-stack">
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-body-sm font-semibold text-foreground">{title}</h2>
-            {subtitle ? (
-              <p className="truncate text-caption text-muted-foreground">{subtitle}</p>
-            ) : null}
+            {subtitle ? <p className="text-caption text-muted-foreground">{subtitle}</p> : null}
           </div>
           {actions}
         </header>

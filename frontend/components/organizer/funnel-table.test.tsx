@@ -138,6 +138,6 @@ describe('the earnings cards never invent a measurement', () => {
     earningsState.data = earnings({ month_change_pct: null });
     render(<EarningsStrip />);
 
-    expect(screen.getByText(/no comparable period last month/i)).toBeTruthy();
+    expect(screen.getByText(/no comparable period/i)).toBeTruthy();
   });
 });

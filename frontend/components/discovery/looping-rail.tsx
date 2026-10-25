@@ -254,7 +254,7 @@ export function LoopingRail({
           queueFocus();
           if (!programmatic.current) noteInteraction();
         }}
-        className="scrollbar-none -mx-4 flex touch-manipulation snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 lg:mx-0 lg:gap-6 lg:px-0"
+        className="scrollbar-none -mx-4 flex touch-manipulation snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 lg:mx-0 lg:scroll-px-0 lg:gap-6 lg:px-0"
       >
         {order.map((id) => (
           <li key={id} className={cn('shrink-0 snap-start will-change-transform', itemClassName)}>

@@ -242,7 +242,7 @@ export function EventDetailSkeleton() {
       </div>
 
       <div
-        className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12"
+        className="grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12"
         aria-hidden
       >
         <div className="flex min-w-0 flex-col gap-6">

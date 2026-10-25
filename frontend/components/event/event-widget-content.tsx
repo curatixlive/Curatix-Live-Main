@@ -246,10 +246,11 @@ export function EventWidgetContent({
             onClick={() => onOpenSheet('venue')}
             className="flex min-w-0 flex-1 flex-col text-left"
           >
-            <span className="text-body-sm font-semibold text-foreground">
-              {event.venue}
-              <span className="font-normal text-muted-foreground"> · {event.city}</span>
-            </span>
+            {/* The city is its own line, not a " · city" tail on the name: a long
+                venue wraps, and a separator stranded at the end of a line reads
+                as a typo. */}
+            <span className="text-body-sm font-semibold text-foreground">{event.venue}</span>
+            <span className="text-body-sm text-muted-foreground">{event.city}</span>
             <span className="text-caption text-muted-foreground">Venue details</span>
           </button>
           <DirectionsButton

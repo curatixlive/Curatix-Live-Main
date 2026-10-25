@@ -100,12 +100,12 @@ export function StickyActionBar({
         // `bottom-0` plus its own padding puts it on the screen's real edge and
         // lifts its CONTENT clear of both the nav and the inset — one element
         // responsible for its own clearance.
-        'glass fixed inset-x-0 bottom-0 z-sticky border-t px-4 pt-3 shadow-lg',
+        'glass fixed inset-x-0 bottom-0 z-sticky border-t px-4 pt-3 shadow-lg sm:px-0',
         'pb-[calc(0.75rem_+_env(safe-area-inset-bottom))]',
         className,
       )}
     >
-      <div className="mx-auto flex w-full max-w-2xl items-center gap-4 sm:px-2">
+      <div className="mx-auto flex w-full max-w-2xl items-center gap-4 sm:px-6">
         {leading ?? (
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-body-sm text-muted-foreground">{caption}</span>

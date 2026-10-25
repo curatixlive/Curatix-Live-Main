@@ -99,7 +99,7 @@ export function EventsFilterBar({
       >
         <div
           className={cn(
-            'flex touch-manipulation items-center gap-2 overflow-x-auto px-card py-2.5',
+            'flex touch-manipulation items-center gap-2 overflow-x-auto px-0 py-2.5 lg:px-card',
             '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
           )}
         >

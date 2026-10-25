@@ -86,7 +86,7 @@ export function EarningsStrip() {
         // the trend becomes a filled pill. At two-up on a phone each card is
         // ~160px wide, and an inline icon costs the label a fifth of that.
         emphasis="badge"
-        label="Total earnings"
+        label="Earnings"
         value={formatMoney(data.lifetime_revenue_minor)}
         hint={`${data.lifetime_tickets.toLocaleString('en-IN')} tickets`}
         icon={<Wallet className="size-4" aria-hidden />}
@@ -106,7 +106,7 @@ export function EarningsStrip() {
         }
         hint={
           data.month_change_pct === null
-            ? 'No comparable period last month'
+            ? 'No comparable period'
             : `Against the first ${days} day${days === 1 ? '' : 's'} of last month`
         }
         icon={<CalendarDays className="size-4" aria-hidden />}

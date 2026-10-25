@@ -69,7 +69,7 @@ export function PerformerProfile({ performer }: { performer: PerformerDetail }) 
   ].filter(Boolean) as { icon: typeof Globe; label: string; href: string }[];
 
   return (
-    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-14">
+    <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-14">
       <div className="flex min-w-0 flex-col gap-8 lg:gap-10">
         {/* An act with no photographs is the COMMON case for a newly-approved
             profile, and it used to be a dashed grey box with "No photos yet"

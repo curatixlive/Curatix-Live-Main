@@ -191,7 +191,7 @@ export function EventPageBody({
           mobile reading order, and at `lg` the panel jumps to column two, row
           one, where it sticks.
         */}
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12">
           <div className="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-1">
             {/* ── NAME IT, DATE IT, THEN SHOW IT ────────────────────────────
                 The reference design puts the title and the date ABOVE the

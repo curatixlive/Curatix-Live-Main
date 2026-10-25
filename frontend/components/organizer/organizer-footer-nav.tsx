@@ -194,7 +194,7 @@ export function OrganizerFooterNav({ className }: { className?: string }) {
             "active" in violet: the one action and the current tab are the same
             family now. The ring is the canvas colour at 80%, which is what makes
             it look SEATED in the glass rather than stuck on top of it. */}
-        <span aria-hidden className="w-16 shrink-0" />
+        <span aria-hidden className="w-14 shrink-0" />
         <Link
           href="/dashboard/events/new"
           aria-label="Create an event"
@@ -302,7 +302,7 @@ function Tab({ item, pathname }: { item: NavItem; pathname: string }) {
       href={item.href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-2xl px-1 py-2 text-caption',
+        'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-2xl px-0 py-2 text-caption',
         'transition-colors duration-slow ease-out motion-reduce:transition-none',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
         active ? 'font-medium text-primary' : 'text-muted-foreground hover:text-foreground',

@@ -412,7 +412,7 @@ function Picker({
     <div className="relative min-w-0">
       <ul
         aria-label="Choose a highlight"
-        className="scrollbar-none -mx-4 flex touch-manipulation snap-x gap-3 overflow-x-auto px-4 pb-1 lg:absolute lg:inset-0 lg:mx-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:px-0 lg:pb-0"
+        className="scrollbar-none -mx-4 flex touch-manipulation snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 lg:absolute lg:inset-0 lg:mx-0 lg:scroll-px-0 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:px-0 lg:pb-0"
       >
         {items.map((item) => {
           const current = item.id === activeId;

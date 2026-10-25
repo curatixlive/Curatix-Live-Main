@@ -63,7 +63,7 @@ export function FunnelTable() {
       {/* The table scrolls INSIDE its own container rather than letting the
           page scroll sideways — eight numeric columns do not fit a phone, and
           a dashboard whose body scrolls horizontally loses the sidebar. */}
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
+      <div className="relative overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
         <table className="w-full min-w-[52rem] border-collapse text-body-sm">
           <caption className="sr-only">
             Conversion, quota fill and repeat-attendee share for each of your events

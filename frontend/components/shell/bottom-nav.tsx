@@ -159,7 +159,10 @@ export function BottomNav({ items, className }: { items: BottomNavItem[]; classN
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'flex h-11 items-center gap-2 rounded-full px-3 text-caption transition-[background-color,color,padding] duration-300 ease-out',
+                    // px-2.5/gap-1.5 below `sm`: four items at px-3/gap-2 are ~347px
+                    // wide, wider than the pill on a 375px phone, so the last
+                    // label ("Hire") was clipped by the pill's overflow-hidden.
+                    'flex h-11 items-center gap-1.5 rounded-full px-2.5 text-caption transition-[background-color,color,padding] duration-300 ease-out sm:gap-2 sm:px-3',
                     'motion-reduce:transition-none',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                     // The active item wears the butter pill the header rail
