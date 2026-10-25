@@ -120,7 +120,10 @@ describe('LoopingRail', () => {
       Number.parseFloat(el.style.transform.replace(/[^0-9.]/g, ''));
     expect(scale(middle!)).toBeGreaterThan(scale(left!));
     expect(scale(middle!)).toBeGreaterThan(scale(right!));
-    expect(Number(middle!.style.opacity)).toBeGreaterThan(Number(left!.style.opacity));
+    // Never dimmed: an off-centre card's title and venue must stay readable
+    // (WCAG contrast), so the focus effect is scale alone.
+    expect(left!.style.opacity).toBe('');
+    expect(right!.style.opacity).toBe('');
   });
 
   it('glides one card forward from the middle, and rotates only at the end', () => {

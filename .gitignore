@@ -90,3 +90,6 @@ _*probe*.mjs
 
 # Local embedded Postgres + dev server logs
 .localdb/
+
+# Production secrets copied from Render/Vercel. Never commit.
+deploy/*.local

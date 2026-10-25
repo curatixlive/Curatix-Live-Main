@@ -161,9 +161,11 @@ export function LoopingRail({
     });
   }, [order, glide]);
 
-  // The card nearest the middle of the rail comes forward: full size and full
-  // colour, with its neighbours a little smaller and dimmer, easing as the rail
-  // moves. Written straight to the nodes from the scroll handler (one
+  // The card nearest the middle of the rail comes forward: full size, with its
+  // neighbours a little smaller, easing as the rail moves. SCALE only, never
+  // opacity: dimming a neighbour dims its title and venue too, and at 60% the
+  // venue line fell to 3.5:1 against the page — text a reader can still see
+  // and must still be able to read. Written straight to the nodes from the scroll handler (one
   // requestAnimationFrame per frame), so a scroll costs no React render.
   const frame = React.useRef(0);
   const applyFocus = React.useCallback(() => {
@@ -176,7 +178,6 @@ export function LoopingRail({
       const box = el.getBoundingClientRect();
       const d = Math.min(Math.abs(box.left + box.width / 2 - centre) / half, 1);
       el.style.transform = `scale(${(1 - 0.1 * d).toFixed(3)})`;
-      el.style.opacity = (1 - 0.4 * d).toFixed(2);
       el.style.zIndex = d < 0.3 ? '1' : '0';
     }
   }, []);

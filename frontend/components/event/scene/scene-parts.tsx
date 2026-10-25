@@ -239,7 +239,9 @@ export function OffersCard({ eventId }: { eventId: string }) {
         ref={strip}
         onScroll={onScroll}
         aria-label={offers.length > 1 ? 'Offers. Swipe for the next one' : undefined}
-        className="flex touch-manipulation snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        /* Focusable, so the strip scrolls with arrow keys as well as a swipe. */
+        tabIndex={offers.length > 1 ? 0 : undefined}
+        className="flex touch-manipulation snap-x snap-mandatory overflow-x-auto overscroll-x-contain rounded-2xl [scrollbar-width:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-scrollbar]:hidden"
       >
         {offers.map((offer, position) => (
           <li
