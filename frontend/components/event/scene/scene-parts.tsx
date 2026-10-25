@@ -91,11 +91,29 @@ export type SceneTab = { id: string; label: string };
 export function SceneTabs({ tabs }: { tabs: SceneTab[] }) {
   const [active, setActive] = React.useState(tabs[0]?.id ?? '');
   const jumping = React.useRef(false);
+  const navRef = React.useRef<HTMLElement>(null);
+
+  /**
+   * Sections are looked up INSIDE this page's own scroller, never with
+   * `document.getElementById`. On a phone the event page is drawn twice — the
+   * server-rendered page underneath and the deck over it — and both carry the
+   * same section ids, so a document-wide lookup found the hidden copy and the
+   * tabs scrolled a page nobody could see.
+   */
+  const scope = React.useCallback((): ParentNode | null => {
+    const nav = navRef.current;
+    if (!nav) return null;
+    return nav.closest<HTMLElement>('[data-deck-scroller]') ?? nav.ownerDocument;
+  }, []);
+  const section = React.useCallback(
+    (id: string) => scope()?.querySelector<HTMLElement>(`[id="${id}"]`) ?? null,
+    [scope],
+  );
 
   React.useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return;
     const nodes = tabs
-      .map((tab) => document.getElementById(tab.id))
+      .map((tab) => section(tab.id))
       .filter((node): node is HTMLElement => Boolean(node));
     if (nodes.length === 0) return;
     const root = nodes[0]!.closest<HTMLElement>('[data-deck-scroller]');
@@ -111,14 +129,36 @@ export function SceneTabs({ tabs }: { tabs: SceneTab[] }) {
     );
     for (const node of nodes) observer.observe(node);
     return () => observer.disconnect();
-  }, [tabs]);
+  }, [tabs, section]);
 
   if (tabs.length < 2) return null;
 
   const go = (id: string) => {
     setActive(id);
     jumping.current = true;
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const target = section(id);
+    const scroller = target?.closest<HTMLElement>('[data-deck-scroller]');
+    if (target && scroller) {
+      // Scroll the deck's own scroller, leaving room for its sticky header.
+      const offset = Number.parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+      const top =
+        target.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top +
+        scroller.scrollTop -
+        offset;
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      scroller.scrollTo({ top, behavior: reduce ? 'auto' : 'smooth' });
+      // A smooth scroll can be dropped (a backgrounded page, some WebViews);
+      // if nothing moved, jump there instead of leaving the tab dead.
+      const from = scroller.scrollTop;
+      window.setTimeout(() => {
+        if (Math.abs(scroller.scrollTop - from) < 2 && Math.abs(scroller.scrollTop - top) > 2) {
+          scroller.scrollTop = top;
+        }
+      }, 450);
+    } else {
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     window.setTimeout(() => {
       jumping.current = false;
     }, 700);
@@ -126,6 +166,7 @@ export function SceneTabs({ tabs }: { tabs: SceneTab[] }) {
 
   return (
     <nav
+      ref={navRef}
       aria-label="Sections"
       className="flex items-center gap-1 rounded-full border border-border bg-surface p-1"
     >

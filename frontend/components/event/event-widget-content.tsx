@@ -219,16 +219,11 @@ export function EventWidgetContent({
       {about ? (
         <section id="scene-about" className="flex scroll-mt-20 flex-col gap-3">
           <h3 className="text-h4 text-foreground">About</h3>
-          <p className="line-clamp-5 whitespace-pre-line text-body-sm leading-relaxed text-muted-foreground">
+          {/* The whole description, at its own height — no clamp and no
+              "...more" to press for text the page has room for. */}
+          <p className="whitespace-pre-line text-body-sm leading-relaxed text-muted-foreground">
             {about}
           </p>
-          <button
-            type="button"
-            onClick={() => onOpenSheet('about')}
-            className="self-start text-body-sm font-bold text-foreground underline-offset-4 hover:underline"
-          >
-            ...more
-          </button>
           <FactsGrid detail={detail} />
         </section>
       ) : null}
