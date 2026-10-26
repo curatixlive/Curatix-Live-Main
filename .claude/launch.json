@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "/Users/karthikchowdary/Desktop/EVNT_N_EXPERIENCE-/backend/.venv/bin/python",
+      "runtimeArgs": ["/Users/karthikchowdary/Desktop/EVNT_N_EXPERIENCE-/backend/manage.py", "runserver", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "/Users/karthikchowdary/Desktop/EVNT_N_EXPERIENCE-/frontend", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}

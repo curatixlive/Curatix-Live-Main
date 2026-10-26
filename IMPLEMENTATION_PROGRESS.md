@@ -78,3 +78,15 @@ reviews + follow-up email). Work happens in the existing app; nothing is rebuilt
   (needs PUBLIC_SITE_URL + a real EMAIL_PROVIDER on Render), the community editor upload.
 - Still not built: customer contact list per promotion, per-link page-visit counts, link restricted to ticket types,
   push/in-app notification to followers about new events (follow exists; check `notify` flag use in notifications).
+
+## Update (26 Oct, evening)
+- DEPLOYED: community page redesign (tabs on their own routes: Overview, Events, Ratings, Discussion forum; live preview in the
+  editor; socials, team from the crew roster, highlights from past-event photos; forum with follower-only posting),
+  premium banner upload button, alignment fixes (page headings, Campaigns/Team widths, mobile overflow).
+  Migrations applied on production: organizations.0004 (social URLs), community.0001 (ForumPost).
+- BUILT, COMMITTED, NOT YET DEPLOYED (no migration needed): rule-based campaign audiences (`apps/organizer/audience.py`;
+  six rule types, is/is-not, match all/any, event + city + days scoping, live server-side count, plain-English history),
+  organizer Support with two tabs (customers' queries / contact Curatix, platform-only), violet verification-code email
+  (digit boxes, expiry, security note; light and dark checked).
+- Verification so far: backend 3513 pass, mypy/ruff/makemigrations clean; frontend 1655 pass, tsc/eslint/prettier clean.
+- IN PROGRESS: customer + organizer portal alignment audit (Playwright, 3 widths) and e2e suite run; fix anything found.

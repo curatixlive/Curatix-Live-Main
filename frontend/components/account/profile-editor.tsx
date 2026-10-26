@@ -121,8 +121,8 @@ export function ProfileEditor() {
           lands. */}
       <h2 className="sr-only">Profile</h2>
 
-      <div className="grid gap-block lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-start lg:gap-block-lg">
-        <aside className="flex flex-col gap-block lg:sticky lg:top-sticky-top-lg">
+      <div className="grid gap-block xl:grid-cols-[18rem_minmax(0,1fr)] xl:items-start xl:gap-block-lg">
+        <aside className="flex flex-col gap-block xl:sticky xl:top-sticky-top-lg">
           <ProfileHeader />
           <AvatarUpload />
         </aside>

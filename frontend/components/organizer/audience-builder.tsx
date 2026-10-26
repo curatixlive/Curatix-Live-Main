@@ -151,7 +151,7 @@ export function AudienceBuilder({
                     inputMode="numeric"
                     value={rule.value}
                     onChange={(e) => patch(rule.key, { value: e.target.value })}
-                    className="w-28"
+                    className="w-32 text-body-sm"
                     placeholder={rule.type === 'spent' ? '₹ amount' : 'How many'}
                   />
                   <span className="text-caption text-muted-foreground">
@@ -200,8 +200,8 @@ export function AudienceBuilder({
                     inputMode="numeric"
                     value={rule.days}
                     onChange={(e) => patch(rule.key, { days: e.target.value })}
-                    className="w-20"
-                    placeholder="any time"
+                    className="w-24 text-body-sm"
+                    placeholder="all time"
                   />
                   days
                 </label>
