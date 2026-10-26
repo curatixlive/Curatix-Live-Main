@@ -139,6 +139,11 @@ CONTEXTS: dict[str, dict[str, Any]] = {
         "code": "482913",
         "ttl_minutes": 10,
     },
+    NotificationType.PASSWORD_RESET: {
+        "full_name": "Asha Rao",
+        "code": "394027",
+        "ttl_minutes": 10,
+    },
     NotificationType.EVENT_REMINDER: {
         "name": "Asha Rao",
         "event_title": "Sunburn Jazz Night",

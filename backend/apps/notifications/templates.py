@@ -115,6 +115,8 @@ CHANNEL_BY_TYPE: dict[str, str] = {
     NotificationType.REFUND_CONFIRMATION_SMS: NotificationChannel.SMS,
     NotificationType.OTP: NotificationChannel.SMS,
     NotificationType.EMAIL_VERIFICATION: NotificationChannel.EMAIL,
+    NotificationType.PASSWORD_RESET: NotificationChannel.EMAIL,
+    NotificationType.PASSWORD_RESET_SMS: NotificationChannel.SMS,
     NotificationType.EVENT_REMINDER: NotificationChannel.EMAIL,
     NotificationType.EVENT_REMINDER_PUSH: NotificationChannel.PUSH,
     NotificationType.BOOKING_CONFIRMED_PUSH: NotificationChannel.PUSH,
@@ -710,6 +712,70 @@ def _otp(ctx: dict) -> RenderedMessage:
         body=(
             f"{ctx['code']} is your verification code. "
             f"It is valid for {ctx['ttl_minutes']} minutes."
+        ),
+    )
+
+
+def _password_reset_sms(ctx: dict) -> RenderedMessage:
+    return RenderedMessage(
+        subject="",
+        body=(
+            f"{ctx['code']} is your {BRAND_NAME} password reset code. "
+            f"Valid for {ctx['ttl_minutes']} minutes. Do not share it with anyone."
+        ),
+    )
+
+
+def _password_reset(ctx: dict) -> RenderedMessage:
+    """The code that lets somebody who forgot their password choose a new one.
+
+    A code and not a link, for the reason `_email_verification` gives: a link
+    that resets a password is the single most phished message a service sends,
+    and a code works from a different device than the one that asked.
+    """
+    code = str(ctx["code"])
+    ttl = ctx["ttl_minutes"]
+    site = _site_url()
+    return RenderedMessage(
+        subject=f"{code} is your {BRAND_NAME} password reset code",
+        body=(
+            f"Hi {ctx['full_name']},\n\n"
+            f"Your password reset code is {code}.\n"
+            f"It expires in {ttl} minutes.\n\n"
+            f"Never share this code with anyone — we will never ask you for it.\n\n"
+            f"If you did not ask to reset your password, ignore this email. "
+            f"Your password has not been changed."
+        ),
+        html=ui.render_email(
+            title="Reset your password",
+            preheader=f"{code} — expires in {ttl} minutes.",
+            masthead_label="Security code",
+            logo_url=f"{site}/curatix-wordmark-dark.png" if site else "",
+            blocks=[
+                ui.eyebrow("Password reset"),
+                ui.heading("Here's your code"),
+                ui.paragraph(
+                    f"Hi {ctx['full_name']}, enter it on {BRAND_NAME} to choose a new "
+                    f"password. It works once, and only for a short while."
+                ),
+                ui.code_ticket(
+                    code,
+                    label="Your one-time code",
+                    expiry_strong=f"Valid for {ttl} minutes",
+                    expiry_note="from when we sent it.",
+                    mark_url=f"{site}/curatix-mark-email.png" if site else "",
+                ),
+                ui.accent_note(
+                    "Keep this to yourself",
+                    f"{BRAND_NAME} will never ask for this code — not by email, phone or "
+                    f"chat. Anyone who asks for it is trying to take over your account.",
+                ),
+                ui.paragraph(
+                    "Didn't ask for this? Ignore this email. Your password has not been "
+                    "changed.",
+                    muted=True,
+                ),
+            ],
         ),
     )
 
@@ -1698,6 +1764,8 @@ _TEMPLATES: dict[str, Callable[[dict], RenderedMessage]] = {
     NotificationType.REFUND_CONFIRMATION_SMS: _refund_confirmation_sms,
     NotificationType.OTP: _otp,
     NotificationType.EMAIL_VERIFICATION: _email_verification,
+    NotificationType.PASSWORD_RESET: _password_reset,
+    NotificationType.PASSWORD_RESET_SMS: _password_reset_sms,
     NotificationType.PAYOUT_RELEASED: _payout_released,
     NotificationType.EVENT_CANCELLED_ATTENDEE: _event_cancelled_attendee,
     NotificationType.EVENT_DELETED_ORGANIZER: _event_deleted_organizer,

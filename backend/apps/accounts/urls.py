@@ -11,6 +11,21 @@ urlpatterns = [
         api.ResendVerificationView.as_view(),
         name="auth-verify-email-resend",
     ),
+    path(
+        "password-reset/options",
+        api.PasswordResetOptionsView.as_view(),
+        name="auth-password-reset-options",
+    ),
+    path(
+        "password-reset/request",
+        api.PasswordResetRequestView.as_view(),
+        name="auth-password-reset-request",
+    ),
+    path(
+        "password-reset/confirm",
+        api.PasswordResetConfirmView.as_view(),
+        name="auth-password-reset-confirm",
+    ),
     path("refresh", api.RefreshView.as_view(), name="auth-refresh"),
     path("logout", api.LogoutView.as_view(), name="auth-logout"),
     path("me", api.MeView.as_view(), name="auth-me"),

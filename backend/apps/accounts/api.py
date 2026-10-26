@@ -21,6 +21,7 @@ from config.di import (
     build_auth_service,
     build_email_verification_service,
     build_google_sign_in_service,
+    build_password_reset_service,
     build_profile_service,
 )
 from core.errors import DomainError, InvalidInputError
@@ -33,6 +34,8 @@ from .schemas import (
     GoogleSignInRedeemSerializer,
     LoginRequestSerializer,
     LogoutRequestSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     RefreshRequestSerializer,
     RegisterRequestSerializer,
     RegistrationResponseSerializer,
@@ -294,6 +297,58 @@ class ResendVerificationView(APIView):
         build_email_verification_service().request_code_for_email(**payload.validated_data)
 
         return Response({"email": payload.validated_data["email"]}, status=status.HTTP_202_ACCEPTED)
+
+
+# ── FORGOT PASSWORD ───────────────────────────────────────────────────────
+
+
+class PasswordResetOptionsView(APIView):
+    """Which delivery channels this deployment can actually use.
+
+    SMS is offered only when a provider is configured, so the screen never
+    promises a text message that nothing can send. WhatsApp is not offered.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+
+    @extend_schema(responses={200: None})
+    def get(self, request: Request) -> Response:
+        channels = ["email"]
+        if getattr(settings, "SMS_PROVIDER", "disabled") != "disabled":
+            channels.append("sms")
+        return Response({"channels": channels})
+
+
+class PasswordResetRequestView(APIView):
+    """Send a reset code. Answers 202 for any address, existing or not."""
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+    # The OTP scope: each accepted request can cost an SMS.
+    throttle_classes = [OtpThrottle]
+
+    @extend_schema(request=PasswordResetRequestSerializer, responses={202: None})
+    def post(self, request: Request) -> Response:
+        payload = PasswordResetRequestSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        build_password_reset_service().request(**payload.validated_data)
+        return Response({"sent": True}, status=status.HTTP_202_ACCEPTED)
+
+
+class PasswordResetConfirmView(APIView):
+    """Spend the code and set the new password. Issues no session."""
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+    throttle_classes = [OtpThrottle]
+
+    @extend_schema(request=PasswordResetConfirmSerializer, responses={200: None})
+    def post(self, request: Request) -> Response:
+        payload = PasswordResetConfirmSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        build_password_reset_service().confirm(**payload.validated_data)
+        return Response({"reset": True}, status=status.HTTP_200_OK)
 
 
 # ── SIGN IN WITH GOOGLE ───────────────────────────────────────────────────

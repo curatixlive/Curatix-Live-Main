@@ -18,6 +18,8 @@ from dataclasses import asdict, dataclass
 from typing import cast
 
 from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.utils import timezone
@@ -28,7 +30,7 @@ from apps.notifications.models import NotificationType
 from apps.notifications.services import NotificationService
 from core import ephemeral
 from core.audit import record_audit
-from core.errors import NotFoundError
+from core.errors import InvalidInputError, NotFoundError
 from core.events import USER_REGISTERED
 from core.ports.email_port import EmailPort
 from core.ports.oidc_port import OidcError, OidcIdentity, OidcPort
@@ -54,8 +56,8 @@ from .exceptions import (
     VerificationCodeInvalidError,
     VerificationCooldownError,
 )
-from .models import EmailVerification, Gender, User
-from .repositories import EmailVerificationRepository, UserRepository
+from .models import EmailVerification, Gender, PasswordReset, User
+from .repositories import EmailVerificationRepository, PasswordResetRepository, UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -834,6 +836,159 @@ class EmailVerificationService:
         self.verify(user=user, code=code)
         user.refresh_from_db()
         return user
+
+
+class PasswordResetService:
+    """Forgot password, for every role — they share one account and one sign-in.
+
+    ── THE FLOW ─────────────────────────────────────────────────────────
+    `request` emails (or texts) a six-digit code; `confirm` takes address +
+    code + new password. Same safety model as `EmailVerificationService`: a
+    `secrets` code, stored only as a hash, guesses bounded ON THE ROW under a
+    lock, a resend cooldown, and the outcome carried out of the atomic block
+    so a failed guess still counts.
+
+    ── WHAT IT DOES NOT SAY ─────────────────────────────────────────────
+    `request` answers identically for an address that has no account, a
+    suspended one and a live one. `register` already reveals a taken address,
+    but a reset endpoint is the one an attacker points at a victim, and "no
+    such account" there is a free list of who uses the platform. A suspended
+    account is sent nothing: a reset must not be a route round a suspension.
+    A cooldown is also silent, for the same reason; the screen runs its own.
+
+    ── CHANNELS ─────────────────────────────────────────────────────────
+    Email, and SMS when the account has a phone on file. SMS with no phone
+    falls back to email rather than failing, so the answer still tells nobody
+    whether a phone exists. WhatsApp is not a channel: there is no approved
+    template or credential behind one.
+
+    ── WHAT A RESET ENDS ────────────────────────────────────────────────
+    It signs the account out everywhere (every outstanding refresh token is
+    blacklisted): whoever was in is not who just proved they own the address.
+    It does NOT sign the caller in; they sign in with the new password.
+    """
+
+    def __init__(
+        self,
+        *,
+        users: UserRepository,
+        resets: PasswordResetRepository,
+        notifications: NotificationService,
+    ) -> None:
+        self._users = users
+        self._resets = resets
+        self._notifications = notifications
+
+    @staticmethod
+    def _generate_code() -> str:
+        return f"{secrets.randbelow(1_000_000):06d}"
+
+    def request(self, *, email: str, channel: str = PasswordReset.Channel.EMAIL) -> None:
+        user = self._users.get_by_email(email)
+        if user is None or not user.is_active:
+            logger.info("password_reset_requested_unusable_account")
+            return
+
+        previous = self._resets.latest_for_user(user.id)
+        if previous is not None:
+            elapsed = (timezone.now() - previous.created_at).total_seconds()
+            if elapsed < PasswordReset.RESEND_COOLDOWN_SECONDS:
+                return
+
+        use_sms = channel == PasswordReset.Channel.SMS and bool(user.phone)
+        chosen = PasswordReset.Channel.SMS if use_sms else PasswordReset.Channel.EMAIL
+
+        code = self._generate_code()
+        expires_at = timezone.now() + dt.timedelta(minutes=PasswordReset.TTL_MINUTES)
+        with UnitOfWork():
+            reset = self._resets.create_for(
+                user_id=user.id,
+                channel=chosen,
+                code_hash=make_password(code),
+                expires_at=expires_at,
+            )
+
+        # Outside the transaction, keyed on the row id: one message per code.
+        self._notifications.notify(
+            notification_type=(
+                NotificationType.PASSWORD_RESET_SMS if use_sms else NotificationType.PASSWORD_RESET
+            ),
+            recipient=user.phone if use_sms else user.email,
+            context={
+                "full_name": user.full_name or user.email,
+                "code": code,
+                "ttl_minutes": PasswordReset.TTL_MINUTES,
+            },
+            dedupe_key=f"password_reset:{reset.id}",
+        )
+        # The code is never logged.
+        logger.info("password_reset_requested", extra={"user_id": str(user.id)})
+
+    def confirm(self, *, email: str, code: str, new_password: str) -> None:
+        user = self._users.get_by_email(email)
+        if user is None or not user.is_active:
+            raise VerificationCodeInvalidError()
+        latest = self._resets.latest_for_user(user.id)
+        if latest is None:
+            raise VerificationCodeInvalidError()
+
+        # The code is verified first, then the new password is validated, and
+        # only then is the code consumed: a weak password must not burn a
+        # correct code, and a wrong code must learn nothing about the password
+        # rules. The outcome is carried out of the block, never raised inside
+        # it, or the attempt counter would roll back with the transaction.
+        failure: Exception | None = None
+        with transaction.atomic():
+            locked = self._resets.lock_for_update(latest.id)
+            if locked is None:
+                failure = VerificationCodeInvalidError()
+            elif locked.attempts >= PasswordReset.MAX_ATTEMPTS:
+                failure = VerificationAttemptsExceededError()
+            else:
+                spent = locked.consumed_at is not None or locked.expires_at <= timezone.now()
+                if spent or not check_password(code, locked.code_hash):
+                    # Counted even for a spent row, so it is no free oracle.
+                    self._resets.record_attempt(locked.id)
+                    failure = VerificationCodeInvalidError()
+                else:
+                    try:
+                        validate_password(new_password, user=user)
+                    except DjangoValidationError as exc:
+                        # The code was right; do not spend it on a weak password.
+                        failure = InvalidInputError(" ".join(exc.messages))
+                    else:
+                        if not self._resets.consume(locked.id):
+                            failure = VerificationCodeInvalidError()
+                        else:
+                            self._resets.spend_all_for_user(user.id)
+                            self._resets.set_password(
+                                user.id,
+                                new_password,
+                                verify_email=locked.channel == PasswordReset.Channel.EMAIL,
+                            )
+
+        if failure is not None:
+            raise failure
+
+        self._revoke_sessions(user)
+        record_audit(
+            actor_id=str(user.id),
+            action="user.password_reset",
+            target_type="user",
+            target_id=str(user.id),
+        )
+        logger.info("password_reset_completed", extra={"user_id": str(user.id)})
+
+    @staticmethod
+    def _revoke_sessions(user: User) -> None:
+        """Blacklist every outstanding refresh token for the account."""
+        from rest_framework_simplejwt.token_blacklist.models import (
+            BlacklistedToken,
+            OutstandingToken,
+        )
+
+        for outstanding in OutstandingToken.objects.filter(user_id=user.id):
+            BlacklistedToken.objects.get_or_create(token=outstanding)
 
 
 #: How long a completed sign-in may sit waiting for the SPA to collect it.

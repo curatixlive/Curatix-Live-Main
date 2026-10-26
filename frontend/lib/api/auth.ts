@@ -75,6 +75,46 @@ export async function resendVerification(email: string): Promise<void> {
   );
 }
 
+export type ResetChannel = 'email' | 'sms';
+
+/**
+ * Which ways of receiving a reset code this deployment can actually use.
+ * Falls back to email alone on any failure: promising a text message that
+ * nothing can send is worse than offering one fewer option.
+ */
+export async function fetchResetChannels(): Promise<ResetChannel[]> {
+  try {
+    const result = await api.get<{ channels: ResetChannel[] }>('/auth/password-reset/options', {
+      auth: false,
+    });
+    return result.channels?.length ? result.channels : ['email'];
+  } catch {
+    return ['email'];
+  }
+}
+
+/** Ask for a reset code. Answers the same for any address, by design. */
+export async function requestPasswordReset(email: string, channel: ResetChannel): Promise<void> {
+  await api.post<{ sent: boolean }>(
+    '/auth/password-reset/request',
+    { email: email.trim().toLowerCase(), channel },
+    { auth: false },
+  );
+}
+
+/** Spend the code and set the new password. Issues no session. */
+export async function confirmPasswordReset(
+  email: string,
+  code: string,
+  newPassword: string,
+): Promise<void> {
+  await api.post<{ reset: boolean }>(
+    '/auth/password-reset/confirm',
+    { email: email.trim().toLowerCase(), code: code.trim(), new_password: newPassword },
+    { auth: false },
+  );
+}
+
 export const fetchMe = () => api.get<User>('/auth/me');
 
 export async function logout(): Promise<void> {

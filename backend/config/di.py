@@ -629,6 +629,18 @@ def build_email_verification_service() -> EmailVerificationService:
     )
 
 
+def build_password_reset_service():
+    """Forgot-password codes, for every role."""
+    from apps.accounts.repositories import PasswordResetRepository, UserRepository
+    from apps.accounts.services import PasswordResetService
+
+    return PasswordResetService(
+        users=UserRepository(),
+        resets=PasswordResetRepository(),
+        notifications=build_notification_service(),
+    )
+
+
 @lru_cache(maxsize=1)
 def oidc_port() -> OidcPort:
     """Google as an identity provider.

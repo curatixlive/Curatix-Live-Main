@@ -211,3 +211,45 @@ class EmailVerification(models.Model):
 
     def __str__(self) -> str:
         return f"verification for {self.user_id}"
+
+
+class PasswordReset(models.Model):
+    """A one-time code that lets somebody who forgot their password choose a new one.
+
+    Same shape and the same rules as `EmailVerification` — the code is never
+    stored (only a password-hasher digest), guesses are bounded ON THE ROW, and
+    a consumed row is kept as the audit trail — because it is the same kind of
+    bearer credential, and this one is worth more: it ends in control of the
+    account rather than proof of an address.
+
+    One table serves every role. Admins, organisers and customers share one
+    `User` and one sign-in, so there is one reset.
+    """
+
+    TTL_MINUTES = 10
+    MAX_ATTEMPTS = 5
+    RESEND_COOLDOWN_SECONDS = 60
+
+    class Channel(models.TextChoices):
+        EMAIL = "email", "Email"
+        SMS = "sms", "SMS"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="password_resets"
+    )
+    channel = models.CharField(max_length=8, choices=Channel.choices, default=Channel.EMAIL)
+    code_hash = models.CharField(max_length=255)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "accounts_password_reset"
+        indexes = [
+            models.Index(fields=["user", "-created_at"], name="password_reset_user_recent"),
+        ]
+
+    def __str__(self) -> str:
+        return f"password reset for {self.user_id}"

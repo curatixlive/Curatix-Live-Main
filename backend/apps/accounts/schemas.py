@@ -262,3 +262,14 @@ class UpdateProfileSerializer(serializers.Serializer):
                 {"gender_self_described": "Tell us how you would like to be described."}
             )
         return attrs
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    channel = serializers.ChoiceField(choices=["email", "sms"], default="email")
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    code = serializers.RegexField(r"^\d{6}$", trim_whitespace=True)
+    new_password = serializers.CharField(min_length=8, max_length=128, write_only=True)

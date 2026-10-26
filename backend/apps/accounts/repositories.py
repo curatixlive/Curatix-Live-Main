@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from core.base_repository import BaseRepository
 
-from .models import EmailVerification, User
+from .models import EmailVerification, PasswordReset, User
 
 
 class UserRepository(BaseRepository[User]):
@@ -144,3 +144,54 @@ class EmailVerificationRepository(BaseRepository[EmailVerification]):
     def mark_email_verified(self, user_id: uuid.UUID | str) -> bool:
         updated = User.objects.filter(pk=user_id, email_verified=False).update(email_verified=True)
         return updated == 1
+
+
+class PasswordResetRepository(BaseRepository[PasswordReset]):
+    model = PasswordReset
+
+    def latest_for_user(self, user_id: uuid.UUID | str) -> PasswordReset | None:
+        """The newest code, spent or not: the cooldown must see the last SEND."""
+        return PasswordReset.objects.filter(user_id=user_id).order_by("-created_at").first()
+
+    def create_for(
+        self,
+        *,
+        user_id: uuid.UUID | str,
+        channel: str,
+        code_hash: str,
+        expires_at: dt.datetime,
+    ) -> PasswordReset:
+        return PasswordReset.objects.create(
+            user_id=user_id, channel=channel, code_hash=code_hash, expires_at=expires_at
+        )
+
+    def lock_for_update(self, reset_id: uuid.UUID | str) -> PasswordReset | None:
+        return PasswordReset.objects.select_for_update().filter(pk=reset_id).first()
+
+    def record_attempt(self, reset_id: uuid.UUID | str) -> None:
+        PasswordReset.objects.filter(pk=reset_id).update(attempts=F("attempts") + 1)
+
+    def consume(self, reset_id: uuid.UUID | str) -> bool:
+        return (
+            PasswordReset.objects.filter(pk=reset_id, consumed_at__isnull=True).update(
+                consumed_at=timezone.now()
+            )
+            == 1
+        )
+
+    def spend_all_for_user(self, user_id: uuid.UUID | str) -> None:
+        """Close every other live code once one has been used."""
+        PasswordReset.objects.filter(user_id=user_id, consumed_at__isnull=True).update(
+            consumed_at=timezone.now()
+        )
+
+    def set_password(
+        self, user_id: uuid.UUID | str, raw_password: str, *, verify_email: bool
+    ) -> None:
+        user = User.objects.select_for_update().get(pk=user_id)
+        user.set_password(raw_password)
+        fields = ["password"]
+        if verify_email and not user.email_verified:
+            user.email_verified = True
+            fields.append("email_verified")
+        user.save(update_fields=fields)

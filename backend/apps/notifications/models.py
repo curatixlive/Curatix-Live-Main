@@ -81,6 +81,10 @@ class NotificationType(models.TextChoices):
     # above, which is the SMS channel for phone sign-in: the channel is
     # derived from the type, so one type cannot serve both.
     EMAIL_VERIFICATION = "email_verification", "Email verification code"
+    # Forgot-password codes. Two types for the same reason as above: the channel
+    # is derived from the type, so the email and the text message cannot share one.
+    PASSWORD_RESET = "password_reset", "Password reset code (email)"
+    PASSWORD_RESET_SMS = "password_reset_sms", "Password reset code (SMS)"
     EVENT_REMINDER = "event_reminder", "Event reminder email"
     EVENT_REMINDER_PUSH = "event_reminder_push", "Event reminder push"
     # The confirmation, on the lock screen. A THIRD logical message alongside

@@ -28,6 +28,7 @@ import {
   verifyPhoneOtp,
 } from '@/lib/api/auth';
 import { VerifyEmailStep } from './verify-email-step';
+import { ForgotPasswordStep } from './forgot-password-step';
 import { useAuth } from '@/lib/auth/auth-provider';
 import type { User } from '@/lib/api/types';
 import { cn } from '@/lib/utils/cn';
@@ -122,6 +123,7 @@ export function AuthPanel({
   // REPLACES the form rather than appearing beside it.
   const [awaitingVerification, setAwaitingVerification] = React.useState<string | null>(null);
   const [suspended, setSuspended] = React.useState<string | null>(null);
+  const [forgot, setForgot] = React.useState(false);
   // Asked of the BACKEND, because the Google credentials live only there.
   // Undefined while unknown, so the button is not flashed and then withdrawn.
   const [google, setGoogle] = React.useState<GoogleSignInAvailability | undefined>(undefined);
@@ -272,6 +274,23 @@ export function AuthPanel({
           setEmail('');
           setPassword('');
           reset();
+        }}
+        className={className}
+      />
+    );
+  }
+
+  if (forgot) {
+    return (
+      <ForgotPasswordStep
+        initialEmail={email}
+        onBack={() => setForgot(false)}
+        onDone={(address) => {
+          setForgot(false);
+          setEmail(address);
+          setPassword('');
+          setError(null);
+          setNotice('Your password has been changed. Sign in with the new one.');
         }}
         className={className}
       />
@@ -474,6 +493,19 @@ export function AuthPanel({
                 </button>
               </div>
             </Field>
+
+            {mode === 'signin' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  reset();
+                  setForgot(true);
+                }}
+                className="-mt-1 inline-flex w-fit items-center rounded-full text-body-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Forgot password?
+              </button>
+            ) : null}
 
             <Messages error={error} notice={notice} />
 
