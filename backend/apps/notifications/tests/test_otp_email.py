@@ -40,10 +40,10 @@ def test_each_digit_is_its_own_tile_and_the_greeting_uses_the_name(settings):
     assert "Hi Karthik Chowdary" in html  # greeted by name
 
 
-def test_the_expiry_the_single_use_badge_and_the_security_note_are_stated(settings):
+def test_the_expiry_and_the_security_note_are_stated(settings):
     html = render(ttl=15, settings=settings).html
     assert "Valid for 15 minutes" in html
-    assert "Once only" in html
+    assert "Once only" not in html  # no badge: the stub is one clean line
     assert "Keep this to yourself" in html
     assert "never ask for this code" in html
 

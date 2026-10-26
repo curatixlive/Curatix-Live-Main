@@ -760,7 +760,6 @@ def _email_verification(ctx: dict) -> RenderedMessage:
                     label="Your one-time code",
                     expiry_strong=f"Valid for {ttl} minutes",
                     expiry_note="from when we sent it.",
-                    badge="Once only",
                     mark_url=f"{site}/curatix-mark-email.png" if site else "",
                 ),
                 ui.accent_note(
