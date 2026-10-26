@@ -41,13 +41,18 @@ describe('partner links', () => {
   it('accepts a good draft and names each problem otherwise', () => {
     expect(validatePartnerDraft(ok)).toEqual({});
     expect(
-      validatePartnerDraft({ ...ok, name: ' ', code: 'a', amount: '0', windowDays: '0' }),
+      validatePartnerDraft({ ...ok, name: ' ', code: 'a', amount: '', windowDays: '0' }),
     ).toEqual({
       name: expect.any(String),
       code: expect.any(String),
-      amount: expect.any(String),
       windowDays: expect.any(String),
     });
     expect(validatePartnerDraft({ ...ok, amount: '60' }).amount).toMatch(/50%/);
+  });
+
+  it('treats commission as optional: empty is a tracking-only link', () => {
+    expect(validatePartnerDraft({ ...ok, amount: '' })).toEqual({});
+    expect(toCommissionValue('percent', '')).toBe(0);
+    expect(validatePartnerDraft({ ...ok, amount: 'abc' }).amount).toBeDefined();
   });
 });

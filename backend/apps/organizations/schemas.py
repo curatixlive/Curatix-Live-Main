@@ -15,6 +15,9 @@ class UpdateOrganizationRequestSerializer(serializers.Serializer):
     logo = serializers.FileField(required=False)
     cover = serializers.FileField(required=False)
     bio = serializers.CharField(max_length=2000, required=False, allow_blank=True)
+    instagram = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    youtube = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    x = serializers.CharField(max_length=200, required=False, allow_blank=True)
 
     def validate(self, attrs: dict) -> dict:
         if not attrs:
@@ -55,6 +58,9 @@ class OrganizationDetailSerializer(serializers.ModelSerializer):
             "logo_url",
             "bio",
             "cover_url",
+            "instagram_url",
+            "youtube_url",
+            "x_url",
             "created_at",
             "follower_count",
         ]
@@ -69,6 +75,9 @@ class OrganizationDetailSerializer(serializers.ModelSerializer):
             "logo_url",
             "bio",
             "cover_url",
+            "instagram_url",
+            "youtube_url",
+            "x_url",
             "created_at",
         ]
 

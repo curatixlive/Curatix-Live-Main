@@ -24,6 +24,9 @@ _DETAIL_FIELDS = (
     "logo_url",
     "bio",
     "cover_url",
+    "instagram_url",
+    "youtube_url",
+    "x_url",
     "created_at",
 )
 # `payout_account_id` is LOADED but never PUBLISHED. The summary serializer

@@ -53,44 +53,46 @@ export function GrowthCard() {
       title="Audience & partners"
       subtitle="Followers, ratings and what your partner links earned."
     >
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-body-sm sm:grid-cols-3">
-        <div>
-          <dt className="text-caption text-muted-foreground">Followers</dt>
-          <dd className="text-h4 tabular-nums">{org ? org.follower_count : '—'}</dd>
-        </div>
-        {reviews && reviews.average !== null ? (
+      <div className="p-card">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-body-sm sm:grid-cols-3">
           <div>
-            <dt className="text-caption text-muted-foreground">Rating</dt>
-            <dd className="text-h4 tabular-nums">
-              {reviews.average.toFixed(1)}{' '}
-              <span className="text-caption text-muted-foreground">({reviews.count})</span>
-            </dd>
+            <dt className="text-caption text-muted-foreground">Followers</dt>
+            <dd className="text-h4 tabular-nums">{org ? org.follower_count : '—'}</dd>
           </div>
-        ) : null}
-        {stats.length ? (
-          <>
+          {reviews && reviews.average !== null ? (
             <div>
-              <dt className="text-caption text-muted-foreground">Partner link clicks</dt>
-              <dd className="text-h4 tabular-nums">{totals.clicks}</dd>
+              <dt className="text-caption text-muted-foreground">Rating</dt>
+              <dd className="text-h4 tabular-nums">
+                {reviews.average.toFixed(1)}{' '}
+                <span className="text-caption text-muted-foreground">({reviews.count})</span>
+              </dd>
             </div>
-            <div>
-              <dt className="text-caption text-muted-foreground">Partner bookings</dt>
-              <dd className="text-h4 tabular-nums">{totals.bookings}</dd>
-            </div>
-            <div>
-              <dt className="text-caption text-muted-foreground">Commission owed</dt>
-              <dd className="text-h4 tabular-nums">{formatMoney(totals.owed)}</dd>
-            </div>
-          </>
-        ) : null}
-      </dl>
-      <div className="mt-stack flex flex-wrap gap-x-4 gap-y-1 text-body-sm">
-        <Link href="/dashboard/community" className="underline">
-          Community page
-        </Link>
-        <Link href="/dashboard/promotions" className="underline">
-          Partner links
-        </Link>
+          ) : null}
+          {stats.length ? (
+            <>
+              <div>
+                <dt className="text-caption text-muted-foreground">Partner link clicks</dt>
+                <dd className="text-h4 tabular-nums">{totals.clicks}</dd>
+              </div>
+              <div>
+                <dt className="text-caption text-muted-foreground">Partner bookings</dt>
+                <dd className="text-h4 tabular-nums">{totals.bookings}</dd>
+              </div>
+              <div>
+                <dt className="text-caption text-muted-foreground">Commission owed</dt>
+                <dd className="text-h4 tabular-nums">{formatMoney(totals.owed)}</dd>
+              </div>
+            </>
+          ) : null}
+        </dl>
+        <div className="mt-stack flex flex-wrap gap-x-4 gap-y-1 text-body-sm">
+          <Link href="/dashboard/community" className="underline">
+            Community page
+          </Link>
+          <Link href="/dashboard/promotions" className="underline">
+            Partner links
+          </Link>
+        </div>
       </div>
     </Panel>
   );

@@ -53,7 +53,7 @@ export function PartnerLinks({ organizationId }: { organizationId: string }) {
   return (
     <Panel
       title="Partner links"
-      subtitle="A trackable link for each influencer or promoter. Commission is counted only from paid bookings, less refunds."
+      subtitle="A trackable link for each influencer or promoter. Commission is optional, and is counted only from paid bookings, less refunds."
       actions={
         <Button size="sm" className="gap-1.5" onClick={() => setAdding((v) => !v)}>
           <Plus className="size-4" aria-hidden />
@@ -61,7 +61,7 @@ export function PartnerLinks({ organizationId }: { organizationId: string }) {
         </Button>
       }
     >
-      <div className="flex flex-col gap-block">
+      <div className="flex flex-col gap-block p-card">
         {adding ? (
           <NewLinkForm
             organizationId={organizationId}
@@ -195,7 +195,7 @@ function NewLinkForm({ organizationId, onDone }: { organizationId: string; onDon
           ))}
         </select>
       </Field>
-      <Field id="pl-kind" label="Commission">
+      <Field id="pl-kind" label="Commission type">
         <select
           id="pl-kind"
           value={draft.kind}
@@ -208,9 +208,9 @@ function NewLinkForm({ organizationId, onDone }: { organizationId: string; onDon
       </Field>
       <Field
         id="pl-amount"
-        label={draft.kind === 'percent' ? 'Percent' : 'Rupees per ticket'}
-        required
+        label={draft.kind === 'percent' ? 'Percent (optional)' : 'Rupees per ticket (optional)'}
         error={err('amount')}
+        hint="Leave empty to only track clicks and bookings, with no commission."
       >
         <Input
           id="pl-amount"

@@ -75,3 +75,16 @@ def test_booking_attribution_endpoint(auth, owner, buyer, organization, make_boo
     )
     assert resp.status_code == 422
     assert resp.json()["error"]["code"] == "promotion_not_applicable"
+
+
+def test_commission_is_optional_a_link_can_just_measure(auth, owner, organization):
+    client = auth(owner)
+    resp = client.post(
+        f"/api/v1/organizations/{organization.id}/promotions",
+        {"name": "Tracking only", "code": "TRACK-1"},
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert resp.json()["commission_value"] == 0
+    row = client.get(f"/api/v1/organizations/{organization.id}/promotions").json()["data"][0]
+    assert row["stats"]["commission_accrued_minor"] == 0

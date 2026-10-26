@@ -38,10 +38,15 @@ export function validatePartnerDraft(draft: PartnerDraft): PartnerIssues {
   if (!draft.name.trim()) issues.name = 'Give the promotion a name.';
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]{2,31}$/.test(draft.code.trim()))
     issues.code = 'Use 3–32 letters, numbers, dashes or underscores.';
-  const amount = Number(draft.amount);
-  if (!draft.amount.trim() || !Number.isFinite(amount) || amount <= 0)
-    issues.amount = 'Enter an amount above zero.';
-  else if (draft.kind === 'percent' && amount > 50) issues.amount = 'Commission cannot exceed 50%.';
+  // Commission is OPTIONAL: an empty field makes a tracking-only link. If
+  // something is typed it has to be a sensible number.
+  if (draft.amount.trim()) {
+    const amount = Number(draft.amount);
+    if (!Number.isFinite(amount) || amount < 0)
+      issues.amount = 'Enter a number, or leave it empty.';
+    else if (draft.kind === 'percent' && amount > 50)
+      issues.amount = 'Commission cannot exceed 50%.';
+  }
   const days = Number(draft.windowDays);
   if (!Number.isInteger(days) || days < 1 || days > 90)
     issues.windowDays = 'Choose between 1 and 90 days.';
@@ -51,5 +56,5 @@ export function validatePartnerDraft(draft: PartnerDraft): PartnerIssues {
 /** Convert what was typed into what the API stores (basis points / paise). */
 export function toCommissionValue(_kind: CommissionKind, amount: string): number {
   const n = Number(amount);
-  return Math.round(n * 100); // percent -> basis points, rupees -> paise: both x100
+  return Number.isFinite(n) ? Math.round(n * 100) : 0; // percent -> basis points, rupees -> paise: both x100
 }

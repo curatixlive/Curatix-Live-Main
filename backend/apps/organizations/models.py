@@ -41,6 +41,10 @@ class Organization(models.Model):
     #: would be the one thing a follower reads before deciding to trust them.
     bio = models.TextField(blank=True, default="", max_length=2000)
     cover_url = models.CharField(max_length=500, blank=True, default="")
+    #: Canonical https profile URLs (see `socials.py`); blank means not set.
+    instagram_url = models.CharField(max_length=200, blank=True, default="")
+    youtube_url = models.CharField(max_length=200, blank=True, default="")
+    x_url = models.CharField(max_length=200, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)

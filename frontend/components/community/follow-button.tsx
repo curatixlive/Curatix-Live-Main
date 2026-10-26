@@ -28,11 +28,13 @@ export function FollowButton({
   initialCount,
   returnTo,
   onCount,
+  showCount = true,
 }: {
   organizationId: string;
   initialCount: number;
   returnTo: string;
   onCount?: (count: number) => void;
+  showCount?: boolean;
 }) {
   const { user } = useAuth();
   const client = useQueryClient();
@@ -88,9 +90,11 @@ export function FollowButton({
         )}
         {following ? 'Following' : 'Follow'}
       </Button>
-      <p className="text-caption text-muted-foreground">
-        {count.toLocaleString('en-IN')} {count === 1 ? 'follower' : 'followers'}
-      </p>
+      {showCount ? (
+        <p className="text-caption text-muted-foreground">
+          {count.toLocaleString('en-IN')} {count === 1 ? 'follower' : 'followers'}
+        </p>
+      ) : null}
       {error ? (
         <p role="alert" className="text-danger-subtle-foreground text-caption">
           {error}

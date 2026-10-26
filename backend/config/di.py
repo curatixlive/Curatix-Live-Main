@@ -1313,3 +1313,19 @@ def build_review_request_service():
     from apps.reviews.services import ReviewRequestService
 
     return ReviewRequestService(notifier=build_notification_service())
+
+
+def build_forum_service():
+    """The community discussion forum (followers write, organiser moderates)."""
+    from apps.accounts.repositories import UserRepository
+    from apps.community.services import ForumService
+    from apps.organizations.repositories import (
+        OrganizationFollowRepository,
+        OrganizationRepository,
+    )
+
+    return ForumService(
+        organizations=OrganizationRepository(),
+        follows=OrganizationFollowRepository(),
+        users=UserRepository(),
+    )

@@ -25,6 +25,9 @@ export type Organization = {
   /** The community page's banner and about text; blank until written. */
   bio?: string;
   cover_url?: string;
+  instagram_url?: string;
+  youtube_url?: string;
+  x_url?: string;
   created_at: string;
 };
 
@@ -100,10 +103,20 @@ export const linkPayoutAccount = (organizationId: string) =>
  */
 export function updateOrganizationProfile(
   organizationId: string,
-  input: { bio?: string; cover?: File | null; logo?: File | null },
+  input: {
+    bio?: string;
+    cover?: File | null;
+    logo?: File | null;
+    instagram?: string;
+    youtube?: string;
+    x?: string;
+  },
 ) {
   const form = new FormData();
   if (input.bio !== undefined) form.append('bio', input.bio);
+  if (input.instagram !== undefined) form.append('instagram', input.instagram);
+  if (input.youtube !== undefined) form.append('youtube', input.youtube);
+  if (input.x !== undefined) form.append('x', input.x);
   if (input.cover) form.append('cover', input.cover);
   if (input.logo) form.append('logo', input.logo);
   return api.patch<Organization>(`/organizations/${encodeURIComponent(organizationId)}`, form);

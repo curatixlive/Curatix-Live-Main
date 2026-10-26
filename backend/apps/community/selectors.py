@@ -6,7 +6,7 @@ import uuid
 
 from django.utils import timezone
 
-from apps.events.repositories import EventRepository
+from apps.events.repositories import CrewMemberRepository, EventRepository
 from apps.events.schemas import EventCardSerializer
 from apps.organizations.repositories import OrganizationRepository
 from apps.reviews.repositories import ReviewRepository
@@ -18,6 +18,7 @@ from core.ports.cache_port import CachePort
 COMMUNITY_TTL_SECONDS = 60
 EVENTS_PER_SECTION = 12
 LATEST_REVIEWS = 6
+HIGHLIGHTS = 10
 
 
 def community_cache_key(organization_id: uuid.UUID | str) -> str:
@@ -34,6 +35,7 @@ def get_community_payload(
     *,
     organizations: OrganizationRepository | None = None,
     events: EventRepository | None = None,
+    crew: CrewMemberRepository | None = None,
     reviews: ReviewRepository | None = None,
     cache: CachePort | None = None,
 ) -> dict | None:
@@ -49,6 +51,7 @@ def get_community_payload(
 
     organizations = organizations or OrganizationRepository()
     events = events or EventRepository()
+    crew = crew or CrewMemberRepository()
     reviews = reviews or ReviewRepository()
 
     org = organizations.get_active_by_id(organization_id)
@@ -61,6 +64,9 @@ def get_community_payload(
     past = events.list_public_for_organization(
         org.id, now=now, upcoming=False, limit=EVENTS_PER_SECTION
     )
+    highlights = events.highlight_images_for_organization(org.id, now=now, limit=HIGHLIGHTS)
+    events_total = events.count_public_for_organization(org.id)
+    team = crew.list_for_organization(org.id, active_only=True)
     summary = reviews.organization_summary(org.id)
     latest = reviews.latest_for_organization(org.id, LATEST_REVIEWS)
 
@@ -74,7 +80,25 @@ def get_community_payload(
             "verified_level": org.verified_level,
             "follower_count": getattr(org, "follower_count", 0),
             "member_since": org.created_at.isoformat(),
+            "events_count": events_total,
+            "socials": {
+                "instagram": org.instagram_url,
+                "youtube": org.youtube_url,
+                "x": org.x_url,
+            },
         },
+        "highlights": highlights,
+        "team": [
+            {
+                "id": str(m.id),
+                "name": m.name,
+                "role": m.role,
+                "details": m.details,
+                "photo_url": m.photo_url,
+                "photo_alt": m.photo_alt_text or m.name,
+            }
+            for m in team
+        ],
         "upcoming_events": EventCardSerializer(upcoming, many=True).data,
         "past_events": EventCardSerializer(past, many=True).data,
         "reviews": {

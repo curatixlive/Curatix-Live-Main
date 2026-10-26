@@ -25,8 +25,10 @@ class CreatePromotionRequestSerializer(serializers.Serializer):
     partner_name = serializers.CharField(max_length=120, required=False, allow_blank=True)
     code = serializers.CharField(max_length=32)
     event_id = serializers.UUIDField(required=False, allow_null=True)
-    commission_kind = serializers.ChoiceField(choices=CommissionKind.choices)
-    commission_value = serializers.IntegerField(min_value=0, max_value=10_000_000)
+    # Optional: a link may be created purely to MEASURE (clicks, bookings) with
+    # no commission attached. Absent means percent-of-nothing, i.e. zero.
+    commission_kind = serializers.ChoiceField(choices=CommissionKind.choices, required=False)
+    commission_value = serializers.IntegerField(required=False, min_value=0, max_value=10_000_000)
     attribution_window_days = serializers.IntegerField(required=False, min_value=1, max_value=90)
     starts_at = serializers.DateTimeField(required=False, allow_null=True)
     ends_at = serializers.DateTimeField(required=False, allow_null=True)

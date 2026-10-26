@@ -466,6 +466,48 @@ class EventRepository(BaseRepository[Event]):
             qs = qs.filter(_over_at__lt=now).order_by("-starts_at", "-id")
         return qs.only(*_CARD_FIELDS)[:limit]
 
+    def count_public_for_organization(self, organization_id: uuid.UUID | str) -> int:
+        """How many events this organizer has put on sale, for their community page."""
+        return self._publicly_visible().filter(organization_id=organization_id).count()
+
+    def highlight_images_for_organization(
+        self, organization_id: uuid.UUID | str, *, now, limit: int
+    ) -> list[dict]:
+        """Photographs from this organizer's events that have already happened.
+
+        The gallery and hero images of past, publicly visible events, newest
+        event first, one dict per image. An organizer with no past event
+        photographs has no highlights — the page then omits the section rather
+        than filling it.
+        """
+        from django.db.models.functions import Coalesce
+
+        rows = (
+            EventMedia.objects.filter(
+                event__organization_id=organization_id,
+                event__status=EventStatus.LIVE,
+                event__deleted_at__isnull=True,
+                kind__in=(MediaKind.GALLERY, MediaKind.HERO),
+            )
+            .annotate(_over_at=Coalesce("event__ends_at", "event__starts_at"))
+            .filter(_over_at__lt=now)
+            .select_related("event")
+            .only(
+                "id", "url", "alt_text", "position", "event__id", "event__title", "event__starts_at"
+            )
+            .order_by("-event__starts_at", "position", "id")[:limit]
+        )
+        return [
+            {
+                "id": str(r.id),
+                "url": r.url,
+                "alt": r.alt_text or r.event.title,
+                "event_id": str(r.event_id),
+                "event_title": r.event.title,
+            }
+            for r in rows
+        ]
+
     def list_for_sitemap(self, *, limit: int = SITEMAP_MAX_URLS) -> QuerySet[Event]:
         """Every publicly-reachable event, for `/sitemap.xml`.
 

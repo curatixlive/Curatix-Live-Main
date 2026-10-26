@@ -143,10 +143,25 @@ class OrganizationService:
         logo: UploadedFile | None = None,
         cover: UploadedFile | None = None,
         bio: str | None = None,
+        instagram: str | None = None,
+        youtube: str | None = None,
+        x: str | None = None,
     ) -> Organization:
         org = self._get_owned_organization(organization_id=organization_id, actor_id=actor_id)
         logo_url = self._upload_logo(org.id, logo) if logo is not None else None
         cover_url = self._upload_cover(org.id, cover) if cover is not None else None
+        # Validated BEFORE the transaction opens, like the uploads above.
+        from .socials import normalise_social
+
+        socials = {
+            field: normalise_social(network, value)
+            for field, network, value in (
+                ("instagram_url", "instagram", instagram),
+                ("youtube_url", "youtube", youtube),
+                ("x_url", "x", x),
+            )
+            if value is not None
+        }
 
         with UnitOfWork():
             if name is not None:
@@ -157,6 +172,8 @@ class OrganizationService:
                 org.cover_url = cover_url
             if bio is not None:
                 org.bio = bio.strip()
+            for field, url in socials.items():
+                setattr(org, field, url)
             self._organizations.save(org)
             record_audit(
                 actor_id=str(actor_id),

@@ -136,3 +136,41 @@ def test_owner_can_set_bio(org, owner):
     resp = c.patch(f"/api/v1/organizations/{org.id}", {"bio": "  New bio  "}, format="json")
     assert resp.status_code == 200
     assert resp.json()["bio"] == "New bio"
+
+
+# ── the extended payload ────────────────────────────────────────────────────
+
+
+def test_payload_carries_counts_socials_team_and_highlights(org):
+    from apps.events.models import CrewMember, EventMedia
+
+    org.instagram_url = "https://instagram.com/groove"
+    org.save()
+    past = _event(org, "Old Show", days=-5)
+    _event(org, "Next Show", days=5)
+    EventMedia.objects.create(event=past, kind="gallery", url="https://x/p.jpg", alt_text="crowd")
+    CrewMember.objects.create(organization=org, name="DJ Ria", role="Resident DJ")
+    CrewMember.objects.create(organization=org, name="Retired", role="x", is_active=False)
+
+    body = APIClient().get(f"/api/v1/organizations/{org.id}/community").json()
+    assert body["organization"]["events_count"] == 2
+    assert body["organization"]["socials"]["instagram"] == "https://instagram.com/groove"
+    assert body["organization"]["socials"]["x"] == ""
+    assert [m["name"] for m in body["team"]] == ["DJ Ria"]  # retired members are not public
+    assert body["highlights"][0]["url"] == "https://x/p.jpg"
+    assert body["highlights"][0]["event_title"] == "Old Show"
+
+
+def test_owner_can_set_socials_and_a_bad_one_is_refused(org, owner):
+    from typing import cast
+
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    c = APIClient()
+    token = str(cast(RefreshToken, RefreshToken.for_user(owner)).access_token)
+    c.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    ok = c.patch(f"/api/v1/organizations/{org.id}", {"instagram": "@groove"}, format="json")
+    assert ok.status_code == 200
+    assert ok.json()["instagram_url"] == "https://instagram.com/groove"
+    bad = c.patch(f"/api/v1/organizations/{org.id}", {"x": "javascript:alert(1)"}, format="json")
+    assert bad.status_code == 422

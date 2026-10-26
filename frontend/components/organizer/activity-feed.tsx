@@ -307,13 +307,63 @@ function FilteredList({
   if (query.isPending) {
     return <Skeleton className="h-64 w-full rounded-xl" />;
   }
+  // A GRID OF CARDS, not a vertical timeline. This page has the whole width and
+  // the narrow sidebar list left every card a thin line with a void beside it.
+  // The connector-line timeline stays in `ActivityFeed`, where the column is
+  // narrow and the vertical rhythm is the point.
   return (
-    <ol className="flex flex-col">
-      {entries.map((entry, index) => (
-        <li key={entry.id}>
-          <FeedRow entry={entry} last={index === entries.length - 1} />
+    <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {entries.map((entry) => (
+        <li key={entry.id} className="min-w-0">
+          <FeedCard entry={entry} />
         </li>
       ))}
     </ol>
+  );
+}
+
+function FeedCard({ entry }: { entry: FeedEntry }) {
+  const Icon = ICON[entry.kind] ?? Activity;
+  return (
+    <Link
+      href={`/dashboard/events?event=${entry.event_id}`}
+      className="flex h-full flex-col gap-3 rounded-xl border border-border bg-surface p-card shadow-sm transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+    >
+      <span className="flex items-center justify-between gap-2">
+        <span
+          className={cn(
+            'inline-flex size-9 shrink-0 items-center justify-center rounded-full',
+            SEVERITY[entry.severity],
+          )}
+          aria-hidden
+        >
+          <Icon className="size-4" />
+        </span>
+        <RelativeTime at={entry.at} />
+      </span>
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="flex flex-wrap items-baseline gap-x-2">
+          <span className="text-body-sm font-semibold text-foreground">{entry.title}</span>
+          {entry.amount_minor > 0 ? (
+            <span className="text-body-sm tabular-nums text-foreground">
+              {formatMoney(entry.amount_minor)}
+            </span>
+          ) : null}
+        </span>
+        <span className="truncate text-caption text-muted-foreground">{entry.event_title}</span>
+        {entry.detail ? (
+          <span
+            className={cn(
+              'line-clamp-2 text-caption',
+              entry.severity === 'critical'
+                ? 'text-destructive-subtle-foreground'
+                : 'text-muted-foreground',
+            )}
+          >
+            {entry.detail}
+          </span>
+        ) : null}
+      </span>
+    </Link>
   );
 }
