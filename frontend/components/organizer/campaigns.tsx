@@ -4,6 +4,15 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { History, MapPin, Megaphone, MessageCircle, Send } from 'lucide-react';
+import { AudienceBuilder } from '@/components/organizer/audience-builder';
+import {
+  PRESETS,
+  toApiRules,
+  validateRules,
+  type Match,
+  type RuleDraft,
+} from '@/lib/organizer/audience';
+import { useEventRows } from '@/lib/organizer/queries';
 import { errorMessage } from '@/lib/api/errors';
 import {
   fetchCampaignHistory,
@@ -27,7 +36,11 @@ const inr = (minor: number) =>
     maximumFractionDigits: 0,
   }).format(minor / 100);
 
-const SEGMENTS: { id: Exclude<CampaignSegment, 'event'>; label: string; hint: string }[] = [
+const SEGMENTS: {
+  id: Exclude<CampaignSegment, 'event' | 'custom'>;
+  label: string;
+  hint: string;
+}[] = [
   { id: 'all', label: 'Everyone who bought', hint: 'Every customer with a paid order' },
   { id: 'repeat', label: 'Regulars', hint: 'Two or more paid orders' },
   { id: 'recent', label: 'Recent buyers', hint: 'Paid in the last 90 days' },
@@ -78,7 +91,7 @@ export function Campaigns() {
             ))}
           </div>
 
-          <Composer audience={overview.data.audience} />
+          <Composer cities={overview.data.cities ?? []} />
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Panel title="Your best customers" subtitle="By what they have spent with you">
@@ -171,19 +184,47 @@ export function Campaigns() {
   );
 }
 
-function Composer({ audience }: { audience: Record<'all' | 'repeat' | 'recent', number> }) {
-  const [segment, setSegment] = React.useState<Exclude<CampaignSegment, 'event'>>('all');
+function Composer({ cities }: { cities: string[] }) {
+  // The audience starts as "everyone who bought" and is changed by rules.
+  const [rules, setRules] = React.useState<RuleDraft[]>(() => PRESETS[0].rules());
+  const [match, setMatch] = React.useState<Match>('all');
   const [subject, setSubject] = React.useState('');
   const [message, setMessage] = React.useState('');
   const [result, setResult] = React.useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
-  const recipients = audience[segment];
+  const eventsQuery = useEventRows({});
+  const events = React.useMemo(
+    () =>
+      (eventsQuery.data?.pages.flatMap((page) => page.data) ?? []).map((e) => ({
+        id: e.id,
+        title: e.title,
+      })),
+    [eventsQuery.data],
+  );
+  const issues = React.useMemo(() => validateRules(rules), [rules]);
+  const custom = React.useMemo(() => ({ rules: toApiRules(rules), match }), [rules, match]);
+
+  // The live count: asked of the server for exactly these rules, after a pause
+  // so typing a number does not fire a request per keystroke.
+  const [debounced, setDebounced] = React.useState(custom);
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(custom), 350);
+    return () => window.clearTimeout(timer);
+  }, [custom]);
+  const count = useQuery({
+    queryKey: ['organizer', 'campaigns', 'audience-count', JSON.stringify(debounced)],
+    queryFn: () => previewCampaign('custom', undefined, debounced),
+    enabled: issues.length === 0,
+    staleTime: 15_000,
+    retry: false,
+  });
+  const recipients = issues.length === 0 ? (count.data?.recipients ?? null) : null;
   const queryClient = useQueryClient();
 
   const send = useMutation({
     mutationFn: async () => {
       // Ask the server again right before sending: the cards above can be a
       // minute old, and the number confirmed is the number that will go.
-      const preview = await previewCampaign(segment);
+      const preview = await previewCampaign('custom', undefined, custom);
       if (
         !window.confirm(
           `Send "${subject.trim()}" to ${preview.recipients} ${preview.recipients === 1 ? 'person' : 'people'}?`,
@@ -191,7 +232,7 @@ function Composer({ audience }: { audience: Record<'all' | 'repeat' | 'recent', 
       ) {
         return null;
       }
-      return sendCampaign({ segment, subject, message });
+      return sendCampaign({ segment: 'custom', subject, message, custom });
     },
     onSuccess: (outcome) => {
       if (!outcome) return;
@@ -220,26 +261,21 @@ function Composer({ audience }: { audience: Record<'all' | 'repeat' | 'recent', 
       >
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-label">Send to</legend>
-          <div className="flex flex-wrap gap-2">
-            {SEGMENTS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={segment === option.id}
-                onClick={() => setSegment(option.id)}
-                className={cn(
-                  'inline-flex h-control items-center gap-2 rounded-full border px-pill text-label transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  segment === option.id
-                    ? 'border-transparent bg-cta text-cta-foreground'
-                    : 'border-border bg-surface text-foreground hover:bg-muted',
-                )}
-              >
-                {option.label}
-                <span className="tabular-nums opacity-80">{audience[option.id]}</span>
-              </button>
-            ))}
-          </div>
+          <AudienceBuilder
+            rules={rules}
+            match={match}
+            onRules={(next, nextMatch) => {
+              setRules(next);
+              if (nextMatch) setMatch(nextMatch);
+            }}
+            onMatch={setMatch}
+            events={events}
+            cities={cities}
+            issues={issues}
+            count={recipients}
+            counting={count.isFetching}
+            countError={count.isError ? errorMessage(count.error) : null}
+          />
         </fieldset>
 
         <div className="flex flex-col gap-1.5">
@@ -274,10 +310,16 @@ function Composer({ audience }: { audience: Record<'all' | 'repeat' | 'recent', 
           </p>
           <Button
             type="submit"
-            disabled={!subject.trim() || !message.trim() || recipients === 0 || send.isPending}
+            disabled={
+              !subject.trim() ||
+              !message.trim() ||
+              !recipients ||
+              issues.length > 0 ||
+              send.isPending
+            }
           >
             <Send className="size-4" aria-hidden />
-            {send.isPending ? 'Sending…' : `Send email to ${recipients}`}
+            {send.isPending ? 'Sending…' : `Send email to ${recipients ?? '…'}`}
           </Button>
         </div>
 
@@ -302,6 +344,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   repeat: 'Regulars',
   recent: 'Recent buyers',
   event: 'One event',
+  custom: 'A custom audience',
 };
 
 /**
@@ -337,8 +380,10 @@ function CampaignHistory() {
               </span>
             ) : null}
             <span className="text-caption text-muted-foreground">
-              {SEGMENT_LABELS[row.segment] ?? 'Your customers'} · sent to {row.sent} of{' '}
-              {row.recipients} {row.recipients === 1 ? 'person' : 'people'}
+              {row.segment === 'custom' && row.rules?.length
+                ? `${row.match === 'any' ? 'Any of' : 'All of'}: ${row.rules.join('; ')}`
+                : (SEGMENT_LABELS[row.segment] ?? 'Your customers')}{' '}
+              · sent to {row.sent} of {row.recipients} {row.recipients === 1 ? 'person' : 'people'}
               {row.failed ? ` · ${row.failed} could not be sent` : ''}
             </span>
           </li>

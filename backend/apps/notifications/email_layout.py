@@ -320,6 +320,87 @@ def code_panel(code: str, *, caption: str) -> str:
     )
 
 
+def icon_heading(glyph: str, text: str) -> str:
+    """A heading led by a round icon: the lock on a code email, say.
+
+    `glyph` is a character, not an image. Email images are blocked by default
+    in most clients and cost a hosted asset; a Unicode glyph in a coloured
+    circle needs neither and degrades to the circle alone.
+    """
+    return (
+        f'<tr><td class="gutter" style="padding:0 {GUTTER}px 14px;">'
+        f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+        f'style="border-collapse:separate;"><tr>'
+        f'<td width="52" height="52" align="center" valign="middle" bgcolor="{BRAND_WASH}" '
+        f'class="hero" style="width:52px;height:52px;background-color:{BRAND_WASH};'
+        f"border:1px solid {BRAND_EDGE};border-radius:26px;font-size:24px;line-height:52px;"
+        f'color:{BRAND};" aria-hidden="true">{glyph}</td>'
+        f'<td class="ink" style="padding-left:16px;font-family:{FONT};font-size:26px;'
+        f"line-height:34px;font-weight:700;color:{INK};letter-spacing:-0.02em;"
+        f'">{escape(text)}</td>'
+        f"</tr></table></td></tr>"
+    )
+
+
+def otp_panel(code: str, *, caption_prefix: str, strong: str, caption_suffix: str = ".") -> str:
+    """A one-time code as separate digit cells, with a one-line expiry beneath.
+
+    Each digit gets its own cell with a thin divider between, which is what
+    makes a six-digit code readable off a phone at arm's length and easy to
+    retype without losing your place. A code that is not 4-8 characters (it
+    should never happen) falls back to the single-line `code_panel`.
+    """
+    if not 4 <= len(code) <= 8:
+        return code_panel(code, caption=f"{caption_prefix}{strong}{caption_suffix}")
+    cells = []
+    for i, ch in enumerate(code):
+        if i:
+            cells.append(
+                f'<td width="1" style="width:1px;background-color:{BRAND_EDGE};'
+                f'font-size:0;line-height:0;" class="rule">&nbsp;</td>'
+            )
+        cells.append(
+            f'<td align="center" class="brand" style="padding:14px 0;font-family:{MONO};'
+            f"font-size:34px;line-height:40px;font-weight:700;color:{BRAND};"
+            f'">{escape(ch)}</td>'
+        )
+    return (
+        f'<tr><td class="gutter" style="padding:6px {GUTTER}px 22px;">'
+        f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
+        f'class="hero" style="border-collapse:separate;mso-table-lspace:0pt;'
+        f"mso-table-rspace:0pt;background-color:{BRAND_WASH};border:1px solid {BRAND_EDGE};"
+        f'border-radius:14px;">'
+        f'<tr><td style="padding:10px 12px 0;"><table role="presentation" cellpadding="0" '
+        f'cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">'
+        f"<tr>{''.join(cells)}</tr></table></td></tr>"
+        f'<tr><td align="center" class="subtle" style="padding:6px 16px 18px;font-family:{FONT};'
+        f'font-size:14px;line-height:20px;color:{SUBTLE_TEXT};">'
+        f'&#9201;&#65039; {escape(caption_prefix)}<strong class="ink" '
+        f'style="color:{INK};">{escape(strong)}</strong>{escape(caption_suffix)}</td></tr>'
+        f"</table></td></tr>"
+    )
+
+
+def security_note(title: str, text: str) -> str:
+    """The "do not share this" panel: a shield, a bold line, one sentence."""
+    return (
+        f'<tr><td class="gutter" style="padding:2px {GUTTER}px 22px;">'
+        f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
+        f'class="muted" style="border-collapse:separate;mso-table-lspace:0pt;'
+        f'mso-table-rspace:0pt;background-color:{WASH};border-radius:12px;"><tr>'
+        f'<td width="44" valign="top" style="padding:16px 0 16px 16px;">'
+        f'<table role="presentation" cellpadding="0" cellspacing="0" border="0">'
+        f'<tr><td width="36" height="36" align="center" valign="middle" bgcolor="{SURFACE}" '
+        f'style="width:36px;height:36px;background-color:{SURFACE};border-radius:18px;'
+        f'font-size:18px;line-height:36px;color:{BRAND};" aria-hidden="true">&#128737;</td></tr>'
+        f"</table></td>"
+        f'<td style="padding:16px 18px 16px 12px;font-family:{FONT};font-size:14px;'
+        f'line-height:21px;color:{BODY_TEXT};" class="body-text">'
+        f'<strong class="ink" style="color:{INK};">{escape(title)}</strong><br />{escape(text)}'
+        f"</td></tr></table></td></tr>"
+    )
+
+
 def _button_width(label: str) -> int:
     """The pixel width VML needs, which HTML works out for itself.
 
@@ -396,22 +477,31 @@ def spacer(height: int = 8) -> str:
 # ── The masthead ─────────────────────────────────────────────────────────
 
 
-def _masthead(label: str) -> str:
+def _masthead(label: str, tone: str = "ink") -> str:
     """The brand band: the app's mark and wordmark, reversed out of ink.
 
     `bgcolor` AND `background-color` — Word honours the attribute, everything
     modern honours the property, and a masthead that loses its fill in Outlook
     leaves white type on white paper.
     """
+    bg = BRAND_DARK if tone == "violet" else INK
+    # A soft diagonal where the client supports it; the solid colour is the
+    # fallback every other client (and Word) gets, so the band is never blank.
+    bg_image = (
+        f"background-image:linear-gradient(120deg,{BRAND_DARK} 0%,#4C1D95 100%);"
+        if tone == "violet"
+        else ""
+    )
+    label_colour = "#DDD6FE" if tone == "violet" else "#B8B2A8"
     label_html = (
         f'<td align="right" valign="middle" style="font-family:{FONT};font-size:11px;'
-        f"line-height:16px;font-weight:600;color:#B8B2A8;letter-spacing:0.1em;"
+        f"line-height:16px;font-weight:600;color:{label_colour};letter-spacing:0.1em;"
         f'text-transform:uppercase;">{escape(label)}</td>'
         if label
         else ""
     )
     return f"""<tr>
-  <td bgcolor="{INK}" style="background-color:{INK};padding:22px {GUTTER - 4}px;\
+  <td bgcolor="{bg}" style="background-color:{bg};{bg_image}padding:22px {GUTTER - 4}px;\
 border-radius:16px 16px 0 0;" class="masthead">
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" \
 style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
@@ -450,6 +540,7 @@ def render_email(
     blocks: list[str],
     footer_note: str = "",
     masthead_label: str = "",
+    masthead_tone: str = "ink",
 ) -> str:
     """Wrap composed blocks in the full document.
 
@@ -561,7 +652,7 @@ class="page" style="background-color:{PAGE};border-collapse:collapse;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" \
 class="container" style="width:600px;max-width:600px;border-collapse:collapse;">
 
-        {_masthead(masthead_label)}
+        {_masthead(masthead_label, masthead_tone)}
 
         <tr><td>
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" \

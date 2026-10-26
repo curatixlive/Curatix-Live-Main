@@ -34,7 +34,7 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from django.db.models import (
@@ -51,6 +51,7 @@ from django.db.models import (
 )
 from django.db.models.functions import ExtractHour, ExtractIsoWeekDay, TruncDate
 
+from apps.accounts.models import User
 from apps.booking.models import Booking, BookingItem, BookingStatus, Ticket, TicketStatus
 from apps.checkin.models import ScanLog, ScanResult
 from apps.events.models import (
@@ -732,6 +733,8 @@ class OrganizerRepository:
                     "subject": meta.get("subject", ""),
                     "message_preview": meta.get("message_preview", ""),
                     "segment": meta.get("segment", ""),
+                    "match": meta.get("match", ""),
+                    "rules": meta.get("rules") or [],
                     "event_id": meta.get("event_id") or None,
                     "recipients": int(meta.get("recipients") or 0),
                     "sent": int(meta.get("sent") or 0),
@@ -772,6 +775,112 @@ class OrganizerRepository:
         if segment == "repeat":
             grouped = grouped.filter(orders__gte=2)
         return list(grouped[:limit])
+
+    # ── rule-based audiences (see `audience.py`) ────────────────────────────
+
+    def _paid(self, owner_id: UUID) -> QuerySet[Booking]:
+        return Booking.objects.filter(
+            event__organization__owner_id=owner_id,
+            event__deleted_at__isnull=True,
+            status=BookingStatus.PAID,
+        )
+
+    def audience_universe(self, owner_id: UUID) -> set[Any]:
+        """Everybody connected to this organiser: paid, waitlisted or following.
+
+        The outer boundary of every rule — a negated rule can only ever exclude
+        from THIS set, never reach beyond it.
+        """
+        buyers = set(self._paid(owner_id).values_list("user_id", flat=True))
+        waiting = set(self.audience_waitlisted(owner_id, event_id=None))
+        following = set(self.audience_followers(owner_id))
+        return buyers | waiting | following
+
+    def audience_buyers(
+        self, owner_id: UUID, *, event_id: UUID | None, city: str, days: int
+    ) -> set[Any]:
+        from django.utils import timezone
+
+        qs = self._paid(owner_id)
+        if event_id:
+            qs = qs.filter(event_id=event_id)
+        if city:
+            qs = qs.filter(event__city__iexact=city)
+        if days:
+            qs = qs.filter(created_at__gte=timezone.now() - dt.timedelta(days=days))
+        return set(qs.values_list("user_id", flat=True))
+
+    def audience_order_counts(self, owner_id: UUID) -> dict[Any, int]:
+        rows: Any = self._paid(owner_id).values("user_id").annotate(n=Count("id"))
+        return {r["user_id"]: r["n"] for r in rows}
+
+    def audience_spent_rupees(self, owner_id: UUID) -> dict[Any, int]:
+        """Ticket revenue per person in whole rupees (fee and donation excluded)."""
+        rows: Any = (
+            self._paid(owner_id)
+            .values("user_id")
+            .annotate(
+                minor=Sum(
+                    F("total_amount_minor") - F("platform_fee_minor") - F("donation_amount_minor")
+                )
+            )
+        )
+        return {r["user_id"]: int((r["minor"] or 0) // 100) for r in rows}
+
+    def audience_followers(self, owner_id: UUID) -> set[Any]:
+        from apps.organizations.models import OrganizationFollow
+
+        return set(
+            OrganizationFollow.objects.filter(
+                organization__owner_id=owner_id, organization__deleted_at__isnull=True
+            ).values_list("user_id", flat=True)
+        )
+
+    def audience_waitlisted(self, owner_id: UUID, *, event_id: UUID | None) -> set[Any]:
+        qs = EventWaitlist.objects.filter(
+            event__organization__owner_id=owner_id, event__deleted_at__isnull=True
+        )
+        if event_id:
+            qs = qs.filter(event_id=event_id)
+        return set(qs.values_list("user_id", flat=True))
+
+    def audience_attended(self, owner_id: UUID, *, event_id: UUID | None, city: str) -> set[Any]:
+        qs = Ticket.objects.filter(
+            booking__event__organization__owner_id=owner_id,
+            booking__event__deleted_at__isnull=True,
+            status=TicketStatus.USED,
+        )
+        if event_id:
+            qs = qs.filter(booking__event_id=event_id)
+        if city:
+            qs = qs.filter(booking__event__city__iexact=city)
+        return set(qs.values_list("booking__user_id", flat=True))
+
+    def audience_people(self, owner_id: UUID, user_ids: set[Any], limit: int) -> list[dict]:
+        """Contact rows for the chosen ids: active accounts with an address, most orders first."""
+        counts = self.audience_order_counts(owner_id)
+        rows = (
+            User.objects.filter(id__in=user_ids, is_active=True)
+            .exclude(email="")
+            .values("id", "email", "full_name")
+        )
+        people = [
+            {
+                "uid": r["id"],
+                "email": r["email"],
+                "name": r["full_name"],
+                "orders": counts.get(r["id"], 0),
+            }
+            for r in rows
+        ]
+        people.sort(key=lambda p: (-cast(int, p["orders"]), cast(str, p["email"])))
+        return people[:limit]
+
+    def event_cities(self, owner_id: UUID) -> list[str]:
+        """The cities this organiser has events in — the choices for a city rule."""
+        return sorted(
+            c for c in self.owned_events(owner_id).values_list("city", flat=True).distinct() if c
+        )
 
     def venue_crowd(self, owner_id: UUID, limit: int = 8) -> list[dict]:
         """Where this organiser's paid attendance has been biggest, by venue."""

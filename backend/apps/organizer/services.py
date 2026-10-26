@@ -107,7 +107,7 @@ class PaymentReminderService:
 MAX_CAMPAIGN_AUDIENCE = 500
 #: The audit action a send is recorded under — also what the history reads.
 CAMPAIGN_SENT_ACTION = "organizer.campaign_sent"
-SEGMENTS = ("all", "repeat", "recent", "event")
+SEGMENTS = ("all", "repeat", "recent", "event", "custom")
 
 
 class CampaignService:
@@ -122,12 +122,26 @@ class CampaignService:
         self._repo = repository
         self._notifier = notifier
 
-    def preview(self, *, owner_id: UUID, segment: str, event_id: UUID | None) -> int:
-        return len(self._audience(owner_id, segment, event_id))
+    def preview(
+        self,
+        *,
+        owner_id: UUID,
+        segment: str,
+        event_id: UUID | None,
+        rules: object = None,
+        match: str = "all",
+    ) -> int:
+        return len(self._audience(owner_id, segment, event_id, rules, match))
 
-    def _audience(self, owner_id, segment, event_id) -> list[dict]:
+    def _audience(self, owner_id, segment, event_id, rules=None, match="all") -> list[dict]:
         if segment not in SEGMENTS:
             raise InvalidInputError("Choose who to send this to.")
+        if segment == "custom":
+            from .audience import parse_rules, resolve
+
+            parsed = parse_rules(rules, owns_event=lambda eid: self._repo.owns_event(owner_id, eid))
+            ids = resolve(parsed, match, self._repo, owner_id)
+            return self._repo.audience_people(owner_id, ids, MAX_CAMPAIGN_AUDIENCE)
         if segment == "event" and (
             event_id is None or not self._repo.owns_event(owner_id, event_id)
         ):
@@ -135,6 +149,12 @@ class CampaignService:
         return self._repo.campaign_audience(
             owner_id, segment, event_id, limit=MAX_CAMPAIGN_AUDIENCE
         )
+
+    def _describe_rules(self, owner_id, rules) -> list[str]:
+        from .audience import describe, parse_rules
+
+        parsed = parse_rules(rules, owns_event=lambda eid: self._repo.owns_event(owner_id, eid))
+        return [describe(rule) for rule in parsed]
 
     def send(
         self,
@@ -144,6 +164,8 @@ class CampaignService:
         message: str,
         segment: str,
         event_id: UUID | None = None,
+        rules: object = None,
+        match: str = "all",
     ) -> dict[str, int]:
         import uuid as _uuid
 
@@ -155,7 +177,7 @@ class CampaignService:
             raise InvalidInputError("Give the email a subject of up to 120 characters.")
         if not message or len(message) > 2000:
             raise InvalidInputError("Write a message of up to 2,000 characters.")
-        audience = self._audience(owner_id, segment, event_id)
+        audience = self._audience(owner_id, segment, event_id, rules, match)
         if not audience:
             raise InvalidInputError("Nobody matches that audience yet.")
 
@@ -198,6 +220,10 @@ class CampaignService:
                 "subject": subject,
                 "message_preview": message[:200],
                 "segment": segment,
+                "match": match if segment == "custom" else "",
+                # Plain-English rules, so the history says WHO it went to
+                # without storing a single address.
+                "rules": self._describe_rules(owner_id, rules) if segment == "custom" else [],
                 "event_id": str(event_id) if event_id else "",
                 "recipients": len(audience),
                 "sent": sent,

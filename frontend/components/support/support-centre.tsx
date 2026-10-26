@@ -64,7 +64,12 @@ const AUDIENCES: { value: SupportAudience; label: string; hint: string }[] = [
   { value: 'both', label: 'Not sure', hint: 'Send it to both and we will sort it out.' },
 ];
 
-export function SupportCentre() {
+/**
+ * `platformOnly` is for an ORGANISER writing to Curatix itself (payments,
+ * payouts, their account): there is no event organiser to route to, so the
+ * audience picker is not offered and the query always goes to Curatix support.
+ */
+export function SupportCentre({ platformOnly = false }: { platformOnly?: boolean } = {}) {
   const params = useSearchParams();
   const ticketId = params?.get('ticket') ?? null;
   const { status } = useAuth();
@@ -183,7 +188,11 @@ export function SupportCentre() {
       {/* One thing at a time in the content area: the open conversation, or
           the form to start one. */}
       {openId === null ? (
-        <RaiseForm ticketId={ticketId} onRaised={(query) => setOpenId(query.id)} />
+        <RaiseForm
+          ticketId={ticketId}
+          platformOnly={platformOnly}
+          onRaised={(query) => setOpenId(query.id)}
+        />
       ) : (
         <Thread id={openId} />
       )}
@@ -193,9 +202,11 @@ export function SupportCentre() {
 
 function RaiseForm({
   ticketId,
+  platformOnly,
   onRaised,
 }: {
   ticketId: string | null;
+  platformOnly: boolean;
   onRaised: (query: SupportQuery) => void;
 }) {
   const client = useQueryClient();
@@ -207,7 +218,13 @@ function RaiseForm({
   const [audience, setAudience] = React.useState<SupportAudience>(ticketId ? 'both' : 'platform');
 
   const mutation = useMutation({
-    mutationFn: () => raiseSupportQuery({ subject, body, audience, ticketId }),
+    mutationFn: () =>
+      raiseSupportQuery({
+        subject,
+        body,
+        audience: platformOnly ? 'platform' : audience,
+        ticketId,
+      }),
     onSuccess: (query) => {
       void client.invalidateQueries({ queryKey: ['support', 'mine'] });
       setSubject('');
@@ -235,7 +252,9 @@ function RaiseForm({
       aria-label="Raise a query"
       className="flex flex-col gap-stack rounded-xl border border-border bg-surface p-card shadow-sm"
     >
-      <h2 className="text-body font-semibold text-foreground">Raise a query</h2>
+      <h2 className="text-body font-semibold text-foreground">
+        {platformOnly ? 'Message Curatix support' : 'Raise a query'}
+      </h2>
       {ticketId ? (
         <p className="rounded-lg bg-sunken p-3 text-caption text-muted-foreground">
           This is attached to your ticket, so whoever picks it up can see which one.
@@ -249,7 +268,9 @@ function RaiseForm({
           value={subject}
           maxLength={140}
           onChange={(event) => setSubject(event.target.value)}
-          placeholder="My code would not scan at the gate"
+          placeholder={
+            platformOnly ? 'My payout has not arrived' : 'My code would not scan at the gate'
+          }
         />
       </label>
 
@@ -265,33 +286,42 @@ function RaiseForm({
         />
       </label>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="pb-1 text-label text-foreground">Who is this for?</legend>
-        {AUDIENCES.map((option) => (
-          <label
-            key={option.value}
-            className={cn(
-              'flex cursor-pointer items-start gap-2.5 rounded-lg border p-2.5 transition-colors duration-fast',
-              audience === option.value
-                ? 'bg-primary-subtle border-primary'
-                : 'border-border hover:bg-muted',
-            )}
-          >
-            <input
-              type="radio"
-              name="support-audience"
-              value={option.value}
-              checked={audience === option.value}
-              onChange={() => setAudience(option.value)}
-              className="mt-0.5 size-4 accent-primary"
-            />
-            <span className="min-w-0">
-              <span className="block text-body-sm font-medium text-foreground">{option.label}</span>
-              <span className="block text-caption text-muted-foreground">{option.hint}</span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
+      {platformOnly ? (
+        <p className="rounded-lg bg-sunken p-3 text-caption text-muted-foreground">
+          This goes to the Curatix team — payouts, payments, verification, your account or anything
+          on the platform. Replies reach you by email and appear here.
+        </p>
+      ) : (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="pb-1 text-label text-foreground">Who is this for?</legend>
+          {AUDIENCES.map((option) => (
+            <label
+              key={option.value}
+              className={cn(
+                'flex cursor-pointer items-start gap-2.5 rounded-lg border p-2.5 transition-colors duration-fast',
+                audience === option.value
+                  ? 'bg-primary-subtle border-primary'
+                  : 'border-border hover:bg-muted',
+              )}
+            >
+              <input
+                type="radio"
+                name="support-audience"
+                value={option.value}
+                checked={audience === option.value}
+                onChange={() => setAudience(option.value)}
+                className="mt-0.5 size-4 accent-primary"
+              />
+              <span className="min-w-0">
+                <span className="block text-body-sm font-medium text-foreground">
+                  {option.label}
+                </span>
+                <span className="block text-caption text-muted-foreground">{option.hint}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      )}
 
       <button
         type="button"

@@ -691,6 +691,8 @@ class CampaignOverviewView(OrganizerView):
                         for c in customers
                     ],
                     "venues": repo.venue_crowd(self.owner_id),
+                    # The choices for a "city" rule: where this organiser has events.
+                    "cities": repo.event_cities(self.owner_id),
                 }
             )
         )
@@ -718,6 +720,8 @@ class CampaignSendView(OrganizerView):
             "owner_id": self.owner_id,
             "segment": str(data.get("segment") or ""),
             "event_id": UUID(str(event_raw)) if event_raw else None,
+            "rules": data.get("rules"),
+            "match": str(data.get("match") or "all"),
         }
         if data.get("preview"):
             return _no_store(Response({"recipients": service.preview(**kwargs)}))

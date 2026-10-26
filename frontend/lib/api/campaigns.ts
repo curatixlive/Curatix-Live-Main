@@ -2,7 +2,7 @@ import { api } from './client';
 
 /** An organiser writing to people who already bought from them. Email only for now. */
 
-export type CampaignSegment = 'all' | 'repeat' | 'recent' | 'event';
+export type CampaignSegment = 'all' | 'repeat' | 'recent' | 'event' | 'custom';
 
 export type CampaignOverview = {
   audience: Record<'all' | 'repeat' | 'recent', number>;
@@ -14,16 +14,26 @@ export type CampaignOverview = {
     last_booked_at: string | null;
   }[];
   venues: { venue: string; city: string; tickets: number; events: number; buyers: number }[];
+  /** Where this organiser has events — the choices for a city rule. */
+  cities: string[];
 };
 
 export const fetchCampaignOverview = () =>
   api.get<CampaignOverview>('/organizer/campaigns/overview');
 
-export const previewCampaign = (segment: CampaignSegment, eventId?: string) =>
+/** A rule-built audience: the rules (already in API shape) and how to combine them. */
+export type CustomAudience = { rules: Record<string, unknown>[]; match: 'all' | 'any' };
+
+export const previewCampaign = (
+  segment: CampaignSegment,
+  eventId?: string,
+  custom?: CustomAudience,
+) =>
   api.post<{ recipients: number }>('/organizer/campaigns', {
     segment,
     preview: true,
     ...(eventId ? { event_id: eventId } : {}),
+    ...(custom ? { rules: custom.rules, match: custom.match } : {}),
   });
 
 export const sendCampaign = (input: {
@@ -31,12 +41,14 @@ export const sendCampaign = (input: {
   subject: string;
   message: string;
   eventId?: string;
+  custom?: CustomAudience;
 }) =>
   api.post<{ sent: number; failed: number }>('/organizer/campaigns', {
     segment: input.segment,
     subject: input.subject,
     message: input.message,
     ...(input.eventId ? { event_id: input.eventId } : {}),
+    ...(input.custom ? { rules: input.custom.rules, match: input.custom.match } : {}),
   });
 
 export type CampaignHistoryRow = {
@@ -46,6 +58,9 @@ export type CampaignHistoryRow = {
   message_preview: string;
   segment: CampaignSegment | '';
   event_id: string | null;
+  /** For a rule-built audience: how the rules combined, and each rule in plain words. */
+  match?: 'all' | 'any' | '';
+  rules?: string[];
   recipients: number;
   sent: number;
   failed: number;

@@ -740,26 +740,34 @@ def _email_verification(ctx: dict) -> RenderedMessage:
             f"email; nothing has been activated."
         ),
         html=ui.render_email(
-            title="Verify your email",
+            title="Your verification code",
             # The code, in the preview line. Somebody on a phone can read it
             # from the notification without opening the message at all — which
             # removes an app switch from the slowest step of signing up.
             preheader=f"{code} — expires in {ttl} minutes.",
-            masthead_label="Verify",
+            masthead_label="Verification",
+            masthead_tone="violet",
             blocks=[
-                ui.heading("Confirm your email address"),
+                ui.icon_heading("&#128274;", "Your verification code"),
                 ui.paragraph(
-                    f"Hi {ctx['full_name']}, enter this code to finish setting up your "
-                    f"account. There is no link to click — and there never will be."
+                    f"Hi {ctx['full_name']}, use the code below to verify your email and "
+                    f"finish setting up your account. There is no link to click — and "
+                    f"there never will be."
                 ),
-                # The code IS the hero here, so it gets the panel rather than a
-                # `hero()` block: it is read digit by digit and typed, which
-                # wants monospace and letter-spacing, not a headline.
-                ui.code_panel(code, caption=f"Expires in {ttl} minutes"),
-                ui.callout(
-                    f"Never share this code with anyone — {BRAND_NAME} will never ask "
-                    f"you for it. If you did not create an account, you can ignore "
-                    f"this email; nothing has been activated."
+                ui.otp_panel(
+                    code,
+                    caption_prefix="This code will expire in ",
+                    strong=f"{ttl} minutes",
+                ),
+                ui.security_note(
+                    "For your security",
+                    f"Do not share this code with anyone. The {BRAND_NAME} team will never "
+                    f"ask you for it.",
+                ),
+                ui.paragraph(
+                    "Didn't request this? You can safely ignore this email — nothing has "
+                    "been activated.",
+                    muted=True,
                 ),
             ],
         ),

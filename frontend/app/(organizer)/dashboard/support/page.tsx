@@ -1,12 +1,13 @@
 import * as React from 'react';
 import type { Metadata } from 'next';
-import { SupportQueue } from '@/components/support/support-queue';
+import { OrganizerSupport } from '@/components/support/organizer-support';
 
 export const metadata: Metadata = { title: 'Support' };
 
 /**
- * Queries customers raised about YOUR events, and only those addressed to you.
- * The scoping is the server's — see `SupportRepository.list_for_organizations`.
+ * Two directions: queries customers raised about YOUR events (scoped by the
+ * server — see `SupportRepository.list_for_organizations`), and your own queries
+ * to the Curatix team.
  */
 export default function OrganizerSupportPage() {
   return (
@@ -14,10 +15,10 @@ export default function OrganizerSupportPage() {
       <header className="flex flex-col gap-1">
         <h1 className="text-h3 md:text-h2">Support</h1>
         <p className="text-body-sm text-muted-foreground">
-          Questions about your events. Replies reach the customer by email.
+          Answer your customers, or get help from the Curatix team.
         </p>
       </header>
-      <SupportQueue scope="organizer" />
+      <OrganizerSupport />
     </div>
   );
 }
