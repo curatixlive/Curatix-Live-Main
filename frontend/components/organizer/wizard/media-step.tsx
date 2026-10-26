@@ -754,6 +754,14 @@ function ZoneFrame({
           })()}{' '}
           · JPEG, PNG, WebP, AVIF or GIF up to 10 MB
         </p>
+        {/* The server refuses a gallery of exactly one when the event is
+            submitted, and the checklist cannot see media rows, so say it here
+            where the single photo is, not as a refusal after pressing Create. */}
+        {zone.capIsGuideline && filled === 1 ? (
+          <p role="status" className="text-caption text-warning-subtle-foreground">
+            A gallery needs at least 2 photos. Add one more, or remove this one.
+          </p>
+        ) : null}
       </div>
       {children}
     </Section>

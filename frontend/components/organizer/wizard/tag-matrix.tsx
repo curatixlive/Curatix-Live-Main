@@ -107,7 +107,9 @@ export function TagMatrix({
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       active
                         ? 'border-foreground bg-foreground text-background'
-                        : 'border-border bg-background text-foreground hover:border-foreground/40',
+                        : // The tick is reserved on the left, so the right gets the same
+                          // width: an unchosen chip reads centred, not left-heavy.
+                          'border-border bg-background pr-[calc(0.75rem+1.375rem)] text-foreground hover:border-foreground/40',
                       locked && 'cursor-not-allowed opacity-40 hover:border-border',
                     )}
                   >

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { apiFetch } from './client';
+import { apiFetch, refreshAccessToken } from './client';
+import { tokenStore } from './token-store';
 import { ApiError } from './errors';
 
 describe('apiFetch', () => {
@@ -55,5 +56,24 @@ describe('apiFetch', () => {
     const thrown = await apiFetch('/anything', { auth: false }).catch((error: unknown) => error);
     expect(thrown).toBeInstanceOf(SyntaxError);
     expect(thrown).not.toBeInstanceOf(ApiError);
+  });
+
+  it('keeps the session when a refresh fails for a reason that is not a refusal', async () => {
+    // A cold or restarting backend answers 5xx; that says nothing about the
+    // token, and clearing it signed people out on a hard reload.
+    tokenStore.set('a', 'r');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('bad gateway', { status: 502 })),
+    );
+    await expect(refreshAccessToken()).resolves.toBe(false);
+    expect(tokenStore.getRefresh()).toBe('r');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('{}', { status: 401 })),
+    );
+    await expect(refreshAccessToken()).resolves.toBe(false);
+    expect(tokenStore.getRefresh()).toBeNull();
   });
 });

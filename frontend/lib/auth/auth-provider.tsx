@@ -11,6 +11,7 @@ import {
   verifyEmail as verifyEmailRequest,
 } from '@/lib/api/auth';
 import { tokenStore } from '@/lib/api/token-store';
+import { ApiError } from '@/lib/api/errors';
 import type { User } from '@/lib/api/types';
 
 /**
@@ -82,12 +83,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      setUser(await fetchMe());
+      let me: User;
+      try {
+        me = await fetchMe();
+      } catch (first) {
+        // One retry for a transient failure (a cold backend wakes on the first
+        // call); a definite refusal is not retried.
+        if (first instanceof ApiError && first.status >= 400 && first.status < 500) throw first;
+        await new Promise((r) => setTimeout(r, 1500));
+        me = await fetchMe();
+      }
+      setUser(me);
       setStatus('authenticated');
-    } catch {
-      // The token is stale or revoked. Clearing it here is what stops a dead
-      // session from following someone all the way to the payment step.
-      tokenStore.clear();
+    } catch (error) {
+      // Clear the session only when the server has DEFINITELY refused it. A
+      // network failure, a timeout or a 5xx from a cold backend says nothing
+      // about the token, and wiping it there signed people out of a perfectly
+      // good session on a hard reload.
+      const refused = error instanceof ApiError && (error.status === 401 || error.status === 403);
+      if (refused) tokenStore.clear();
       setUser(null);
       setStatus('anonymous');
     }

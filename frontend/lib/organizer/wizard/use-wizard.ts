@@ -443,7 +443,7 @@ export function useWizard({ userId, organizationIds, ready, existing, cloneSourc
   const update = React.useCallback(
     (patch: Partial<Draft>) => {
       commit({ ...latest.current, ...patch });
-      setState((current) => (current === 'offline' ? current : 'dirty'));
+      setState((current) => (current === 'offline' || current === 'saving' ? current : 'dirty'));
       schedule();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -453,7 +453,7 @@ export function useWizard({ userId, organizationIds, ready, existing, cloneSourc
   const setPoster = React.useCallback(
     (file: File | null) => {
       posterFile.current = file;
-      setState((current) => (current === 'offline' ? current : 'dirty'));
+      setState((current) => (current === 'offline' || current === 'saving' ? current : 'dirty'));
       schedule();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -463,7 +463,7 @@ export function useWizard({ userId, organizationIds, ready, existing, cloneSourc
   const setTiers = React.useCallback(
     (next: DraftTier[]) => {
       commit({ ...latest.current, tiers: next });
-      setState((current) => (current === 'offline' ? current : 'dirty'));
+      setState((current) => (current === 'offline' || current === 'saving' ? current : 'dirty'));
       schedule();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

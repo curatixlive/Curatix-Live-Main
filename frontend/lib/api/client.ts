@@ -102,7 +102,13 @@ async function doRefresh(refresh: string): Promise<boolean> {
       body: JSON.stringify({ refresh }),
     });
     if (!res.ok) {
-      tokenStore.clear();
+      // Only a DEFINITE refusal ends the session. A 5xx (a cold or restarting
+      // backend), a 429 or a gateway error says nothing about the token, and
+      // clearing on it signed organisers out of a working session whenever the
+      // API hiccupped during a page load.
+      if (res.status >= 400 && res.status < 500 && res.status !== 429 && res.status !== 408) {
+        tokenStore.clear();
+      }
       return false;
     }
     const pair = (await res.json()) as TokenPair;

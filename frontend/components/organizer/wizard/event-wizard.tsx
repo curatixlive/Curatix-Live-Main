@@ -469,6 +469,18 @@ export function EventWizard({
             <header className="flex flex-col gap-1.5">
               <h2 className="text-h3">Tickets</h2>
             </header>
+            {/* The ticket types come FIRST: they are what every organiser has to do,
+                and the three panels below are optional extras. Seated events
+                keep the old order, because their sections are priced in the
+                seating panel and the note beneath it refers to it. */}
+            {seatedTiers ? null : (
+              <TicketBuilder
+                tiers={draft.tiers}
+                onChange={setTiers}
+                issues={tierIssues}
+                sessions={sessions}
+              />
+            )}
             <SeatingPanel
               eventId={draft.eventId}
               venue={draft.venue}
@@ -486,14 +498,7 @@ export function EventWizard({
                 </p>
                 <SeatedGenderPrices tiers={draft.tiers} onChange={setTiers} />
               </>
-            ) : (
-              <TicketBuilder
-                tiers={draft.tiers}
-                onChange={setTiers}
-                issues={tierIssues}
-                sessions={sessions}
-              />
-            )}
+            ) : null}
           </div>
         );
       case 'seo':
