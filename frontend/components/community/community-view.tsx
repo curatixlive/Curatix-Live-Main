@@ -17,29 +17,115 @@ import { cn } from '@/lib/utils/cn';
 /**
  * An organizer's community page, drawn from one payload.
  *
- * Presentational and hook-free on purpose, so the SAME component renders the
- * public page (server) and the live preview in the editor (client). A preview
- * drawn by different code from the page is a preview that lies.
+ * Split into a HEADER (banner + identity), a TAB BAR and one component per tab,
+ * because the public site gives each tab its own route — Overview, Events,
+ * Ratings and Discussion — and the dashboard's live preview draws the same
+ * pieces with local state. Hook-free, so both a server and a client can use it,
+ * and the preview can never drift from the page.
  *
- * Order, top to bottom: banner, logo + name + verified tick + the numbers that
- * matter (followers, events, rating), social links, About, event highlights,
- * ratings, upcoming events, the team, then the discussion. Every section is
- * absent, not empty, when nothing backs it.
+ * Every section is absent, not empty, when nothing backs it.
  */
-export function CommunityView({
-  data,
-  actions,
-  forum,
-  preview = false,
+
+export type CommunityTabId = 'overview' | 'events' | 'ratings' | 'forum';
+
+export const FRAME = 'mx-auto flex w-full max-w-5xl flex-col gap-section px-4 sm:px-6';
+
+export function communityTabs(data: Community, base: string | null) {
+  return [
+    { id: 'overview' as const, label: 'Overview', count: null, href: base ?? '#' },
+    {
+      id: 'events' as const,
+      label: 'Events',
+      count: data.organization.events_count,
+      href: base ? `${base}/events` : '#',
+    },
+    {
+      id: 'ratings' as const,
+      label: 'Ratings & reviews',
+      count: data.reviews.count,
+      href: base ? `${base}/ratings` : '#',
+    },
+    {
+      id: 'forum' as const,
+      label: 'Discussion forum',
+      count: null,
+      href: base ? `${base}/forum` : '#',
+    },
+  ];
+}
+
+export type CommunityTabItem = ReturnType<typeof communityTabs>[number];
+
+/** The tab strip. Links on the public site, buttons in the preview. */
+export function CommunityTabBar({
+  items,
+  activeId,
+  onSelect,
 }: {
-  data: Community;
-  /** The follow control (live) or nothing (preview). */
-  actions?: React.ReactNode;
-  /** The discussion forum (live) or a placeholder (preview). */
-  forum?: React.ReactNode;
-  preview?: boolean;
+  items: CommunityTabItem[];
+  activeId: CommunityTabId;
+  onSelect?: (id: CommunityTabId) => void;
 }) {
-  const { organization: org, reviews, highlights, team, upcoming_events, past_events } = data;
+  const base =
+    'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-body-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+  return (
+    <div className={cn(FRAME, 'gap-0')}>
+      <nav
+        aria-label="Community sections"
+        className="flex gap-1 overflow-x-auto rounded-2xl border border-border bg-surface p-1 shadow-sm"
+      >
+        {items.map((item) => {
+          const active = item.id === activeId;
+          const className = cn(
+            base,
+            active
+              ? 'bg-nav-active text-nav-active-foreground'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          );
+          const label = (
+            <>
+              {item.label}
+              {item.count !== null ? (
+                <span
+                  className={cn(
+                    'rounded-full px-2 py-0.5 text-caption tabular-nums',
+                    active ? 'bg-surface text-foreground' : 'bg-muted text-muted-foreground',
+                  )}
+                >
+                  {item.count}
+                </span>
+              ) : null}
+            </>
+          );
+          return onSelect ? (
+            <button
+              key={item.id}
+              type="button"
+              aria-current={active ? 'page' : undefined}
+              onClick={() => onSelect(item.id)}
+              className={className}
+            >
+              {label}
+            </button>
+          ) : (
+            <Link
+              key={item.id}
+              href={item.href}
+              aria-current={active ? 'page' : undefined}
+              className={className}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
+
+/** Banner and identity card: who this is, and the numbers that matter. */
+export function CommunityHeader({ data, actions }: { data: Community; actions?: React.ReactNode }) {
+  const { organization: org, reviews } = data;
   const initials = org.name
     .split(/\s+/)
     .slice(0, 2)
@@ -62,12 +148,7 @@ export function CommunityView({
         ) : null}
       </div>
 
-      <div
-        className={cn(
-          'relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-section px-4 sm:px-6',
-          '-mt-12 sm:-mt-16',
-        )}
-      >
+      <div className={cn(FRAME, 'relative z-10 -mt-12 sm:-mt-16')}>
         {/* ── IDENTITY ──────────────────────────────────────────────────── */}
         <header className="flex flex-col gap-5 rounded-2xl border border-border bg-surface p-card shadow-sm sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:p-6">
           <div className="flex min-w-0 items-center gap-4 sm:gap-5">
@@ -125,170 +206,175 @@ export function CommunityView({
           </div>
           {actions ? <div className="shrink-0">{actions}</div> : null}
         </header>
-
-        {/* ── ABOUT ─────────────────────────────────────────────────────── */}
-        {org.bio ? (
-          <Section id="about" title="About">
-            <p className="max-w-prose whitespace-pre-line text-body text-muted-foreground">
-              {org.bio}
-            </p>
-          </Section>
-        ) : null}
-
-        {/* ── HIGHLIGHTS ────────────────────────────────────────────────── */}
-        {highlights.length ? (
-          <Section id="highlights" title="Event highlights">
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
-              {highlights.map((image, index) => (
-                <li
-                  key={image.id}
-                  className={cn(
-                    'relative aspect-square overflow-hidden rounded-xl bg-muted',
-                    index === 0 && 'col-span-2 row-span-2 sm:col-span-1 sm:row-span-1',
-                  )}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={image.url}
-                    alt={image.alt}
-                    loading="lazy"
-                    className="size-full object-cover transition-transform duration-300 hover:scale-105 motion-reduce:transition-none"
-                  />
-                </li>
-              ))}
-            </ul>
-          </Section>
-        ) : null}
-
-        {/* ── RATINGS ───────────────────────────────────────────────────── */}
-        <Section id="ratings" title="Ratings & reviews">
-          {reviews.average === null ? (
-            <p className="text-body-sm text-muted-foreground">
-              No reviews yet. They appear here after people who attended rate an event.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-5">
-              <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-h1 font-semibold tabular-nums">
-                    {reviews.average.toFixed(1)}
-                  </span>
-                  <span className="text-body-sm text-muted-foreground">
-                    from {reviews.count} verified {reviews.count === 1 ? 'review' : 'reviews'}
-                  </span>
-                </div>
-                <Distribution distribution={reviews.distribution} total={reviews.count} />
-              </div>
-              <ul className="grid gap-3 md:grid-cols-2">
-                {reviews.latest.map((review) => (
-                  <li
-                    key={review.id}
-                    className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-card"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-body-sm font-semibold">{review.reviewer}</span>
-                      <span
-                        className="inline-flex items-center gap-1 text-body-sm"
-                        aria-label={`${review.rating} out of 5`}
-                      >
-                        <Star className="size-4 fill-current text-warning" aria-hidden />
-                        {review.rating}
-                      </span>
-                    </div>
-                    {review.body ? <p className="text-body-sm">{review.body}</p> : null}
-                    <p className="text-caption text-muted-foreground">
-                      {review.verified_attendee ? 'Verified attendee · ' : 'Ticket holder · '}
-                      {preview ? (
-                        review.event_title
-                      ) : (
-                        <Link href={`/events/${review.event_id}`} className="underline">
-                          {review.event_title}
-                        </Link>
-                      )}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </Section>
-
-        {/* ── EVENTS ────────────────────────────────────────────────────── */}
-        <Section id="upcoming" title="Upcoming events">
-          {upcoming_events.length ? (
-            <EventGrid events={upcoming_events} />
-          ) : (
-            <p className="text-body-sm text-muted-foreground">
-              Nothing on sale right now. Follow {org.name} to hear when they announce something.
-            </p>
-          )}
-        </Section>
-
-        {past_events.length ? (
-          <Section id="past" title="Previous events">
-            <EventGrid events={past_events} />
-          </Section>
-        ) : null}
-
-        {/* ── TEAM ──────────────────────────────────────────────────────── */}
-        {team.length ? (
-          <Section id="team" title="Meet the team">
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {team.map((member) => (
-                <li
-                  key={member.id}
-                  className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-surface p-4 text-center"
-                >
-                  <span className="inline-flex size-20 items-center justify-center overflow-hidden rounded-full bg-secondary text-h4 font-semibold text-secondary-foreground">
-                    {member.photo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={member.photo_url}
-                        alt={member.photo_alt}
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      <span aria-hidden>{member.name.slice(0, 1).toUpperCase()}</span>
-                    )}
-                  </span>
-                  <span className="text-body-sm font-semibold">{member.name}</span>
-                  {member.role ? (
-                    <span className="text-caption text-muted-foreground">{member.role}</span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </Section>
-        ) : null}
-
-        {/* ── DISCUSSION ────────────────────────────────────────────────── */}
-        <Section id="discussion" title="Discussion">
-          {forum ?? (
-            <p className="text-body-sm text-muted-foreground">
-              {preview
-                ? 'Followers will see the discussion forum here.'
-                : 'The discussion is not available right now.'}
-            </p>
-          )}
-        </Section>
       </div>
     </div>
   );
 }
 
-function Stat({ icon: Icon, value, label }: { icon: LucideIcon; value: number; label: string }) {
+export function OverviewTab({ data }: { data: Community }) {
+  const { organization: org, highlights, team } = data;
+  const empty = !org.bio && !highlights.length && !team.length;
   return (
-    <li className="inline-flex items-center gap-1.5">
-      <Icon className="size-4" aria-hidden />
-      <span className="font-semibold tabular-nums text-foreground">
-        {value.toLocaleString('en-IN')}
-      </span>
-      <span>{label}</span>
-    </li>
+    <div className={FRAME}>
+      {empty ? (
+        <p className="text-body-sm text-muted-foreground">
+          {org.name} has not added an overview yet. Look at their events, or follow them to hear
+          what is next.
+        </p>
+      ) : null}
+      {/* ── ABOUT ─────────────────────────────────────────────────────── */}
+      {org.bio ? (
+        <Section id="about" title="About">
+          <p className="max-w-prose whitespace-pre-line text-body text-muted-foreground">
+            {org.bio}
+          </p>
+        </Section>
+      ) : null}
+
+      {/* ── HIGHLIGHTS ────────────────────────────────────────────────── */}
+      {highlights.length ? (
+        <Section id="highlights" title="Event highlights">
+          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-5">
+            {highlights.map((image, index) => (
+              <li
+                key={image.id}
+                className={cn(
+                  'relative aspect-square overflow-hidden rounded-xl bg-muted',
+                  index === 0 && 'col-span-2 row-span-2 sm:col-span-1 sm:row-span-1',
+                )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={image.url}
+                  alt={image.alt}
+                  loading="lazy"
+                  className="size-full object-cover transition-transform duration-300 hover:scale-105 motion-reduce:transition-none"
+                />
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {/* ── TEAM ──────────────────────────────────────────────────────── */}
+      {team.length ? (
+        <Section id="team" title="Meet the team">
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {team.map((member) => (
+              <li
+                key={member.id}
+                className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-surface p-4 text-center"
+              >
+                <span className="inline-flex size-20 items-center justify-center overflow-hidden rounded-full bg-secondary text-h4 font-semibold text-secondary-foreground">
+                  {member.photo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={member.photo_url}
+                      alt={member.photo_alt}
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <span aria-hidden>{member.name.slice(0, 1).toUpperCase()}</span>
+                  )}
+                </span>
+                <span className="text-body-sm font-semibold">{member.name}</span>
+                {member.role ? (
+                  <span className="text-caption text-muted-foreground">{member.role}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+    </div>
   );
 }
 
-function Section({
+export function EventsTab({ data }: { data: Community }) {
+  const { organization: org, upcoming_events, past_events } = data;
+  return (
+    <div className={FRAME}>
+      {/* ── EVENTS ────────────────────────────────────────────────────── */}
+      <Section id="upcoming" title="Upcoming events">
+        {upcoming_events.length ? (
+          <EventGrid events={upcoming_events} />
+        ) : (
+          <p className="text-body-sm text-muted-foreground">
+            Nothing on sale right now. Follow {org.name} to hear when they announce something.
+          </p>
+        )}
+      </Section>
+
+      {past_events.length ? (
+        <Section id="past" title="Previous events">
+          <EventGrid events={past_events} />
+        </Section>
+      ) : null}
+    </div>
+  );
+}
+
+export function RatingsTab({ data, preview = false }: { data: Community; preview?: boolean }) {
+  const { reviews } = data;
+  return (
+    <div className={FRAME}>
+      {/* ── RATINGS ───────────────────────────────────────────────────── */}
+      <Section id="ratings" title="Ratings & reviews">
+        {reviews.average === null ? (
+          <p className="text-body-sm text-muted-foreground">
+            No reviews yet. They appear here after people who attended rate an event.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
+              <div className="flex items-baseline gap-2">
+                <span className="text-h1 font-semibold tabular-nums">
+                  {reviews.average.toFixed(1)}
+                </span>
+                <span className="text-body-sm text-muted-foreground">
+                  from {reviews.count} verified {reviews.count === 1 ? 'review' : 'reviews'}
+                </span>
+              </div>
+              <Distribution distribution={reviews.distribution} total={reviews.count} />
+            </div>
+            <ul className="grid gap-3 md:grid-cols-2">
+              {reviews.latest.map((review) => (
+                <li
+                  key={review.id}
+                  className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-card"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-body-sm font-semibold">{review.reviewer}</span>
+                    <span
+                      className="inline-flex items-center gap-1 text-body-sm"
+                      aria-label={`${review.rating} out of 5`}
+                    >
+                      <Star className="size-4 fill-current text-warning" aria-hidden />
+                      {review.rating}
+                    </span>
+                  </div>
+                  {review.body ? <p className="text-body-sm">{review.body}</p> : null}
+                  <p className="text-caption text-muted-foreground">
+                    {review.verified_attendee ? 'Verified attendee · ' : 'Ticket holder · '}
+                    {preview ? (
+                      review.event_title
+                    ) : (
+                      <Link href={`/events/${review.event_id}`} className="underline">
+                        {review.event_title}
+                      </Link>
+                    )}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Section>
+    </div>
+  );
+}
+
+export function Section({
   id,
   title,
   children,
@@ -304,6 +390,18 @@ function Section({
       </h2>
       {children}
     </section>
+  );
+}
+
+function Stat({ icon: Icon, value, label }: { icon: LucideIcon; value: number; label: string }) {
+  return (
+    <li className="inline-flex items-center gap-1.5">
+      <Icon className="size-4" aria-hidden />
+      <span className="font-semibold tabular-nums text-foreground">
+        {value.toLocaleString('en-IN')}
+      </span>
+      <span>{label}</span>
+    </li>
   );
 }
 

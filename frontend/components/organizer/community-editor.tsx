@@ -4,11 +4,12 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, Users } from 'lucide-react';
-import { CommunityView } from '@/components/community/community-view';
+import { CommunityPreview } from '@/components/community/community-preview';
 import { errorMessage } from '@/lib/api/errors';
 import { fetchCommunity, type Community } from '@/lib/api/community';
 import { updateOrganizationProfile } from '@/lib/api/organizations';
 import { useActiveOrganization } from '@/lib/organizer/active-organization';
+import { BannerUpload } from '@/components/organizer/banner-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -174,19 +175,17 @@ export function CommunityEditor() {
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="community-cover">Banner image</Label>
-                <input
+                <BannerUpload
                   id="community-cover"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => {
+                  currentUrl={current?.cover_url}
+                  previewUrl={coverPreview}
+                  fileName={cover?.name}
+                  onPick={(file) => {
                     touch();
-                    setCover(e.target.files?.[0] ?? null);
+                    setCover(file);
                   }}
-                  className="text-body-sm"
+                  onClear={() => setCover(null)}
                 />
-                <p className="text-caption text-muted-foreground">
-                  A wide image works best (around 1600 × 400). JPEG, PNG or WebP, up to 10 MB.
-                </p>
               </div>
 
               <fieldset className="flex flex-col gap-3">
@@ -274,7 +273,7 @@ export function CommunityEditor() {
                 Could not load the preview. {page.isError ? errorMessage(page.error) : ''}
               </p>
             ) : (
-              <CommunityView data={previewData} preview />
+              <CommunityPreview data={previewData} />
             )}
           </div>
         </Panel>
