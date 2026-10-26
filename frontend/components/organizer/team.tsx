@@ -69,7 +69,7 @@ export function TeamManager() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+    <div className="flex w-full max-w-3xl flex-col gap-6">
       <Panel
         title="Your team"
         subtitle={`People who can help run every ${organization.name} event, now and later.`}

@@ -106,7 +106,7 @@ export function EarningsStrip() {
         }
         hint={
           data.month_change_pct === null
-            ? 'No comparable period'
+            ? 'No prior period'
             : `Against the first ${days} day${days === 1 ? '' : 's'} of last month`
         }
         icon={<CalendarDays className="size-4" aria-hidden />}

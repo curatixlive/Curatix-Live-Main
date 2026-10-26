@@ -64,8 +64,8 @@ export function CommunityView({
 
       <div
         className={cn(
-          'mx-auto flex w-full max-w-5xl flex-col gap-section px-4 sm:px-6',
-          '-mt-16 sm:-mt-20',
+          'relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-section px-4 sm:px-6',
+          '-mt-12 sm:-mt-16',
         )}
       >
         {/* ── IDENTITY ──────────────────────────────────────────────────── */}

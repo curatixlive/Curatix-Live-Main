@@ -12,7 +12,7 @@ export default function OrganizerSupportPage() {
   return (
     <div className="flex flex-col gap-block-lg">
       <header className="flex flex-col gap-1">
-        <h1 className="text-h3">Support</h1>
+        <h1 className="text-h3 md:text-h2">Support</h1>
         <p className="text-body-sm text-muted-foreground">
           Questions about your events. Replies reach the customer by email.
         </p>

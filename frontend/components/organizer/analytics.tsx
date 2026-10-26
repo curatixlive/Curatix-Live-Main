@@ -98,7 +98,7 @@ export function Analytics() {
   return (
     <div className="flex flex-col gap-stack-lg">
       <div className="flex flex-wrap items-center gap-stack">
-        <h1 className="text-h4">Analytics</h1>
+        <h1 className="text-h3 md:text-h2">Analytics</h1>
         <div
           role="radiogroup"
           aria-label="Date range"

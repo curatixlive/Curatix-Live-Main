@@ -51,17 +51,21 @@ export function PartnerLinks({ organizationId }: { organizationId: string }) {
 
   const rows = list.data ?? [];
   return (
-    <Panel
-      title="Partner links"
-      subtitle="A trackable link for each influencer or promoter. Commission is optional, and is counted only from paid bookings, less refunds."
-      actions={
-        <Button size="sm" className="gap-1.5" onClick={() => setAdding((v) => !v)}>
-          <Plus className="size-4" aria-hidden />
-          New partner link
-        </Button>
-      }
-    >
+    <Panel title="Partner links">
       <div className="flex flex-col gap-block p-card">
+        {/* The explanation and the action sit in the BODY, not in the panel
+            header: a header gives a long subtitle only what a button leaves of
+            the row, which on a phone is a four-word-wide column. */}
+        <div className="flex flex-col gap-stack sm:flex-row sm:items-start sm:justify-between">
+          <p className="max-w-prose text-body-sm text-muted-foreground">
+            A trackable link for each influencer or promoter. Commission is optional, and is counted
+            only from paid bookings, less refunds.
+          </p>
+          <Button size="sm" className="shrink-0 gap-1.5" onClick={() => setAdding((v) => !v)}>
+            <Plus className="size-4" aria-hidden />
+            New partner link
+          </Button>
+        </div>
         {adding ? (
           <NewLinkForm
             organizationId={organizationId}

@@ -131,7 +131,7 @@ export function CommunityEditor() {
         <div className="flex flex-col gap-1">
           <h1 className="text-h3 md:text-h2">Community page</h1>
           <p className="max-w-prose text-body text-muted-foreground">
-            The public page people follow. Edit on the left and watch the preview update.
+            The public page people follow. Edit here and the preview updates as you type.
           </p>
         </div>
         <Button variant="outline" asChild className="shrink-0 gap-1.5">
@@ -142,7 +142,7 @@ export function CommunityEditor() {
         </Button>
       </header>
 
-      <div className="grid items-start gap-block xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-block xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
         <div className="flex flex-col gap-block">
           <Panel title="About and banner">
             <form

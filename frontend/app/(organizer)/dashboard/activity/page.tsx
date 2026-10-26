@@ -36,7 +36,7 @@ export default function OrganizerActivityPage() {
       {/* Every other organizer screen titles itself rather than relying on the
           breadcrumb, so this one does too — dropping the header entirely would
           have traded a paragraph for an inconsistency. */}
-      <h1 className="text-h4">Activity</h1>
+      <h1 className="text-h3 md:text-h2">Activity</h1>
       <ActivityCentre />
     </div>
   );
