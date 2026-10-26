@@ -292,9 +292,15 @@ class TestEveryEmailIsBulletproof:
         assert "@import" not in html
         assert "fonts.googleapis" not in html
         assert "<script" not in html
-        # No images at all — so nothing depends on image loading and nothing
-        # needs an `alt` that could be forgotten.
-        assert "<img" not in html
+        # Images are limited to OUR OWN brand assets, served from the site's
+        # own origin, and every one carries an `alt` — so a client that blocks
+        # images still shows the name, and nothing is fetched from a third party.
+        import re
+
+        for tag in re.findall(r"<img[^>]*>", html):
+            assert 'alt="' in tag
+            src = re.search(r'src="([^"]+)"', tag)
+            assert src and src.group(1).startswith(("http://localhost", "https://curatix"))
 
     def test_styles_are_inlined_on_the_elements(self, kind):
         """The `<style>` block is polish; every load-bearing declaration is
@@ -309,8 +315,13 @@ class TestEveryEmailIsBulletproof:
         look like the app is an email that looks like a phishing attempt."""
         html = render(kind).html
         assert ui.PRODUCT_NAME in html
-        assert f'<span style="color:{ui.BRAND_LIFT};">.</span>' in html
-        assert ">CX<" in html
+        # Either the typographic monogram and wordmark, or — where the template
+        # opts in and the site origin is configured — the real wordmark image.
+        with_text_brand = (
+            f'<span style="color:{ui.BRAND_LIFT};">.</span>' in html and ">CX<" in html
+        )
+        with_logo = 'alt="Curatix"' in html and "curatix-wordmark" in html
+        assert with_text_brand or with_logo
 
     def test_it_has_a_preheader(self, kind):
         """The inbox preview line. Unset, clients scrape the greeting."""

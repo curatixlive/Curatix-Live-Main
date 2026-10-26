@@ -729,6 +729,7 @@ def _email_verification(ctx: dict) -> RenderedMessage:
     """
     code = str(ctx["code"])
     ttl = ctx["ttl_minutes"]
+    site = _site_url()
     return RenderedMessage(
         subject=f"{code} is your {BRAND_NAME} verification code",
         body=(
@@ -745,28 +746,31 @@ def _email_verification(ctx: dict) -> RenderedMessage:
             # from the notification without opening the message at all — which
             # removes an app switch from the slowest step of signing up.
             preheader=f"{code} — expires in {ttl} minutes.",
-            masthead_label="Verification",
-            masthead_tone="violet",
+            masthead_label="Security code",
+            logo_url=f"{site}/curatix-wordmark-dark.png" if site else "",
             blocks=[
-                ui.icon_heading("&#128274;", "Your verification code"),
+                ui.eyebrow("Verify your email"),
+                ui.heading("Here's your code"),
                 ui.paragraph(
-                    f"Hi {ctx['full_name']}, use the code below to verify your email and "
-                    f"finish setting up your account. There is no link to click — and "
-                    f"there never will be."
+                    f"Hi {ctx['full_name']}, enter it on {BRAND_NAME} to finish creating your "
+                    f"account. It works once, and only for a short while."
                 ),
-                ui.otp_panel(
+                ui.code_ticket(
                     code,
-                    caption_prefix="This code will expire in ",
-                    strong=f"{ttl} minutes",
+                    label="Your one-time code",
+                    expiry_strong=f"Valid for {ttl} minutes",
+                    expiry_note="from when we sent it.",
+                    badge="Once only",
+                    mark_url=f"{site}/curatix-mark-email.png" if site else "",
                 ),
-                ui.security_note(
-                    "For your security",
-                    f"Do not share this code with anyone. The {BRAND_NAME} team will never "
-                    f"ask you for it.",
+                ui.accent_note(
+                    "Keep this to yourself",
+                    f"{BRAND_NAME} will never ask for this code — not by email, phone or "
+                    f"chat. Anyone who asks for it is trying to get into your account.",
                 ),
                 ui.paragraph(
-                    "Didn't request this? You can safely ignore this email — nothing has "
-                    "been activated.",
+                    "Wasn't you? Ignore this email. Nothing has been activated, and no "
+                    "account is created without this code.",
                     muted=True,
                 ),
             ],

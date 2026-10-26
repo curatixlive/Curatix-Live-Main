@@ -320,82 +320,107 @@ def code_panel(code: str, *, caption: str) -> str:
     )
 
 
-def icon_heading(glyph: str, text: str) -> str:
-    """A heading led by a round icon: the lock on a code email, say.
+def code_ticket(
+    code: str,
+    *,
+    label: str,
+    expiry_strong: str,
+    expiry_note: str,
+    badge: str = "",
+    mark_url: str = "",
+) -> str:
+    """A one-time code drawn as a TICKET STUB — our product, and our mark.
 
-    `glyph` is a character, not an image. Email images are blocked by default
-    in most clients and cost a hosted asset; a Unicode glyph in a coloured
-    circle needs neither and degrades to the circle alone.
-    """
-    return (
-        f'<tr><td class="gutter" style="padding:0 {GUTTER}px 14px;">'
-        f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-        f'style="border-collapse:separate;"><tr>'
-        f'<td width="52" height="52" align="center" valign="middle" bgcolor="{BRAND_WASH}" '
-        f'class="hero" style="width:52px;height:52px;background-color:{BRAND_WASH};'
-        f"border:1px solid {BRAND_EDGE};border-radius:26px;font-size:24px;line-height:52px;"
-        f'color:{BRAND};" aria-hidden="true">{glyph}</td>'
-        f'<td class="ink" style="padding-left:16px;font-family:{FONT};font-size:26px;'
-        f"line-height:34px;font-weight:700;color:{INK};letter-spacing:-0.02em;"
-        f'">{escape(text)}</td>'
-        f"</tr></table></td></tr>"
-    )
+    The code sits in individual tiles on the top half; a dashed perforation with
+    a notch at each edge divides it from a stub carrying the expiry and a
+    "single use" badge. The shape is the Curatix ticket-and-pin mark, not a
+    generic code box, so a verification email looks like it came from the
+    business that sells tickets.
 
-
-def otp_panel(code: str, *, caption_prefix: str, strong: str, caption_suffix: str = ".") -> str:
-    """A one-time code as separate digit cells, with a one-line expiry beneath.
-
-    Each digit gets its own cell with a thin divider between, which is what
-    makes a six-digit code readable off a phone at arm's length and easy to
-    retype without losing your place. A code that is not 4-8 characters (it
-    should never happen) falls back to the single-line `code_panel`.
+    Tiles rather than one letter-spaced string because a six-digit code is read
+    off a phone and retyped, and separate cells survive every client's font
+    substitution without the digits drifting. A code outside 4-8 characters
+    (which should never happen) falls back to the single-line `code_panel`.
     """
     if not 4 <= len(code) <= 8:
-        return code_panel(code, caption=f"{caption_prefix}{strong}{caption_suffix}")
-    cells = []
+        return code_panel(code, caption=f"{expiry_strong} {expiry_note}".strip())
+    tiles = []
     for i, ch in enumerate(code):
         if i:
-            cells.append(
-                f'<td width="1" style="width:1px;background-color:{BRAND_EDGE};'
-                f'font-size:0;line-height:0;" class="rule">&nbsp;</td>'
-            )
-        cells.append(
-            f'<td align="center" class="brand" style="padding:14px 0;font-family:{MONO};'
-            f"font-size:34px;line-height:40px;font-weight:700;color:{BRAND};"
-            f'">{escape(ch)}</td>'
+            tiles.append('<td width="6" style="width:6px;font-size:0;line-height:0;">&nbsp;</td>')
+        tiles.append(
+            f'<td align="center" class="tile" bgcolor="{BRAND_WASH}" style="padding:12px 0;'
+            f"background-color:{BRAND_WASH};border:1px solid {BRAND_EDGE};border-radius:10px;"
+            f"font-family:{MONO};font-size:30px;line-height:36px;font-weight:700;color:{INK};"
+            f'" ><span class="ink">{escape(ch)}</span></td>'
         )
+    mark = (
+        f'<td width="30" valign="middle"><img src="{escape(mark_url)}" width="28" height="21" '
+        f'alt="" style="display:block;width:28px;height:auto;border:0;" /></td>'
+        if mark_url
+        else ""
+    )
+    badge_html = (
+        f'<td align="right" valign="middle"><span class="tile ink" style="display:inline-block;'
+        f"padding:5px 12px;background-color:{BRAND_WASH};border:1px solid {BRAND_EDGE};"
+        f"border-radius:999px;font-family:{FONT};font-size:11px;line-height:14px;"
+        f'font-weight:700;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;color:{BRAND_DARK};">'
+        f"{escape(badge)}</span></td>"
+        if badge
+        else ""
+    )
+    notch_l = (
+        f'<td width="12" class="page" style="width:12px;height:24px;background-color:{PAGE};'
+        f"border:1px solid {BRAND_EDGE};border-left:0;border-radius:0 12px 12px 0;"
+        f'font-size:0;line-height:0;">&nbsp;</td>'
+    )
+    notch_r = (
+        f'<td width="12" class="page" style="width:12px;height:24px;background-color:{PAGE};'
+        f"border:1px solid {BRAND_EDGE};border-right:0;border-radius:12px 0 0 12px;"
+        f'font-size:0;line-height:0;">&nbsp;</td>'
+    )
     return (
-        f'<tr><td class="gutter" style="padding:6px {GUTTER}px 22px;">'
+        f'<tr><td class="gutter" style="padding:4px {GUTTER}px 24px;">'
         f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
-        f'class="hero" style="border-collapse:separate;mso-table-lspace:0pt;'
-        f"mso-table-rspace:0pt;background-color:{BRAND_WASH};border:1px solid {BRAND_EDGE};"
-        f'border-radius:14px;">'
-        f'<tr><td style="padding:10px 12px 0;"><table role="presentation" cellpadding="0" '
-        f'cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">'
-        f"<tr>{''.join(cells)}</tr></table></td></tr>"
-        f'<tr><td align="center" class="subtle" style="padding:6px 16px 18px;font-family:{FONT};'
-        f'font-size:14px;line-height:20px;color:{SUBTLE_TEXT};">'
-        f'&#9201;&#65039; {escape(caption_prefix)}<strong class="ink" '
-        f'style="color:{INK};">{escape(strong)}</strong>{escape(caption_suffix)}</td></tr>'
+        f'class="ticket" style="border-collapse:separate;mso-table-lspace:0pt;mso-table-rspace:0pt;'
+        f'background-color:{SURFACE};border:1px solid {BRAND_EDGE};border-radius:18px;">'
+        # header strip: mark + label
+        f'<tr><td style="padding:18px 22px 4px;"><table role="presentation" cellpadding="0" '
+        f'cellspacing="0" border="0" width="100%" style="border-collapse:collapse;"><tr>{mark}'
+        f'<td valign="middle" class="brand" style="padding-left:{10 if mark else 0}px;'
+        f"font-family:{FONT};font-size:11px;line-height:16px;font-weight:700;"
+        f"letter-spacing:0.14em;text-transform:uppercase;color:{BRAND_DARK};"
+        f'">{escape(label)}</td></tr></table></td></tr>'
+        # the code
+        f'<tr><td style="padding:10px 18px 18px;"><table role="presentation" cellpadding="0" '
+        f'cellspacing="0" border="0" width="100%" style="border-collapse:separate;">'
+        f"<tr>{''.join(tiles)}</tr></table></td></tr>"
+        # perforation
+        f'<tr><td style="padding:0;"><table role="presentation" cellpadding="0" cellspacing="0" '
+        f'border="0" width="100%" style="border-collapse:separate;"><tr>{notch_l}'
+        f'<td class="rule" style="border-top:2px dashed {BRAND_EDGE};font-size:0;line-height:0;'
+        f'height:1px;">&nbsp;</td>{notch_r}</tr></table></td></tr>'
+        # stub
+        f'<tr><td style="padding:14px 22px 18px;"><table role="presentation" cellpadding="0" '
+        f'cellspacing="0" border="0" width="100%" style="border-collapse:collapse;"><tr>'
+        f'<td valign="middle" class="body-text" style="font-family:{FONT};font-size:14px;'
+        f'line-height:20px;color:{BODY_TEXT};">'
+        f'<strong class="ink" style="color:{INK};">{escape(expiry_strong)}</strong> '
+        f"{escape(expiry_note)}</td>{badge_html}</tr></table></td></tr>"
         f"</table></td></tr>"
     )
 
 
-def security_note(title: str, text: str) -> str:
-    """The "do not share this" panel: a shield, a bold line, one sentence."""
+def accent_note(title: str, text: str) -> str:
+    """A note set off by a violet rule on its left edge — for the "never share this" line."""
     return (
         f'<tr><td class="gutter" style="padding:2px {GUTTER}px 22px;">'
         f'<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" '
-        f'class="muted" style="border-collapse:separate;mso-table-lspace:0pt;'
-        f'mso-table-rspace:0pt;background-color:{WASH};border-radius:12px;"><tr>'
-        f'<td width="44" valign="top" style="padding:16px 0 16px 16px;">'
-        f'<table role="presentation" cellpadding="0" cellspacing="0" border="0">'
-        f'<tr><td width="36" height="36" align="center" valign="middle" bgcolor="{SURFACE}" '
-        f'style="width:36px;height:36px;background-color:{SURFACE};border-radius:18px;'
-        f'font-size:18px;line-height:36px;color:{BRAND};" aria-hidden="true">&#128737;</td></tr>'
-        f"</table></td>"
-        f'<td style="padding:16px 18px 16px 12px;font-family:{FONT};font-size:14px;'
-        f'line-height:21px;color:{BODY_TEXT};" class="body-text">'
+        f'style="border-collapse:collapse;"><tr>'
+        f'<td width="4" bgcolor="{BRAND}" style="width:4px;background-color:{BRAND};'
+        f'border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>'
+        f'<td style="padding:2px 0 2px 16px;font-family:{FONT};font-size:14px;line-height:22px;'
+        f'color:{BODY_TEXT};" class="body-text">'
         f'<strong class="ink" style="color:{INK};">{escape(title)}</strong><br />{escape(text)}'
         f"</td></tr></table></td></tr>"
     )
@@ -477,7 +502,7 @@ def spacer(height: int = 8) -> str:
 # ── The masthead ─────────────────────────────────────────────────────────
 
 
-def _masthead(label: str, tone: str = "ink") -> str:
+def _masthead(label: str, tone: str = "ink", logo_url: str = "") -> str:
     """The brand band: the app's mark and wordmark, reversed out of ink.
 
     `bgcolor` AND `background-color` — Word honours the attribute, everything
@@ -500,13 +525,7 @@ def _masthead(label: str, tone: str = "ink") -> str:
         if label
         else ""
     )
-    return f"""<tr>
-  <td bgcolor="{bg}" style="background-color:{bg};{bg_image}padding:22px {GUTTER - 4}px;\
-border-radius:16px 16px 0 0;" class="masthead">
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" \
-style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
-      <tr>
-        <td valign="middle">
+    monogram = f"""        <td valign="middle">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" \
 style="border-collapse:collapse;">
             <tr>
@@ -523,6 +542,24 @@ line-height:32px;font-weight:700;color:{SURFACE};letter-spacing:-0.01em;">\
             </tr>
           </table>
         </td>
+"""
+    if logo_url:
+        # The real wordmark (white outline on the ink band). `alt` carries the
+        # name for clients that block images, so the band is never anonymous.
+        brand = (
+            f'<td valign="middle"><img src="{escape(logo_url)}" width="118" height="25" '
+            f'alt="{escape(PRODUCT_NAME)}" style="display:block;width:118px;height:auto;'
+            f'border:0;color:{SURFACE};font-family:{FONT};font-size:20px;font-weight:700;" /></td>'
+        )
+    else:
+        brand = monogram
+    return f"""<tr>
+  <td bgcolor="{bg}" style="background-color:{bg};{bg_image}padding:22px {GUTTER - 4}px;\
+border-radius:16px 16px 0 0;" class="masthead">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" \
+style="border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+      <tr>
+        {brand}
         {label_html}
       </tr>
     </table>
@@ -541,6 +578,7 @@ def render_email(
     footer_note: str = "",
     masthead_label: str = "",
     masthead_tone: str = "ink",
+    logo_url: str = "",
 ) -> str:
     """Wrap composed blocks in the full document.
 
@@ -625,6 +663,10 @@ xmlns:o="urn:schemas-microsoft-com:office:office" lang="en">
     .wash, .muted {{ background-color:{DARK_MUTED} !important;
                      border-color:{DARK_BORDER} !important; }}
     .hero {{ background-color:#241F35 !important; border-color:#4C3F86 !important; }}
+    .ticket {{ background-color:{DARK_SURFACE} !important; border-color:#4C3F86 !important; }}
+    .tile {{ background-color:#241F35 !important; border-color:#4C3F86 !important; }}
+    td.page {{ background-color:{DARK_PAGE} !important;
+               border-color:#4C3F86 !important; }}
     .rule {{ border-color:{DARK_BORDER} !important; }}
   }}
   /* Outlook.com rewrites the message and prefixes its own dark-mode
@@ -652,7 +694,7 @@ class="page" style="background-color:{PAGE};border-collapse:collapse;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" \
 class="container" style="width:600px;max-width:600px;border-collapse:collapse;">
 
-        {_masthead(masthead_label, masthead_tone)}
+        {_masthead(masthead_label, masthead_tone, logo_url)}
 
         <tr><td>
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" \
