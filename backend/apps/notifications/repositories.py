@@ -33,6 +33,7 @@ class NotificationLogRepository(BaseRepository[NotificationLog]):
         html_body: str = "",
         context_url: str = "",
         attachments_json: list | None = None,
+        whatsapp_payload: dict | None = None,
     ) -> NotificationLog:
         """Insert the pending claim. Racing callers collide on the unique
         `dedupe_key` (IntegrityError) — the caller catches it and treats the
@@ -47,6 +48,7 @@ class NotificationLogRepository(BaseRepository[NotificationLog]):
             html_body=html_body,
             context_url=context_url,
             attachments_json=attachments_json or [],
+            whatsapp_payload=whatsapp_payload or {},
             status=NotificationStatus.PENDING,
         )
 
@@ -172,3 +174,44 @@ class PushSubscriptionRepository(BaseRepository[PushSubscription]):
         if not ids:
             return 0
         return PushSubscription.objects.filter(id__in=ids).update(last_used_at=when)
+
+
+class WhatsAppRecipientRepository:
+    """Who may be messaged on WhatsApp, looked up from the address an email
+    was sent to."""
+
+    def opted_in_number(self, email: str) -> str:
+        """The WhatsApp number for the account behind `email`, or "".
+
+        Only for an ACTIVE account that opted in and has a usable phone number.
+        An address with no account (an invite to a stranger) has nobody who
+        agreed to WhatsApp, so it gets "" and the email alone goes.
+        """
+        from apps.accounts.models import User
+
+        from .whatsapp import whatsapp_number
+
+        row = (
+            User.objects.filter(email__iexact=(email or "").strip(), is_active=True)
+            .values_list("phone", "whatsapp_opt_in")
+            .first()
+        )
+        if row is None or not row[1]:
+            return ""
+        return whatsapp_number(row[0])
+
+    def opted_in_numbers(self, user_ids) -> dict:
+        """`{user_id: number}` for the given users who opted in with a usable
+        number — one query, for a campaign's whole audience."""
+        from apps.accounts.models import User
+
+        from .whatsapp import whatsapp_number
+
+        out = {}
+        for uid, phone in User.objects.filter(
+            pk__in=list(user_ids), is_active=True, whatsapp_opt_in=True
+        ).values_list("id", "phone"):
+            number = whatsapp_number(phone)
+            if number:
+                out[uid] = number
+        return out

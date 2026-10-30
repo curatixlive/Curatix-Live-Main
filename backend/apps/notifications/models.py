@@ -25,6 +25,10 @@ class NotificationChannel(models.TextChoices):
     # and the reminder they should receive is one reminder, not one per device.
     # Fan-out to that user's live subscriptions happens at dispatch.
     PUSH = "push", "Web Push"
+    # WhatsApp Business. `recipient` is the phone number (digits with country
+    # code); the message is a pre-approved TEMPLATE whose name is `subject` and
+    # whose slot values are `whatsapp_params` — see `apps/notifications/whatsapp.py`.
+    WHATSAPP = "whatsapp", "WhatsApp"
 
 
 class NotificationStatus(models.TextChoices):
@@ -122,6 +126,19 @@ class NotificationType(models.TextChoices):
     CAMPAIGN_PROMO = "campaign_promo", "Organiser campaign"
     # "How was it?" — sent once, to a paid attendee, after the event has ended.
     REVIEW_REQUEST = "review_request", "Post-event review request"
+    # WhatsApp siblings. Each is sent BESIDE its email (never instead of it), and
+    # only to somebody who opted in with a phone number on file.
+    WA_BOOKING_CONFIRMED = "wa_booking_confirmed", "WhatsApp: booking confirmed"
+    WA_REFUND = "wa_refund", "WhatsApp: refund processed"
+    WA_EVENT_REMINDER = "wa_event_reminder", "WhatsApp: event reminder"
+    WA_WAITLIST_AVAILABLE = "wa_waitlist_available", "WhatsApp: waitlist tickets available"
+    WA_PAYMENT_REMINDER = "wa_payment_reminder", "WhatsApp: finish your booking"
+    WA_EVENT_CANCELLED = "wa_event_cancelled", "WhatsApp: event cancelled"
+    WA_REVIEW_REQUEST = "wa_review_request", "WhatsApp: review request"
+    WA_EVENT_INVITE = "wa_event_invite", "WhatsApp: event invitation"
+    WA_PASSWORD_RESET = "wa_password_reset", "WhatsApp: password reset code"
+    WA_WAITLIST_JOINED = "wa_waitlist_joined", "WhatsApp: waitlist entry (organiser)"
+    WA_CAMPAIGN = "wa_campaign", "WhatsApp: organiser campaign"
 
 
 class NotificationLog(models.Model):
@@ -164,6 +181,10 @@ class NotificationLog(models.Model):
     #: exposure this row did not already have: `body` lists the same QR tokens
     #: in plain text.
     attachments_json = models.JSONField(default=list, blank=True)
+    #: WhatsApp only: `{"params": [...], "button": "..."}` — the values for the
+    #: approved template's numbered slots, rendered at claim time so a retry
+    #: sends exactly what was claimed.
+    whatsapp_payload = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     sent_at = models.DateTimeField(null=True, blank=True)

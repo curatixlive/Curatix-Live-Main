@@ -16,7 +16,13 @@ export type CampaignOverview = {
   venues: { venue: string; city: string; tickets: number; events: number; buyers: number }[];
   /** Where this organiser has events — the choices for a city rule. */
   cities: string[];
+  /** Whether a campaign can go out on WhatsApp right now (the key is connected). */
+  whatsapp_available?: boolean;
+  /** Of everybody who bought, how many opted in to WhatsApp with a number. */
+  whatsapp_reach?: number;
 };
+
+export type CampaignChannel = 'email' | 'whatsapp';
 
 export const fetchCampaignOverview = () =>
   api.get<CampaignOverview>('/organizer/campaigns/overview');
@@ -29,7 +35,7 @@ export const previewCampaign = (
   eventId?: string,
   custom?: CustomAudience,
 ) =>
-  api.post<{ recipients: number }>('/organizer/campaigns', {
+  api.post<{ recipients: number; whatsapp_recipients?: number }>('/organizer/campaigns', {
     segment,
     preview: true,
     ...(eventId ? { event_id: eventId } : {}),
@@ -42,9 +48,11 @@ export const sendCampaign = (input: {
   message: string;
   eventId?: string;
   custom?: CustomAudience;
+  channels?: CampaignChannel[];
 }) =>
-  api.post<{ sent: number; failed: number }>('/organizer/campaigns', {
+  api.post<{ sent: number; failed: number; whatsapp_sent?: number }>('/organizer/campaigns', {
     segment: input.segment,
+    channels: input.channels ?? ['email'],
     subject: input.subject,
     message: input.message,
     ...(input.eventId ? { event_id: input.eventId } : {}),
@@ -64,6 +72,8 @@ export type CampaignHistoryRow = {
   recipients: number;
   sent: number;
   failed: number;
+  channels?: CampaignChannel[];
+  whatsapp_sent?: number;
 };
 
 /** What this organiser has already sent, newest first. */

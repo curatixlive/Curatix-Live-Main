@@ -25,8 +25,9 @@ const inr = (minor: number) =>
  * Two lists an organiser acts on for one event: people waiting for tickets to
  * come back, and buyers whose payment never went through. Both carry the
  * person's contact details, because the organiser may want to call; the
- * reminder button emails the buyer on the organiser's behalf (WhatsApp is a
- * later channel and is not offered here).
+ * reminder button emails the buyer on the organiser's behalf, and also sends a
+ * WhatsApp to a buyer who opted in once WhatsApp is connected (the server
+ * decides; see `apps/notifications/whatsapp.py`).
  */
 export function EventFollowUps({ eventId }: { eventId: string }) {
   return (

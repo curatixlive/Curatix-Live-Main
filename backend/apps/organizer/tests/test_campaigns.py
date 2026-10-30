@@ -35,14 +35,15 @@ def test_preview_then_send_emails_each_customer_once(world) -> None:
     client = auth(world.owner)
     url = "/api/v1/organizer/campaigns"
     assert client.post(url, {"segment": "all", "preview": True}, format="json").json() == {
-        "recipients": 2
+        "recipients": 2,
+        "whatsapp_recipients": 0,
     }
     r = client.post(
         url,
         {"segment": "all", "subject": "Winter series", "message": "Early access.\nThanks!"},
         format="json",
     )
-    assert r.json() == {"sent": 2, "failed": 0}
+    assert r.json() == {"sent": 2, "failed": 0, "whatsapp_sent": 0}
     assert NotificationLog.objects.filter(type="campaign_promo").count() == 2
 
 
@@ -98,3 +99,50 @@ def test_history_lists_what_was_sent_newest_first_and_only_mine(world) -> None:
 
 def test_history_requires_a_login() -> None:
     assert APIClient().get("/api/v1/organizer/campaigns/history").status_code in (401, 403)
+
+
+def test_whatsapp_campaign_is_refused_while_whatsapp_is_not_connected(world, settings) -> None:
+    from config import di
+
+    settings.WHATSAPP_PROVIDER = "disabled"
+    di.whatsapp_port.cache_clear()
+    try:
+        r = auth(world.owner).post(
+            "/api/v1/organizer/campaigns",
+            {"segment": "all", "subject": "Hi", "message": "x", "channels": ["whatsapp"]},
+            format="json",
+        )
+        assert r.status_code == 422
+        assert "WhatsApp is not connected" in r.json()["error"]["message"]
+        overview = auth(world.owner).get("/api/v1/organizer/campaigns/overview").json()
+        assert overview["whatsapp_available"] is False
+    finally:
+        di.whatsapp_port.cache_clear()
+
+
+def test_whatsapp_campaign_reaches_only_opted_in_buyers(world, settings) -> None:
+    from apps.accounts.models import User
+    from config import di
+
+    settings.WHATSAPP_PROVIDER = "console"
+    di.whatsapp_port.cache_clear()
+    try:
+        # asha opts in with a number; bala does not
+        User.objects.filter(pk=world.customer.pk).update(phone="9876543210", whatsapp_opt_in=True)
+        client = auth(world.owner)
+        url = "/api/v1/organizer/campaigns"
+        preview = client.post(url, {"segment": "all", "preview": True}, format="json").json()
+        assert preview == {"recipients": 2, "whatsapp_recipients": 1}
+        r = client.post(
+            url,
+            {"segment": "all", "subject": "Hi", "message": "New show", "channels": ["whatsapp"]},
+            format="json",
+        )
+        assert r.json() == {"sent": 0, "failed": 0, "whatsapp_sent": 1}
+        log = NotificationLog.objects.get(type="wa_campaign")
+        assert log.recipient == "919876543210"
+        assert not NotificationLog.objects.filter(type="campaign_promo").exists()
+        history = client.get(url + "/history").json()["data"][0]
+        assert history["channels"] == ["whatsapp"] and history["whatsapp_sent"] == 1
+    finally:
+        di.whatsapp_port.cache_clear()

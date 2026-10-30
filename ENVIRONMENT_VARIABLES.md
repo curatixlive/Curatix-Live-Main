@@ -265,6 +265,12 @@ sending, so nothing is faked — an SMS simply does not go out.
 | Variable | Required | Default | Used By | Description |
 | --- | --- | --- | --- | --- |
 | `SMS_PROVIDER` | Future | `console` | `di.sms_port()` | `console` \| `http`. Production refuses `console` once SMS is contracted. |
+| `WHATSAPP_PROVIDER` | Optional | `disabled` | `di.whatsapp_port()` | `disabled` (not connected: WhatsApp skipped, email still goes) \| `console` (dev fake; production refuses it) \| `meta` (Meta WhatsApp Cloud API). See `WHATSAPP_SETUP.md`. |
+| `WHATSAPP_PHONE_NUMBER_ID` | With `meta` | — | `di.whatsapp_port()` | The Phone Number ID from Meta (WhatsApp > API Setup). Preflight refuses `meta` without it. |
+| `WHATSAPP_ACCESS_TOKEN` | With `meta` | — | `di.whatsapp_port()` | A permanent System User access token with `whatsapp_business_messaging`. Secret. |
+| `WHATSAPP_API_VERSION` | Optional | `v21.0` | Meta adapter | Graph API version in the request URL. |
+| `WHATSAPP_TEMPLATE_LANGUAGE` | Optional | `en` | `apps/notifications/whatsapp.py` | Language code the templates were approved in. |
+| `WHATSAPP_TEMPLATE_NAMES` | Optional | empty | `apps/notifications/whatsapp.py` | `type=name,...` override for a template Meta made you rename. |
 | `SMS_API_KEY` | Future | `""` | `HttpSmsAdapter` | MSG91 / Twilio / Gupshup. |
 | `SMS_API_BASE_URL` | Future | `""` | `HttpSmsAdapter` | Provider's API base. |
 | `SMS_SENDER_ID` | Future | `""` | `HttpSmsAdapter` | 6-character DLT-approved header. |

@@ -663,6 +663,12 @@ class PaymentFailureListView(OrganizerView):
         return _no_store(Response(result))
 
 
+def _promo_campaigns():
+    from config.di import build_promo_campaign_service
+
+    return build_promo_campaign_service()
+
+
 class CampaignOverviewView(OrganizerView):
     """Who the organiser can write to, and where their crowds are."""
 
@@ -693,6 +699,14 @@ class CampaignOverviewView(OrganizerView):
                     "venues": repo.venue_crowd(self.owner_id),
                     # The choices for a "city" rule: where this organiser has events.
                     "cities": repo.event_cities(self.owner_id),
+                    # Whether a campaign can go out on WhatsApp right now, and how
+                    # many of everybody who bought could receive it.
+                    "whatsapp_available": _promo_campaigns().whatsapp_available(),
+                    "whatsapp_reach": len(
+                        repo.whatsapp_numbers(
+                            [p["uid"] for p in repo.campaign_audience(self.owner_id, "all")]
+                        )
+                    ),
                 }
             )
         )
@@ -724,8 +738,20 @@ class CampaignSendView(OrganizerView):
             "match": str(data.get("match") or "all"),
         }
         if data.get("preview"):
-            return _no_store(Response({"recipients": service.preview(**kwargs)}))
+            return _no_store(
+                Response(
+                    {
+                        "recipients": service.preview(**kwargs),
+                        "whatsapp_recipients": service.whatsapp_reach(**kwargs),
+                    }
+                )
+            )
+        raw_channels = data.get("channels")
+        channels = [str(c) for c in raw_channels] if isinstance(raw_channels, list) else ["email"]
         result = service.send(
-            subject=str(data.get("subject") or ""), message=str(data.get("message") or ""), **kwargs
+            subject=str(data.get("subject") or ""),
+            message=str(data.get("message") or ""),
+            channels=channels,
+            **kwargs,
         )
         return _no_store(Response(result))

@@ -9,6 +9,7 @@ import {
   Database,
   HardDrive,
   Mail,
+  MessageCircle,
   MessageSquare,
   Radio,
   RefreshCw,
@@ -83,6 +84,7 @@ const ICONS: Record<string, LucideIcon> = {
   event_bus: Radio,
   email: Mail,
   sms: MessageSquare,
+  whatsapp: MessageCircle,
 };
 
 const LABELS: Record<string, string> = {
@@ -94,6 +96,7 @@ const LABELS: Record<string, string> = {
   event_bus: 'Event bus',
   email: 'Email',
   sms: 'SMS',
+  whatsapp: 'WhatsApp',
 };
 
 /** Which checks the backend actually contacts. Everything else is configured. */

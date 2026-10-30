@@ -16,6 +16,7 @@ const EMPTY: ProfileForm = {
   gender: '',
   genderSelfDescribed: '',
   city: '',
+  whatsappOptIn: false,
 };
 
 const form = (over: Partial<ProfileForm> = {}): ProfileForm => ({ ...EMPTY, ...over });
@@ -200,5 +201,24 @@ describe('city', () => {
   });
   it('can be cleared', () => {
     expect(changedFields(form({ city: 'Pune' }), form({ city: '' }))).toEqual({ city: '' });
+  });
+});
+
+describe('the WhatsApp opt-in', () => {
+  it('is sent only when it changes', () => {
+    expect(changedFields(form(), form({ whatsappOptIn: true }))).toEqual({ whatsapp_opt_in: true });
+    expect(changedFields(form({ whatsappOptIn: true }), form({ whatsappOptIn: true }))).toBeNull();
+  });
+
+  it('is read off the user, off by default', () => {
+    expect(
+      formFromUser({
+        full_name: '',
+        phone: '',
+        date_of_birth: null,
+        gender: '',
+        gender_self_described: '',
+      }).whatsappOptIn,
+    ).toBe(false);
   });
 });

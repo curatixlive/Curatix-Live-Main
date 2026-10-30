@@ -19,6 +19,7 @@ import {
   fetchCampaignOverview,
   previewCampaign,
   sendCampaign,
+  type CampaignChannel,
   type CampaignSegment,
 } from '@/lib/api/campaigns';
 import { formatEventDateTime } from '@/lib/discovery/format';
@@ -91,7 +92,10 @@ export function Campaigns() {
             ))}
           </div>
 
-          <Composer cities={overview.data.cities ?? []} />
+          <Composer
+            cities={overview.data.cities ?? []}
+            whatsappAvailable={Boolean(overview.data.whatsapp_available)}
+          />
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Panel title="Your best customers" subtitle="By what they have spent with you">
@@ -184,7 +188,14 @@ export function Campaigns() {
   );
 }
 
-function Composer({ cities }: { cities: string[] }) {
+function Composer({ cities, whatsappAvailable }: { cities: string[]; whatsappAvailable: boolean }) {
+  // Email always available; WhatsApp only once the key is connected, and then
+  // it reaches only the people who opted in (the count says how many).
+  const [channels, setChannels] = React.useState<CampaignChannel[]>(['email']);
+  const toggleChannel = (channel: CampaignChannel) =>
+    setChannels((current) =>
+      current.includes(channel) ? current.filter((c) => c !== channel) : [...current, channel],
+    );
   // The audience starts as "everyone who bought" and is changed by rules.
   const [rules, setRules] = React.useState<RuleDraft[]>(() => PRESETS[0].rules());
   const [match, setMatch] = React.useState<Match>('all');
@@ -218,6 +229,10 @@ function Composer({ cities }: { cities: string[] }) {
     retry: false,
   });
   const recipients = issues.length === 0 ? (count.data?.recipients ?? null) : null;
+  const whatsappRecipients = issues.length === 0 ? (count.data?.whatsapp_recipients ?? null) : null;
+  const usingEmail = channels.includes('email');
+  const usingWhatsApp = channels.includes('whatsapp');
+  const reachable = (usingEmail ? recipients : 0) || (usingWhatsApp ? whatsappRecipients : 0);
   const queryClient = useQueryClient();
 
   const send = useMutation({
@@ -225,14 +240,14 @@ function Composer({ cities }: { cities: string[] }) {
       // Ask the server again right before sending: the cards above can be a
       // minute old, and the number confirmed is the number that will go.
       const preview = await previewCampaign('custom', undefined, custom);
-      if (
-        !window.confirm(
-          `Send "${subject.trim()}" to ${preview.recipients} ${preview.recipients === 1 ? 'person' : 'people'}?`,
-        )
-      ) {
+      const parts = [
+        usingEmail ? `${preview.recipients} by email` : '',
+        usingWhatsApp ? `${preview.whatsapp_recipients ?? 0} on WhatsApp` : '',
+      ].filter(Boolean);
+      if (!window.confirm(`Send "${subject.trim()}" to ${parts.join(' and ')}?`)) {
         return null;
       }
-      return sendCampaign({ segment: 'custom', subject, message, custom });
+      return sendCampaign({ segment: 'custom', subject, message, custom, channels });
     },
     onSuccess: (outcome) => {
       if (!outcome) return;
@@ -241,7 +256,13 @@ function Composer({ cities }: { cities: string[] }) {
       void queryClient.invalidateQueries({ queryKey: ['organizer', 'campaigns', 'history'] });
       setResult({
         tone: 'ok',
-        text: `Sent to ${outcome.sent} ${outcome.sent === 1 ? 'person' : 'people'}.${outcome.failed ? ` ${outcome.failed} could not be sent.` : ''}`,
+        text: [
+          usingEmail ? `Emailed ${outcome.sent} ${outcome.sent === 1 ? 'person' : 'people'}.` : '',
+          usingWhatsApp ? `Sent ${outcome.whatsapp_sent ?? 0} on WhatsApp.` : '',
+          outcome.failed ? `${outcome.failed} could not be sent.` : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
       });
       setSubject('');
       setMessage('');
@@ -250,7 +271,7 @@ function Composer({ cities }: { cities: string[] }) {
   });
 
   return (
-    <Panel title="New email campaign" subtitle="Promote an event, an offer or a new series">
+    <Panel title="New campaign" subtitle="Promote an event, an offer or a new series">
       <form
         className="flex flex-col gap-4 p-card"
         onSubmit={(submit) => {
@@ -276,6 +297,33 @@ function Composer({ cities }: { cities: string[] }) {
             counting={count.isFetching}
             countError={count.isError ? errorMessage(count.error) : null}
           />
+        </fieldset>
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-label">Send by</legend>
+          <div className="flex flex-wrap gap-2">
+            <ChannelChip
+              label="Email"
+              detail={recipients === null ? '' : String(recipients)}
+              pressed={usingEmail}
+              onPress={() => toggleChannel('email')}
+            />
+            <ChannelChip
+              label="WhatsApp"
+              detail={
+                whatsappAvailable && whatsappRecipients !== null ? String(whatsappRecipients) : ''
+              }
+              pressed={usingWhatsApp}
+              disabled={!whatsappAvailable}
+              onPress={() => toggleChannel('whatsapp')}
+            />
+          </div>
+          <p className="inline-flex items-start gap-2 text-caption text-muted-foreground">
+            <MessageCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            {whatsappAvailable
+              ? 'WhatsApp reaches only customers who opted in with a phone number. It sends a short version of your subject and message.'
+              : 'WhatsApp is not connected yet. It will appear here as soon as it is set up.'}
+          </p>
         </fieldset>
 
         <div className="flex flex-col gap-1.5">
@@ -304,22 +352,26 @@ function Composer({ cities }: { cities: string[] }) {
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="inline-flex items-center gap-2 text-caption text-muted-foreground">
-            <MessageCircle className="size-4" aria-hidden /> WhatsApp campaigns are coming soon.
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
           <Button
             type="submit"
             disabled={
               !subject.trim() ||
               !message.trim() ||
-              !recipients ||
+              channels.length === 0 ||
+              !reachable ||
               issues.length > 0 ||
               send.isPending
             }
           >
             <Send className="size-4" aria-hidden />
-            {send.isPending ? 'Sending…' : `Send email to ${recipients ?? '…'}`}
+            {send.isPending
+              ? 'Sending…'
+              : usingEmail && usingWhatsApp
+                ? 'Send email and WhatsApp'
+                : usingWhatsApp
+                  ? `Send WhatsApp to ${whatsappRecipients ?? '…'}`
+                  : `Send email to ${recipients ?? '…'}`}
           </Button>
         </div>
 
@@ -336,6 +388,41 @@ function Composer({ cities }: { cities: string[] }) {
         ) : null}
       </form>
     </Panel>
+  );
+}
+
+function ChannelChip({
+  label,
+  detail,
+  pressed,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  detail: string;
+  pressed: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      disabled={disabled}
+      onClick={onPress}
+      className={cn(
+        'inline-flex h-control items-center gap-2 rounded-full border px-pill text-label transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'disabled:cursor-not-allowed disabled:opacity-60',
+        pressed && !disabled
+          ? 'border-transparent bg-cta text-cta-foreground'
+          : 'border-border bg-surface text-foreground hover:bg-muted',
+      )}
+    >
+      {label}
+      {detail ? <span className="tabular-nums opacity-80">{detail}</span> : null}
+      {disabled ? <span className="text-caption">Not connected</span> : null}
+    </button>
   );
 }
 
@@ -383,7 +470,13 @@ function CampaignHistory() {
               {row.segment === 'custom' && row.rules?.length
                 ? `${row.match === 'any' ? 'Any of' : 'All of'}: ${row.rules.join('; ')}`
                 : (SEGMENT_LABELS[row.segment] ?? 'Your customers')}{' '}
-              · sent to {row.sent} of {row.recipients} {row.recipients === 1 ? 'person' : 'people'}
+              ·{' '}
+              {row.channels?.includes('email') === false
+                ? ''
+                : `emailed ${row.sent} of ${row.recipients} ${row.recipients === 1 ? 'person' : 'people'}`}
+              {row.channels?.includes('whatsapp')
+                ? `${row.channels.includes('email') ? ' · ' : ''}${row.whatsapp_sent ?? 0} on WhatsApp`
+                : ''}
               {row.failed ? ` · ${row.failed} could not be sent` : ''}
             </span>
           </li>

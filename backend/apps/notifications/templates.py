@@ -29,6 +29,7 @@ from django.conf import settings
 from core.ports.email_port import EmailAttachment
 
 from . import email_layout as ui
+from . import whatsapp as _whatsapp
 from .exceptions import TemplateMissingError, UnknownNotificationTypeError
 from .models import NotificationChannel, NotificationType
 
@@ -92,6 +93,11 @@ class RenderedMessage:
     #: strictly better with them — currently just the ticket PDF. The message
     #: must always stand up without them (see `EmailPort.send`).
     attachments: tuple[EmailAttachment, ...] = ()
+    #: WhatsApp only: the values for the approved template's slots, in order,
+    #: and the dynamic part of its URL button ("" when it has none). `subject`
+    #: carries the template NAME on this channel.
+    whatsapp_params: tuple[str, ...] = ()
+    whatsapp_button: str = ""
 
 
 # Which channel each type is delivered on. The single source of truth for
@@ -1787,6 +1793,33 @@ _TEMPLATES: dict[str, Callable[[dict], RenderedMessage]] = {
     NotificationType.CAMPAIGN_PROMO: _campaign_promo,
     NotificationType.REVIEW_REQUEST: _review_request,
 }
+
+
+# ── WhatsApp: one approved template per type (`whatsapp.py`) ───────────────
+
+
+def _whatsapp_renderer(notification_type: str) -> Callable[[dict], RenderedMessage]:
+    def render(ctx: dict) -> RenderedMessage:
+        spec = _whatsapp.TEMPLATES[notification_type]
+        params = tuple(spec.params(ctx))
+        # `body` is the wording with the slots filled — what the log and the
+        # console adapter show. The provider is sent the name and values.
+        body = spec.body
+        for index, value in enumerate(params, start=1):
+            body = body.replace("{{%d}}" % index, value)
+        return RenderedMessage(
+            subject=_whatsapp.template_name(notification_type),
+            body=body,
+            whatsapp_params=params,
+            whatsapp_button=spec.button(ctx),
+        )
+
+    return render
+
+
+for _wa_type in _whatsapp.TEMPLATES:
+    CHANNEL_BY_TYPE[_wa_type] = NotificationChannel.WHATSAPP
+    _TEMPLATES[_wa_type] = _whatsapp_renderer(_wa_type)
 
 
 class TemplateService:

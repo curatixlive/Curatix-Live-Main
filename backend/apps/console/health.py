@@ -251,6 +251,7 @@ def _shallow_checks() -> list[dict[str, Any]]:
         _configured("event_bus", "EVENT_BUS_BACKEND"),
         _configured("email", "EMAIL_PROVIDER"),
         _configured("sms", "SMS_PROVIDER"),
+        _configured("whatsapp", "WHATSAPP_PROVIDER"),
     ]
 
 

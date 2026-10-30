@@ -344,6 +344,11 @@ EMAIL_PROVIDER = env.str("EMAIL_PROVIDER", default="console")
 # Same rule the Web Push port follows: unconfigured disables itself rather
 # than pretending.
 SMS_PROVIDER = env.str("SMS_PROVIDER", default="disabled")
+# WhatsApp (Meta WhatsApp Cloud API). `disabled` by default for exactly the SMS
+# reason above: until the business number and templates are approved, the port
+# says it cannot deliver and every WhatsApp message is skipped cleanly while the
+# email still goes. `console` is the dev fake; `meta` is the real API.
+WHATSAPP_PROVIDER = env.str("WHATSAPP_PROVIDER", default="disabled")
 CACHE_BACKEND = env.str("CACHE_BACKEND", default="redis")
 
 REDIS_URL = env.str("REDIS_URL", default="redis://localhost:6379/0")
@@ -604,6 +609,18 @@ SMS_SENDER_ID = env.str("SMS_SENDER_ID", default="")
 SMS_DLT_ENTITY_ID = env.str("SMS_DLT_ENTITY_ID", default="")
 SMS_DLT_TEMPLATE_ID = env.str("SMS_DLT_TEMPLATE_ID", default="")
 SMS_API_BASE_URL = env.str("SMS_API_BASE_URL", default="")
+
+# WhatsApp Business (Meta Cloud API) — see WHATSAPP_SETUP.md.
+WHATSAPP_PHONE_NUMBER_ID = env.str("WHATSAPP_PHONE_NUMBER_ID", default="")
+WHATSAPP_ACCESS_TOKEN = env.str("WHATSAPP_ACCESS_TOKEN", default="")
+WHATSAPP_API_VERSION = env.str("WHATSAPP_API_VERSION", default="v21.0")
+# The language code every template was approved in (Meta approves a template
+# per language).
+WHATSAPP_TEMPLATE_LANGUAGE = env.str("WHATSAPP_TEMPLATE_LANGUAGE", default="en")
+# Override the approved template NAME per message type ("type=name,..."), for a
+# template Meta made you rename. Unlisted types use the defaults in
+# `apps/notifications/whatsapp.py`.
+WHATSAPP_TEMPLATE_NAMES = env.dict("WHATSAPP_TEMPLATE_NAMES", default={})
 
 # Notifications
 # Per-notification-type India DLT template ids ("type=template_id,..."). Each

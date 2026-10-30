@@ -76,6 +76,7 @@ QUEUE_BACKEND = "local"
 EVENT_BUS_BACKEND = "inprocess"
 EMAIL_PROVIDER = "console"
 SMS_PROVIDER = "console"
+WHATSAPP_PROVIDER = "console"
 CACHE_BACKEND = "locmem"
 
 # Vendor credentials are blanked so a test can never reach a real service even

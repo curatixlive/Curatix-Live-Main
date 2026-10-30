@@ -18,8 +18,9 @@ import type { DraftSave } from './fields';
  * public event page never carries it — and goes to other people only through the
  * invitations sent from here.
  *
- * Email goes through the platform's own mail. WhatsApp is a share link you send
- * yourself: there is no WhatsApp Business sender connected.
+ * Email goes through the platform's own mail, and an invitee who has an account
+ * and opted in also gets it on WhatsApp once WhatsApp is connected. The share
+ * link below is for people the organiser messages from their own WhatsApp.
  */
 export function AccessPanel({
   draft,

@@ -5,6 +5,7 @@ import { Check, Loader2, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { DayPicker } from '@/components/ui/day-picker';
 import { AvatarUpload } from '@/components/account/avatar-upload';
 import { GenderField } from '@/components/account/profile-fields';
@@ -177,6 +178,25 @@ export function ProfileEditor() {
                 placeholder="+91 98765 43210"
               />
             </FieldRow>
+
+            <div className="flex items-start justify-between gap-4 rounded-xl border border-border p-3 sm:col-span-2">
+              <span className="min-w-0">
+                <label htmlFor="profile-whatsapp" className="block text-body-sm font-semibold">
+                  Get tickets and updates on WhatsApp
+                </label>
+                <span className="block text-caption text-muted-foreground">
+                  {form.phone.trim()
+                    ? 'Booking confirmations, reminders and offers from organisers you have booked with, sent to the number above. Email still comes too. Turn off any time.'
+                    : 'Add your phone number above to turn this on.'}
+                </span>
+              </span>
+              <Switch
+                id="profile-whatsapp"
+                checked={form.whatsappOptIn}
+                disabled={!form.phone.trim() && !form.whatsappOptIn}
+                onCheckedChange={(on: boolean) => patch({ whatsappOptIn: on })}
+              />
+            </div>
           </Group>
 
           <Group title="About you">

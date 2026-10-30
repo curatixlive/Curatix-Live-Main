@@ -110,6 +110,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     #: The city they say they live in. Optional free text — used to show what is
     #: near them and nothing else; blank means they did not say.
     city = models.CharField(max_length=120, blank=True, default="")
+    #: They agreed to receive updates (tickets, reminders, offers from organisers
+    #: they bought from) on WhatsApp at `phone`. Off until they turn it on:
+    #: WhatsApp's business policy requires the person's opt-in before a business
+    #: messages them, and an email address on file is not that.
+    whatsapp_opt_in = models.BooleanField(default=False)
 
     #: WHEN they finished the welcome flow, not whether.
     #:

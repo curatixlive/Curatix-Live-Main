@@ -3511,6 +3511,41 @@ sessions and no streaming, so it costs nothing while idle).
 - Rate limit `THROTTLE_AGENT` (60/min) is per PERSON, not per IP — an assistant
   runs from its vendor's servers, so an IP key would share one bucket.
 
+## WhatsApp: a companion beside the email, never instead of it
+
+`WhatsAppPort` (`core/ports/whatsapp_port.py`) with three adapters selected by
+`WHATSAPP_PROVIDER`: `disabled` (the default — reports it cannot deliver, so
+`NotificationService.notify` skips WhatsApp before claiming a row, exactly as
+SMS does), `console` (dev fake; preflight refuses it in production) and `meta`
+(Meta WhatsApp Cloud API; preflight refuses it without
+`WHATSAPP_PHONE_NUMBER_ID` + `WHATSAPP_ACCESS_TOKEN`). `WHATSAPP_SETUP.md` is
+the owner's runbook and lists every template to submit.
+
+- **A business may only START a conversation with a pre-approved TEMPLATE**, so
+  nothing composes free text. `apps/notifications/whatsapp.py` holds, per
+  `WA_*` notification type, the template name, Meta category, the exact body to
+  submit, and a function from the SAME context its email receives to the
+  ordered slot values. The rendered slots are stored on the log
+  (`NotificationLog.whatsapp_payload`) at claim time, so a retry sends exactly
+  what was claimed. Meta rejects a body that starts or ends with a slot and a
+  send with an empty slot; both are pinned by tests.
+- **`COMPANIONS` maps an email type to its WhatsApp sibling.** After the email
+  is claimed, `notify` sends the sibling to the same person under
+  `{dedupe_key}:wa` — as once-only as the email — and only if the account
+  behind that address is active, has a usable phone and set
+  `User.whatsapp_opt_in` (WhatsApp policy requires opt-in; an email on file is
+  not one). It never raises: a WhatsApp failure cannot undo or fail the email.
+  Adding WhatsApp to another message is one `TEMPLATES` entry plus one
+  `COMPANIONS` line.
+- **Campaigns choose channels explicitly** (`channels: ["email","whatsapp"]`);
+  WhatsApp reaches only opted-in buyers, is refused with a 422 while not
+  connected, and the preview/overview report how many it would reach. The
+  history records the channels used.
+- Numbers are stored as typed and normalised only at send
+  (`whatsapp_number`: digits, trunk 0 dropped, bare 10-digit mobiles get 91).
+- Not built: Meta's status/reply webhook (delivered/read, STOP), opt-in at
+  checkout, billing organisers for WhatsApp campaigns.
+
 ## Organiser wizard rules added in the UX pass
 
 - **An unused saved ticket CAN be deleted** (soft delete) when nothing is sold,

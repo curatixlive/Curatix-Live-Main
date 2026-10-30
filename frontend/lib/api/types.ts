@@ -296,6 +296,8 @@ export type User = {
   gender_self_described: string;
   /** Where they say they live. Optional free text; blank means they did not say. */
   city?: string;
+  /** They agreed to tickets and updates on WhatsApp at `phone`. */
+  whatsapp_opt_in?: boolean;
   /**
    * What to SHOW, resolved once on the server. A client that has to know the
    * `self_described` pairing is a client that will get it wrong on one of the

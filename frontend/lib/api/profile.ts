@@ -185,6 +185,7 @@ export type ProfileUpdate = {
   gender?: Gender | '';
   gender_self_described?: string;
   city?: string;
+  whatsapp_opt_in?: boolean;
 };
 
 export const updateProfile = (changes: ProfileUpdate) =>

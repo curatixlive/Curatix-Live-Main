@@ -309,6 +309,7 @@ class ProfileService:
         gender: str | None = None,
         gender_self_described: str | None = None,
         city: str | None = None,
+        whatsapp_opt_in: bool | None = None,
     ) -> User:
         """Change the display name and/or the phone number.
 
@@ -362,6 +363,8 @@ class ProfileService:
             fields["gender_self_described"] = gender_self_described.strip()
         if city is not None:
             fields["city"] = city.strip()
+        if whatsapp_opt_in is not None:
+            fields["whatsapp_opt_in"] = bool(whatsapp_opt_in)
         if phone is not None:
             # Stored as given, minus surrounding space. No normalisation to
             # E.164 here: the SMS adapter is what knows the provider's expected

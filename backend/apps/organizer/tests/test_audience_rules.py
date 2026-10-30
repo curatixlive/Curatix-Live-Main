@@ -159,5 +159,7 @@ def test_legacy_segments_still_work(world):
     client = APIClient()
     client.force_authenticate(user=world.owner)
     assert client.post(URL, {"segment": "all", "preview": True}, format="json").json() == {
-        "recipients": 2
+        "recipients": 2,
+        # nobody in the fixture opted in to WhatsApp
+        "whatsapp_recipients": 0,
     }

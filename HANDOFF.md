@@ -264,7 +264,10 @@ any account reads automatically.
   add redirect URI `https://curatix.onrender.com/api/v1/auth/oauth/google/signin/callback`,
   set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`,
   `GOOGLE_OAUTH_SIGNIN_REDIRECT_URI` on Render.
-- **WhatsApp** (invites, reminders, campaigns) is not integrated; email is the only channel.
+- **WhatsApp** is built and OFF (`WHATSAPP_PROVIDER=disabled`): every message
+  type has a WhatsApp companion and campaigns can choose WhatsApp. Turning it
+  on is configuration only — follow `WHATSAPP_SETUP.md` (Meta Business account,
+  two Render values, submit the listed templates).
 - **SMS** is disabled.
 - **AWS release stages are removed** (publish, scan-image, deploy, rollback —
   they failed on every push because no AWS deploy role exists, and e-mailed a

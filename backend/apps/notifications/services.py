@@ -37,9 +37,15 @@ from core.ports.push_port import PushPort
 from core.ports.push_port import PushSubscription as PushSubscriptionData
 from core.ports.sms_port import SmsPort
 from core.ports.task_queue_port import TaskQueuePort
+from core.ports.whatsapp_port import WhatsAppPort
 
+from . import whatsapp as _whatsapp
 from .models import NotificationChannel, NotificationLog, NotificationStatus, NotificationType
-from .repositories import NotificationLogRepository, PushSubscriptionRepository
+from .repositories import (
+    NotificationLogRepository,
+    PushSubscriptionRepository,
+    WhatsAppRecipientRepository,
+)
 from .templates import (
     TemplateService,
     channel_for_type,
@@ -91,6 +97,8 @@ class NotificationService:
         retry_backoff_seconds: int,
         push: PushPort,
         push_subscriptions: PushSubscriptionRepository,
+        whatsapp: WhatsAppPort | None = None,
+        whatsapp_recipients: WhatsAppRecipientRepository | None = None,
     ) -> None:
         self._logs = logs
         self._templates = templates
@@ -98,6 +106,10 @@ class NotificationService:
         self._sms = sms
         self._push = push
         self._push_subscriptions = push_subscriptions
+        #: None (as in services built directly in tests) means no WhatsApp at
+        #: all: WhatsApp types are skipped and no companion is attempted.
+        self._whatsapp = whatsapp
+        self._whatsapp_recipients = whatsapp_recipients
         self._task_queue = task_queue
         self._max_attempts = max_attempts
         self._retry_backoff_seconds = retry_backoff_seconds
@@ -147,6 +159,15 @@ class NotificationService:
             )
             return None
 
+        # WhatsApp follows the same rule: not connected means skipped here,
+        # before any claim, never a row that can only ever dead-letter.
+        if channel == NotificationChannel.WHATSAPP and not self.whatsapp_available():
+            logger.info(
+                "notifications.skipped_whatsapp_disabled",
+                extra={"type": notification_type, "dedupe_key": dedupe_key},
+            )
+            return None
+
         existing = self._logs.get_by_dedupe_key(dedupe_key)
         if existing is not None:
             return existing  # already claimed/sent/failed — never send twice
@@ -176,6 +197,14 @@ class NotificationService:
                         }
                         for a in rendered.attachments
                     ],
+                    whatsapp_payload=(
+                        {
+                            "params": list(rendered.whatsapp_params),
+                            "button": rendered.whatsapp_button,
+                        }
+                        if channel == NotificationChannel.WHATSAPP
+                        else {}
+                    ),
                 )
         except IntegrityError:
             # A concurrent notify() claimed it first — return the winner, and
@@ -185,7 +214,54 @@ class NotificationService:
         self._task_queue.enqueue(
             DISPATCH_TASK, {"notification_id": str(log.id)}, delay_seconds=delay_seconds
         )
+        self._send_whatsapp_companion(
+            notification_type=notification_type,
+            recipient=recipient,
+            context=context,
+            dedupe_key=dedupe_key,
+            delay_seconds=delay_seconds,
+        )
         return log
+
+    def whatsapp_available(self) -> bool:
+        """Whether WhatsApp messages can be delivered on this deployment."""
+        return self._whatsapp is not None and self._whatsapp.is_configured()
+
+    def _send_whatsapp_companion(
+        self,
+        *,
+        notification_type: str,
+        recipient: str,
+        context: dict,
+        dedupe_key: str,
+        delay_seconds: int,
+    ) -> None:
+        """Send the WhatsApp sibling of an email, to the same person, if they
+        opted in. Never raises: the email has already been claimed, and a
+        problem on the second channel must not undo or fail the first."""
+        companion = _whatsapp.COMPANIONS.get(notification_type)
+        if companion is None or not self.whatsapp_available():
+            return
+        if self._whatsapp_recipients is None:
+            return
+        try:
+            number = self._whatsapp_recipients.opted_in_number(recipient)
+            if not number:
+                return
+            self.notify(
+                notification_type=companion,
+                recipient=number,
+                context=context,
+                # Derived from the email's key, so the companion is exactly as
+                # once-only as the message it accompanies.
+                dedupe_key=f"{dedupe_key}:wa"[:255],
+                delay_seconds=delay_seconds,
+            )
+        except Exception:
+            logger.exception(
+                "notifications.whatsapp_companion_failed",
+                extra={"type": companion, "dedupe_key": dedupe_key},
+            )
 
     # --- dispatch: the send (with retry + dead-letter) ---------------------
 
@@ -314,6 +390,17 @@ class NotificationService:
             )
         if log.channel == NotificationChannel.PUSH:
             return self._send_push(log)
+        if log.channel == NotificationChannel.WHATSAPP:
+            if self._whatsapp is None:
+                raise RuntimeError("WhatsApp is not wired into this NotificationService.")
+            payload = log.whatsapp_payload or {}
+            return self._whatsapp.send_template(
+                to=log.recipient,
+                template=log.subject,
+                language=_whatsapp.template_language(),
+                params=[str(value) for value in payload.get("params", [])],
+                button_param=str(payload.get("button", "") or ""),
+            )
         return self._sms.send(
             to=log.recipient,
             message=log.body,

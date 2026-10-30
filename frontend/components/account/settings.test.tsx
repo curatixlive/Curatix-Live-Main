@@ -149,11 +149,13 @@ describe('AccountSettings', () => {
 
   it('never puts a fake control on the phone index either', () => {
     render(<AccountSettings />);
-    // ONE switch, and it is the push subscription — which is real, and which
-    // `usePush` reports as `off` here. A second switch on this screen would be
-    // the notification-preference toggle that has nothing to store it, arriving
-    // by the back door now that the index has controls on it at all.
-    expect(screen.getAllByRole('switch')).toHaveLength(1);
+    // TWO switches, both real: the push subscription (which `usePush` reports
+    // as `off` here) and the WhatsApp opt-in, which is stored on the account
+    // (`User.whatsapp_opt_in`). Any third would be a preference toggle with
+    // nothing to store it, arriving by the back door.
+    const switches = screen.getAllByRole('switch');
+    expect(switches).toHaveLength(2);
+    expect(screen.getByLabelText('Get tickets and updates on WhatsApp')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).toBeNull();
   });
 

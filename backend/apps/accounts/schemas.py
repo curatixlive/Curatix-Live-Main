@@ -129,6 +129,7 @@ class UserSerializer(serializers.ModelSerializer):
             "gender_self_described",
             "gender_display",
             "city",
+            "whatsapp_opt_in",
             # Whether the welcome flow has been ANSWERED — filled in or
             # skipped. The frontend needs it to decide whether to open
             # onboarding, and it cannot decide that from a flag it never
@@ -227,6 +228,7 @@ class UpdateProfileSerializer(serializers.Serializer):
     city = serializers.CharField(
         max_length=120, required=False, allow_blank=True, trim_whitespace=True
     )
+    whatsapp_opt_in = serializers.BooleanField(required=False)
 
     def validate_date_of_birth(self, value):
         if value is None:

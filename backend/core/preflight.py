@@ -76,6 +76,7 @@ _FAKE_BACKENDS = {
         "no customer would receive a ticket, a receipt or a refund notice",
     ),
     "SMS_PROVIDER": ("console", "no OTP or booking SMS would be delivered"),
+    "WHATSAPP_PROVIDER": ("console", "no WhatsApp message would be delivered"),
 }
 
 # Credentials each real adapter needs. Selecting the adapter without them is a
@@ -102,6 +103,7 @@ _ADAPTER_CREDENTIALS = {
     ),
     ("EMAIL_PROVIDER", "smtp"): ("SMTP_HOST", "SMTP_FROM_EMAIL"),
     ("SMS_PROVIDER", "http"): ("SMS_API_KEY", "SMS_SENDER_ID", "SMS_DLT_ENTITY_ID"),
+    ("WHATSAPP_PROVIDER", "meta"): ("WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN"),
     ("EVENT_BUS_BACKEND", "pubsub"): ("GCP_PROJECT_ID", "PUBSUB_TOPIC_EVENTS"),
     ("QUEUE_BACKEND", "cloud_tasks"): (
         "GCP_PROJECT_ID",
@@ -492,6 +494,16 @@ def check_production_settings(
             "SMS_SENDER_ID and SMS_DLT_ENTITY_ID to enable delivery."
         )
 
+    # Same rule for WhatsApp: off until the business number and templates are
+    # approved, and said so on every boot.
+    if str(getattr(settings, "WHATSAPP_PROVIDER", "")) == "disabled":
+        warnings.append(
+            "WHATSAPP_PROVIDER=disabled: no WhatsApp messages will be delivered. "
+            "Email still goes. Set WHATSAPP_PROVIDER=meta with "
+            "WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN to enable it "
+            "(see WHATSAPP_SETUP.md)."
+        )
+
     # ── AN ENABLED GATEWAY THAT CANNOT TAKE A PAYMENT ─────────────────────
     #
     # `PAYMENTS_ENABLED_GATEWAYS` is the list a checkout may offer, and
@@ -838,6 +850,11 @@ def check_development_settings(settings: object) -> list[str]:
         warnings.append(
             "SMS_PROVIDER is a real provider under development settings — a test "
             "booking will send a real, billed SMS."
+        )
+    if getattr(settings, "WHATSAPP_PROVIDER", "") == "meta":
+        warnings.append(
+            "WHATSAPP_PROVIDER=meta under development settings — a test booking "
+            "will send a real, billed WhatsApp message."
         )
 
     if problems:

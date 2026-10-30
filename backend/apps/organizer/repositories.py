@@ -516,6 +516,12 @@ class OrganizerRepository:
         "admitted": ("-used_at", "-id"),
     }
 
+    def whatsapp_numbers(self, user_ids) -> dict:
+        """`{user_id: number}` for the given people who opted in to WhatsApp."""
+        from apps.notifications.repositories import WhatsAppRecipientRepository
+
+        return WhatsAppRecipientRepository().opted_in_numbers(user_ids)
+
     def notification_exists(self, dedupe_key: str) -> bool:
         """Whether a message with this idempotency key has already been logged."""
         from apps.notifications.models import NotificationLog
@@ -739,6 +745,8 @@ class OrganizerRepository:
                     "recipients": int(meta.get("recipients") or 0),
                     "sent": int(meta.get("sent") or 0),
                     "failed": int(meta.get("failed") or 0),
+                    "channels": list(meta.get("channels") or ["email"]),
+                    "whatsapp_sent": int(meta.get("whatsapp_sent") or 0),
                 }
             )
         return history

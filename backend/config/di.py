@@ -33,6 +33,7 @@ from core.ports.push_port import PushPort
 from core.ports.sms_port import SmsPort
 from core.ports.storage_port import StoragePort
 from core.ports.task_queue_port import TaskQueuePort
+from core.ports.whatsapp_port import WhatsAppPort
 
 if TYPE_CHECKING:
     from apps.accounts.services import (
@@ -402,6 +403,30 @@ def sms_port() -> SmsPort:
             api_base_url=settings.SMS_API_BASE_URL,
         )
     raise ValueError(f"Unknown SMS_PROVIDER: {backend!r}")
+
+
+@lru_cache(maxsize=1)
+def whatsapp_port() -> WhatsAppPort:
+    """WhatsApp Business messages. `disabled` until the key is added — see
+    WHATSAPP_SETUP.md and the SMS port above, which follows the same rule."""
+    backend = settings.WHATSAPP_PROVIDER
+    if backend == "console":
+        from core.adapters.local.console_whatsapp import ConsoleWhatsAppAdapter
+
+        return ConsoleWhatsAppAdapter()
+    if backend == "disabled":
+        from core.adapters.local.disabled_whatsapp import DisabledWhatsAppAdapter
+
+        return DisabledWhatsAppAdapter()
+    if backend == "meta":
+        from core.adapters.meta_whatsapp.adapter import MetaWhatsAppAdapter
+
+        return MetaWhatsAppAdapter(
+            phone_number_id=settings.WHATSAPP_PHONE_NUMBER_ID,
+            access_token=settings.WHATSAPP_ACCESS_TOKEN,
+            api_version=settings.WHATSAPP_API_VERSION,
+        )
+    raise ValueError(f"Unknown WHATSAPP_PROVIDER: {backend!r}")
 
 
 @lru_cache(maxsize=1)
@@ -1162,6 +1187,7 @@ def build_notification_service() -> NotificationService:
     from apps.notifications.repositories import (
         NotificationLogRepository,
         PushSubscriptionRepository,
+        WhatsAppRecipientRepository,
     )
     from apps.notifications.services import NotificationService
     from apps.notifications.templates import TemplateService
@@ -1171,6 +1197,8 @@ def build_notification_service() -> NotificationService:
         templates=TemplateService(),
         email=email_port(),
         sms=sms_port(),
+        whatsapp=whatsapp_port(),
+        whatsapp_recipients=WhatsAppRecipientRepository(),
         push=push_port(),
         push_subscriptions=PushSubscriptionRepository(),
         task_queue=task_queue_port(),
