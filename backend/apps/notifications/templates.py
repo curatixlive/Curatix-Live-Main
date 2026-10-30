@@ -1591,6 +1591,7 @@ def _campaign_promo(ctx: dict) -> RenderedMessage:
         + (f"\n\n{url}" if url else "")
         + f"\n\nYou are getting this because you bought tickets from {organiser} on Curatix.",
         html=ui.render_email(
+            marketing=True,
             title=subject,
             preheader=f"A message from {organiser}",
             masthead_label=organiser,

@@ -1079,11 +1079,19 @@ class EventRepository(BaseRepository[Event]):
     #: operator has business browsing it, and `paused`/`finished` are lifecycle
     #: facts rather than moderation outcomes. An unknown value falls back to
     #: the pending queue rather than widening to everything.
+    #: What the admin "All events" screen can show. Every PUBLISHED state —
+    #: events no longer wait for approval (`PUBLISH_STRAIGHT_TO_LIVE`), so the
+    #: screen is a browser of the platform, not a review queue. Pending and
+    #: rejected stay reachable for rows that predate that change. `draft` is
+    #: still deliberately absent: an unpublished draft is the organiser's own.
     MODERATABLE_STATUSES = (
-        EventStatus.PENDING_REVIEW,
         EventStatus.LIVE,
-        EventStatus.REJECTED,
+        EventStatus.PAUSED,
+        EventStatus.FINISHED,
+        EventStatus.CANCELLED,
         EventStatus.ARCHIVED,
+        EventStatus.PENDING_REVIEW,
+        EventStatus.REJECTED,
     )
 
     def list_for_moderation(

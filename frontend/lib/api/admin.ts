@@ -279,7 +279,14 @@ export type ModerationEntry = {
  * reachable: an unsubmitted draft is an organizer's private workspace, and the
  * server falls back to the pending queue rather than honouring it.
  */
-export type ModerationStatus = 'pending_review' | 'live' | 'rejected' | 'archived';
+export type ModerationStatus =
+  | 'live'
+  | 'paused'
+  | 'finished'
+  | 'cancelled'
+  | 'archived'
+  | 'pending_review'
+  | 'rejected';
 
 /**
  * The All-events queue.

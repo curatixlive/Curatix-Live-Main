@@ -83,6 +83,7 @@ follows, never information on its own.
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.utils.html import escape
 
 # ── Palette ──────────────────────────────────────────────────────────────
@@ -577,8 +578,9 @@ def render_email(
     blocks: list[str],
     footer_note: str = "",
     masthead_label: str = "",
-    masthead_tone: str = "ink",
-    logo_url: str = "",
+    masthead_tone: str = "violet",
+    logo_url: str | None = None,
+    marketing: bool = False,
 ) -> str:
     """Wrap composed blocks in the full document.
 
@@ -602,12 +604,29 @@ def render_email(
     where they go.
     """
     body = "".join(blocks)
+    # ONE brand for every message: the real wordmark on the violet band, which
+    # the verification email introduced. A template may still pass its own
+    # logo, and the type monogram remains the fallback where the public site
+    # URL is unknown (an image that cannot load is worse than type).
+    if logo_url is None:
+        site = str(getattr(settings, "PUBLIC_SITE_URL", "") or "").rstrip("/")
+        logo_url = f"{site}/curatix-wordmark-dark.png" if site else ""
     note = escape(footer_note) if footer_note else ""
     note_html = (
         f'<tr><td class="subtle" style="padding:0 8px 10px;font-family:{FONT};'
         f'font-size:12px;line-height:18px;color:{SUBTLE_TEXT};">{note}</td></tr>'
         if note
         else ""
+    )
+
+    # Why they got it. A promotion is NOT caused by something they did, so it
+    # must not claim to be; it says who sent it and how to stop it instead.
+    why = (
+        f"You are getting this because you booked with this organiser on "
+        f"{escape(PRODUCT_NAME)}. To stop these, reply and say so."
+        if marketing
+        else f"This is a message about your {escape(PRODUCT_NAME)} account, sent because of "
+        "something you did, not a subscription."
     )
 
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" \
@@ -713,15 +732,14 @@ style="border-collapse:collapse;">
             {note_html}
             <tr><td class="subtle" style="padding:0 8px;font-family:{FONT};font-size:12px;\
 line-height:18px;color:{SUBTLE_TEXT};">
-              This is a transactional message about your {escape(PRODUCT_NAME)} account.
+              {why}
             </td></tr>
-            <!-- Says out loud why there is no unsubscribe link: there is
-                 nothing to unsubscribe FROM. Every message this module sends
-                 is caused by something the recipient did. -->
+            <!-- Support: replies go to the sending inbox, which a person reads.
+                 No help-centre link — there is no such page to send anyone to. -->
             <tr><td class="subtle" style="padding:8px 8px 0;font-family:{FONT};font-size:12px;\
 line-height:18px;color:{SUBTLE_TEXT};">
-              {escape(PRODUCT_NAME)} &middot; sent because of activity on your account, \
-not a subscription.
+              Questions? Reply to this email and the {escape(PRODUCT_NAME)} team will get back \
+to you.
             </td></tr>
           </table>
         </td></tr>

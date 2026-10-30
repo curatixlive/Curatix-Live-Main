@@ -365,14 +365,14 @@ export function EventsTable() {
             selection we say how many are not ready. */}
         <BulkButton
           icon={Send}
-          label="Submit for review"
+          label="Publish"
           disabled={busy || !selectedRows.some(canSubmit)}
           title={
             selectedRows.length === 1 && !canSubmit(selectedRows[0])
               ? submitBlockers(selectedRows[0]).join(' ')
               : selectedRows.some(canSubmit)
                 ? undefined
-                : `${selectedRows.length} selected, none ready to submit.`
+                : `${selectedRows.length} selected, none ready to publish.`
           }
           onClick={() => void runBulk('Submitted', canSubmit, (row) => publishEvent(row.id))}
         />

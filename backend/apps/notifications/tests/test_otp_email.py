@@ -54,13 +54,20 @@ def test_the_plain_text_part_still_carries_the_code_and_the_warning(settings):
     assert "never share" in msg.body.lower()
 
 
-def test_the_logo_is_opt_in_on_the_masthead():
-    without = ui.render_email(title="t", preheader="p", blocks=[], masthead_label="X")
-    with_logo = ui.render_email(
-        title="t", preheader="p", blocks=[], masthead_label="X", logo_url="https://x/l.png"
+def test_the_wordmark_is_the_default_masthead(settings):
+    """One brand on every email: the real wordmark when the site address is
+    known, the type monogram when it is not (an image that cannot load is worse
+    than type), and a template can still force either."""
+    settings.PUBLIC_SITE_URL = "https://curatix.example"
+    default = ui.render_email(title="t", preheader="p", blocks=[], masthead_label="X")
+    assert '<img src="https://curatix.example/curatix-wordmark-dark.png"' in default
+    forced_monogram = ui.render_email(
+        title="t", preheader="p", blocks=[], masthead_label="X", logo_url=""
     )
-    assert "<img" not in without and ">CX</td>" in without
-    assert '<img src="https://x/l.png"' in with_logo and ">CX</td>" not in with_logo
+    assert "<img" not in forced_monogram and ">CX</td>" in forced_monogram
+    settings.PUBLIC_SITE_URL = ""
+    unknown_site = ui.render_email(title="t", preheader="p", blocks=[], masthead_label="X")
+    assert "<img" not in unknown_site and ">CX</td>" in unknown_site
 
 
 def test_an_odd_length_code_falls_back_to_a_single_line_panel():

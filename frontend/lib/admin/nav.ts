@@ -83,15 +83,13 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   },
   {
     href: '/admin/moderation',
-    // "Moderation" named the ACTION, not the contents. The screen already
-    // carries every event on the platform across its status tabs — pending,
-    // approved, sent back, archived — so an operator looking for a specific
-    // event had no reason to think it lived under a word that means "review
-    // queue". Approving is one of the things you do here; it is not what this
-    // is.
+    // Every event on the platform by status. Events no longer wait for
+    // approval (a verified organisation publishes straight to live), so this
+    // is a browser, not a queue; taking an event down or removing it with a
+    // reason happens on the event's own console page.
     label: 'All events',
     icon: Stamp,
-    hint: 'Every event on the platform — review, approve, send back or remove',
+    hint: 'Every event on the platform — find one, take it down or remove it',
   },
   {
     href: '/admin/assistant',

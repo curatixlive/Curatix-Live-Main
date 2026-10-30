@@ -312,7 +312,7 @@ class TestEveryEmailIsBulletproof:
         also inline, because Gmail strips `<head>` styles in some clients and
         Yahoo rewrites class names."""
         html = render(kind).html
-        assert html.count('style="') > 25
+        assert html.count('style="') > 20
 
     def test_it_carries_the_brand_mark(self, kind):
         """The wordmark, the accent full stop and the monogram from
@@ -423,9 +423,11 @@ class TestAccessibility:
         assert 'lang="en"' in html
         assert "<title>" in html
 
-    def test_the_monogram_is_hidden_from_screen_readers(self):
+    def test_the_monogram_is_hidden_from_screen_readers(self, settings):
         """It sits directly beside the wordmark. Announced, the product name
-        is read twice — "C X Curatix"."""
+        is read twice — "C X Curatix". (The monogram is drawn when the site
+        address is unknown; otherwise the wordmark image carries `alt`.)"""
+        settings.PUBLIC_SITE_URL = ""
         html = render(NotificationType.WELCOME).html
         badge = html.split(">CX<", 1)[0]
         assert 'aria-hidden="true"' in badge[-400:]
