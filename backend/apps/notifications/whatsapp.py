@@ -48,6 +48,9 @@ class WhatsAppTemplate:
     params: Callable[[dict], list[str]]
     #: Context -> the value for a URL button's dynamic part ("" = no button).
     button: Callable[[dict], str] = lambda ctx: ""
+    #: Context -> a public https link to the IMAGE header ("" = no header). Only
+    #: the ticket uses it: the QR, fetched by Meta from `/tickets/qr/<token>.png`.
+    image: Callable[[dict], str] = lambda ctx: ""
 
 
 def _clean(value: object, fallback: str = "") -> str:
@@ -68,6 +71,30 @@ def _name(ctx: dict) -> str:
 def _site(path: str) -> str:
     base = str(getattr(settings, "PUBLIC_SITE_URL", "") or "").rstrip("/")
     return f"{base}{path}" if base else "curatix-live.vercel.app"
+
+
+def _api(path: str) -> str:
+    base = str(getattr(settings, "PUBLIC_API_URL", "") or "").rstrip("/")
+    return f"{base}{path}" if base else ""
+
+
+def _lead(ctx: dict, fallback: str = "the event") -> str:
+    return _clean(ctx.get("event_title"), fallback)
+
+
+def _changes_text(ctx: dict) -> str:
+    labels = {
+        "starts_at": "starts",
+        "ends_at": "ends",
+        "venue": "venue",
+        "address": "address",
+        "city": "city",
+    }
+    parts = [
+        f"{labels.get(field, field)}: {after or '-'}"
+        for field, _before, after in ctx.get("changes", [])
+    ]
+    return _clean("; ".join(parts), "the date, time or venue")
 
 
 TEMPLATES: dict[str, WhatsAppTemplate] = {
@@ -208,6 +235,203 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
             _clean(ctx.get("url"), _site("/dashboard/events")),
         ],
     ),
+    NotificationType.WA_TICKET: WhatsAppTemplate(
+        name="curatix_ticket",
+        category="UTILITY",
+        body=(
+            "Hi {{1}}, here is your ticket for {{2}}. When: {{3}}. Where: {{4}}. Ticket: {{5}}. "
+            "Booking reference: {{6}}. Directions: {{7}} - show this QR code at the gate."
+        ),
+        params=lambda ctx: [
+            _name(ctx),
+            _lead(ctx, "your event"),
+            _clean(ctx.get("event_when"), "the event date"),
+            _clean(ctx.get("event_where"), "the venue"),
+            _clean(ctx.get("ticket_line"), "General entry"),
+            _clean(ctx.get("booking_reference"), "-")[:12],
+            _clean(ctx.get("maps_url"), _site("/account/tickets")),
+        ],
+        image=lambda ctx: _api(f"/tickets/qr/{ctx['qr_token']}.png") if ctx.get("qr_token") else "",
+    ),
+    NotificationType.WA_HOLD_EXPIRING: WhatsAppTemplate(
+        name="curatix_hold_expiring",
+        category="UTILITY",
+        body=(
+            "Hi {{1}}, your tickets for {{2}} are on hold for {{3}} more minutes and nothing "
+            "has been charged. Finish booking here: {{4}} before they go back on sale."
+        ),
+        params=lambda ctx: [
+            _name(ctx),
+            _lead(ctx),
+            _clean(ctx.get("minutes_left"), "a few"),
+            _clean(ctx.get("url"), _site("/events")),
+        ],
+    ),
+    NotificationType.WA_EVENT_DAY: WhatsAppTemplate(
+        name="curatix_event_day",
+        category="UTILITY",
+        body=(
+            "Hi {{1}}, {{2}} is today! Gates open {{3}} at {{4}}. Directions: {{5}} - keep your "
+            "QR ticket ready ({{6}}) and see you there."
+        ),
+        params=lambda ctx: [
+            _name(ctx),
+            _lead(ctx),
+            _clean(ctx.get("gates_open") or ctx.get("event_when"), "at the start time"),
+            _clean(ctx.get("event_where"), "the venue"),
+            _clean(ctx.get("maps_url"), _site("/account/tickets")),
+            _clean(ctx.get("tickets_url"), _site("/account/tickets")),
+        ],
+    ),
+    NotificationType.WA_EVENT_CHANGED: WhatsAppTemplate(
+        name="curatix_event_changed",
+        category="UTILITY",
+        body=(
+            "Hi {{1}}, an update for {{2}}: {{3}}. Your ticket is still valid. If you cannot go "
+            "any more you can ask for a refund: {{4}} - sorry for the change."
+        ),
+        params=lambda ctx: [
+            _name(ctx),
+            _lead(ctx),
+            _changes_text(ctx),
+            _clean(ctx.get("url"), _site("/account/tickets")),
+        ],
+    ),
+    NotificationType.WA_BOOKING_EXPIRED: WhatsAppTemplate(
+        name="curatix_booking_expired",
+        category="UTILITY",
+        body=(
+            "Hi {{1}}, your booking for {{2}} was not completed in time, so the tickets went "
+            "back on sale. Nothing was charged. Book again: {{3}} if you still want to go."
+        ),
+        params=lambda ctx: [_name(ctx), _lead(ctx), _clean(ctx.get("url"), _site("/events"))],
+    ),
+    NotificationType.WA_PRESALE_OPENING: WhatsAppTemplate(
+        name="curatix_presale_opening",
+        category="UTILITY",
+        body=(
+            "Hi {{1}}, because you follow {{2}}, pre-sale for {{3}} is open now, before general "
+            "sale. Book early: {{4}} - tickets are limited."
+        ),
+        params=lambda ctx: [
+            _name(ctx),
+            _clean(ctx.get("organiser"), "an organiser you follow"),
+            _lead(ctx),
+            _clean(ctx.get("url"), _site("/events")),
+        ],
+    ),
+    NotificationType.WA_FOLLOWED_NEW_EVENT: WhatsAppTemplate(
+        name="curatix_new_event",
+        category="MARKETING",
+        body=(
+            "Hi {{1}}, {{2}} just announced {{3}} on {{4}}. See it here: {{5}} - you get this "
+            "because you follow them; turn off WhatsApp updates in your profile to stop."
+        ),
+        params=lambda ctx: [
+            _name(ctx),
+            _clean(ctx.get("organiser"), "an organiser you follow"),
+            _lead(ctx, "a new event"),
+            _clean(ctx.get("event_when"), "a date to be announced"),
+            _clean(ctx.get("url"), _site("/events")),
+        ],
+    ),
+    NotificationType.WA_ORG_VERIFIED: WhatsAppTemplate(
+        name="curatix_org_verified",
+        category="UTILITY",
+        body=(
+            "Good news: {{1}} is verified on Curatix. You can publish events now and they go on "
+            "sale straight away. Create one: {{2}} - welcome aboard!"
+        ),
+        params=lambda ctx: [
+            _clean(ctx.get("organization_name"), "Your organisation"),
+            _clean(ctx.get("url"), _site("/dashboard/events/new")),
+        ],
+    ),
+    NotificationType.WA_ORG_REJECTED: WhatsAppTemplate(
+        name="curatix_org_declined",
+        category="UTILITY",
+        body=(
+            "We could not verify {{1}} yet. Reason: {{2}}. Update your details and apply "
+            "again: {{3}} - reply to this message if you need help."
+        ),
+        params=lambda ctx: [
+            _clean(ctx.get("organization_name"), "your organisation"),
+            _clean(ctx.get("notes"), "no reason was given"),
+            _clean(ctx.get("url"), _site("/dashboard")),
+        ],
+    ),
+    NotificationType.WA_SALES_MILESTONE: WhatsAppTemplate(
+        name="curatix_sales_milestone",
+        category="UTILITY",
+        body=(
+            "Good news: {{1}} has reached {{2}}% sold: {{3}} of {{4}} tickets. "
+            "See your dashboard: {{5}} - keep it going!"
+        ),
+        params=lambda ctx: [
+            _lead(ctx, "Your event"),
+            _clean(ctx.get("percent"), "0"),
+            _clean(ctx.get("sold"), "0"),
+            _clean(ctx.get("capacity"), "0"),
+            _clean(ctx.get("url"), _site("/dashboard/events")),
+        ],
+    ),
+    NotificationType.WA_OFFER_CLOSED: WhatsAppTemplate(
+        name="curatix_offer_closed",
+        category="UTILITY",
+        body=(
+            "Offer update: {{1}} on {{2}} for {{3}} has ended: {{4}}. "
+            "Tickets now sell at {{5}}. Dashboard: {{6}} - add another offer if you like."
+        ),
+        params=lambda ctx: [
+            _clean(ctx.get("offer"), "An offer"),
+            _clean(ctx.get("ticket_type"), "a ticket type"),
+            _lead(ctx),
+            _clean(ctx.get("why"), "its limit was reached"),
+            _clean(ctx.get("next_price"), "the standard price"),
+            _clean(ctx.get("url"), _site("/dashboard/events")),
+        ],
+    ),
+    NotificationType.WA_PAYOUT_FAILED: WhatsAppTemplate(
+        name="curatix_payout_failed",
+        category="UTILITY",
+        body=(
+            "Your payout for {{1}} did not go through: {{2}}. The money is still owed to you. "
+            "Check your payout details: {{3}} - reply if you need help."
+        ),
+        params=lambda ctx: [
+            _lead(ctx, "your event"),
+            _clean(ctx.get("reason"), "the transfer failed"),
+            _clean(ctx.get("url"), _site("/dashboard/payouts")),
+        ],
+    ),
+    NotificationType.WA_COHOST_ADDED: WhatsAppTemplate(
+        name="curatix_cohost_added",
+        category="UTILITY",
+        body=(
+            "Hi {{1}}, {{2}} added you to help run {{3}} on Curatix. Open your dashboard: {{4}} "
+            "- you can already see what they shared with you."
+        ),
+        params=lambda ctx: [
+            _name(ctx),
+            _clean(ctx.get("organiser"), "An organiser"),
+            _clean(ctx.get("event_title"), "their events"),
+            _clean(ctx.get("url"), _site("/dashboard")),
+        ],
+    ),
+    NotificationType.WA_DAILY_SALES_SUMMARY: WhatsAppTemplate(
+        name="curatix_daily_summary",
+        category="UTILITY",
+        body=(
+            "Hi {{1}}, yesterday you sold {{2}} tickets for {{3}}. Full breakdown: {{4}} - "
+            "turn this off in Settings, Notifications."
+        ),
+        params=lambda ctx: [
+            _name(ctx),
+            _clean(ctx.get("tickets"), "0"),
+            _clean(ctx.get("revenue"), "Rs 0"),
+            _clean(ctx.get("url"), _site("/dashboard")),
+        ],
+    ),
     NotificationType.WA_CAMPAIGN: WhatsAppTemplate(
         name="curatix_organiser_update",
         category="MARKETING",
@@ -227,7 +451,6 @@ TEMPLATES: dict[str, WhatsAppTemplate] = {
 
 #: Email type -> its WhatsApp sibling, sent beside it to an opted-in person.
 COMPANIONS: dict[str, str] = {
-    NotificationType.TICKET_DELIVERY: NotificationType.WA_BOOKING_CONFIRMED,
     NotificationType.REFUND_CONFIRMATION: NotificationType.WA_REFUND,
     NotificationType.EVENT_REMINDER: NotificationType.WA_EVENT_REMINDER,
     NotificationType.WAITLIST_AVAILABLE: NotificationType.WA_WAITLIST_AVAILABLE,
@@ -237,6 +460,19 @@ COMPANIONS: dict[str, str] = {
     NotificationType.EVENT_INVITE: NotificationType.WA_EVENT_INVITE,
     NotificationType.PASSWORD_RESET: NotificationType.WA_PASSWORD_RESET,
     NotificationType.WAITLIST_JOINED_ORGANIZER: NotificationType.WA_WAITLIST_JOINED,
+    NotificationType.HOLD_EXPIRING: NotificationType.WA_HOLD_EXPIRING,
+    NotificationType.EVENT_DAY: NotificationType.WA_EVENT_DAY,
+    NotificationType.EVENT_CHANGED: NotificationType.WA_EVENT_CHANGED,
+    NotificationType.BOOKING_EXPIRED: NotificationType.WA_BOOKING_EXPIRED,
+    NotificationType.PRESALE_OPENING: NotificationType.WA_PRESALE_OPENING,
+    NotificationType.FOLLOWED_NEW_EVENT: NotificationType.WA_FOLLOWED_NEW_EVENT,
+    NotificationType.ORG_VERIFIED: NotificationType.WA_ORG_VERIFIED,
+    NotificationType.ORG_REJECTED: NotificationType.WA_ORG_REJECTED,
+    NotificationType.SALES_MILESTONE: NotificationType.WA_SALES_MILESTONE,
+    NotificationType.OFFER_CLOSED: NotificationType.WA_OFFER_CLOSED,
+    NotificationType.PAYOUT_FAILED_ORGANIZER: NotificationType.WA_PAYOUT_FAILED,
+    NotificationType.COHOST_ADDED: NotificationType.WA_COHOST_ADDED,
+    NotificationType.DAILY_SALES_SUMMARY: NotificationType.WA_DAILY_SALES_SUMMARY,
 }
 
 

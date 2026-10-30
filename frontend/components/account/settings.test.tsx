@@ -149,12 +149,12 @@ describe('AccountSettings', () => {
 
   it('never puts a fake control on the phone index either', () => {
     render(<AccountSettings />);
-    // TWO switches, both real: the push subscription (which `usePush` reports
-    // as `off` here) and the WhatsApp opt-in, which is stored on the account
-    // (`User.whatsapp_opt_in`). Any third would be a preference toggle with
-    // nothing to store it, arriving by the back door.
+    // THREE switches, all real: the push subscription (which `usePush` reports
+    // as `off` here), the WhatsApp opt-in (`User.whatsapp_opt_in`) and the
+    // organiser's morning summary (`User.daily_summary_opt_out`). Any fourth
+    // would be a preference toggle with nothing to store it.
     const switches = screen.getAllByRole('switch');
-    expect(switches).toHaveLength(2);
+    expect(switches).toHaveLength(3);
     expect(screen.getByLabelText('Get tickets and updates on WhatsApp')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).toBeNull();
   });

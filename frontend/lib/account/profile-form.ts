@@ -50,11 +50,13 @@ export type ProfileForm = {
   city: string;
   /** They agreed to tickets and updates on WhatsApp at `phone`. */
   whatsappOptIn: boolean;
+  /** They turned off the morning email summarising yesterday's sales. */
+  dailySummaryOptOut: boolean;
 };
 
 export function formFromUser(
   user: Pick<User, 'full_name' | 'phone' | 'date_of_birth' | 'gender' | 'gender_self_described'> &
-    Partial<Pick<User, 'city' | 'whatsapp_opt_in'>>,
+    Partial<Pick<User, 'city' | 'whatsapp_opt_in' | 'daily_summary_opt_out'>>,
 ): ProfileForm {
   return {
     fullName: user.full_name ?? '',
@@ -64,6 +66,7 @@ export function formFromUser(
     genderSelfDescribed: user.gender_self_described ?? '',
     city: user.city ?? '',
     whatsappOptIn: Boolean(user.whatsapp_opt_in),
+    dailySummaryOptOut: Boolean(user.daily_summary_opt_out),
   };
 }
 
@@ -154,6 +157,9 @@ export function changedFields(before: ProfileForm, after: ProfileForm): ProfileU
   if (after.phone.trim() !== before.phone.trim()) changes.phone = after.phone.trim();
   if (after.city.trim() !== before.city.trim()) changes.city = after.city.trim();
   if (after.whatsappOptIn !== before.whatsappOptIn) changes.whatsapp_opt_in = after.whatsappOptIn;
+  if (after.dailySummaryOptOut !== before.dailySummaryOptOut) {
+    changes.daily_summary_opt_out = after.dailySummaryOptOut;
+  }
   if (after.dateOfBirth !== before.dateOfBirth) {
     // `null`, not `''`. This is the one field whose empty value is null,
     // because it is a date — an empty string would be a 400.

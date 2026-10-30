@@ -115,6 +115,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     #: WhatsApp's business policy requires the person's opt-in before a business
     #: messages them, and an email address on file is not that.
     whatsapp_opt_in = models.BooleanField(default=False)
+    #: An organiser who does NOT want yesterday's sales emailed each morning.
+    #: On by default (this is False) because the summary is the one routine
+    #: report an organiser expects; the way off is in their settings.
+    daily_summary_opt_out = models.BooleanField(default=False)
 
     #: WHEN they finished the welcome flow, not whether.
     #:

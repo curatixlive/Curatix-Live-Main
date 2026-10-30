@@ -39,8 +39,16 @@ class MetaWhatsAppAdapter(WhatsAppPort):
         language: str,
         params: list[str],
         button_param: str = "",
+        header_image_url: str = "",
     ) -> str:
         components: list[dict] = []
+        if header_image_url:
+            components.append(
+                {
+                    "type": "header",
+                    "parameters": [{"type": "image", "image": {"link": header_image_url}}],
+                }
+            )
         if params:
             components.append(
                 {

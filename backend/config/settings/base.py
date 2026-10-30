@@ -720,6 +720,11 @@ PUSH_BACKEND = env.str("PUSH_BACKEND", default="webpush")
 # email. Blank means "omit the link" rather than "guess": a notification
 # pointing at the wrong host is worse than one with no link at all.
 PUBLIC_SITE_URL = env.str("PUBLIC_SITE_URL", default="").rstrip("/")
+# This API's own public address, e.g. https://curatix.onrender.com/api/v1. Used
+# where an OUTSIDE service must fetch something from us without a browser — the
+# ticket QR image a WhatsApp ticket message carries. Blank means the WhatsApp
+# ticket is sent without the image (the email still has the QR).
+PUBLIC_API_URL = env.str("PUBLIC_API_URL", default="").rstrip("/")
 
 # --- Error reporting -----------------------------------------------------
 # Unset means "log only". Setting it turns on Sentry with no code change;

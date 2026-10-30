@@ -298,6 +298,8 @@ export type User = {
   city?: string;
   /** They agreed to tickets and updates on WhatsApp at `phone`. */
   whatsapp_opt_in?: boolean;
+  /** Organisers: they turned off the morning sales summary email. */
+  daily_summary_opt_out?: boolean;
   /**
    * What to SHOW, resolved once on the server. A client that has to know the
    * `self_described` pairing is a client that will get it wrong on one of the

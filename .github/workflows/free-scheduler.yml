@@ -43,6 +43,7 @@ jobs:
             settlements.release_due \
             events.waitlist_notify \
             notifications.sweep_stuck \
+            notifications.lifecycle \
             core.purge_ephemeral_tokens; do
             # First call may hit a cold free instance (30-60s), hence the retries.
             code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 120 \

@@ -81,6 +81,7 @@ def _decode_attachments(stored: list | None) -> tuple[EmailAttachment, ...]:
 
 DISPATCH_TASK = "notifications.dispatch"
 EVENT_REMINDER_TASK = "notifications.event_reminder"
+LIFECYCLE_TASK = "notifications.lifecycle"
 SWEEP_STUCK_TASK = "notifications.sweep_stuck"
 
 
@@ -201,6 +202,7 @@ class NotificationService:
                         {
                             "params": list(rendered.whatsapp_params),
                             "button": rendered.whatsapp_button,
+                            "image": rendered.whatsapp_image,
                         }
                         if channel == NotificationChannel.WHATSAPP
                         else {}
@@ -400,6 +402,7 @@ class NotificationService:
                 language=_whatsapp.template_language(),
                 params=[str(value) for value in payload.get("params", [])],
                 button_param=str(payload.get("button", "") or ""),
+                header_image_url=str(payload.get("image", "") or ""),
             )
         return self._sms.send(
             to=log.recipient,

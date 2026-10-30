@@ -184,3 +184,19 @@ def test_the_change_is_audited(user):
     entry = AuditLog.objects.get(action="user.profile_updated")
     assert entry.actor_id == str(user.id)
     assert entry.metadata["fields"] == ["full_name", "phone"]
+
+
+def test_the_morning_summary_can_be_turned_off_and_on_again(user):
+    off = auth(user).patch(ME, {"daily_summary_opt_out": True}, format="json")
+    assert off.status_code == 200
+    assert off.json()["daily_summary_opt_out"] is True
+    user.refresh_from_db()
+    assert user.daily_summary_opt_out is True
+
+    # An unrelated edit leaves the preference alone.
+    auth(user).patch(ME, {"full_name": "Ravi M"}, format="json")
+    user.refresh_from_db()
+    assert user.daily_summary_opt_out is True
+
+    on = auth(user).patch(ME, {"daily_summary_opt_out": False}, format="json")
+    assert on.json()["daily_summary_opt_out"] is False

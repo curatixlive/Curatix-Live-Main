@@ -8,7 +8,8 @@ to its template and builds the values (`apps/notifications/whatsapp.py`).
 
 `button_param` fills the one dynamic part of a URL button, which is how an
 AUTHENTICATION template carries its one-time code ("Copy code"). Blank means the
-template has no such button.
+template has no such button. `header_image_url` is a public https link to the
+image an IMAGE-header template shows (the ticket's QR); blank means no header.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ class WhatsAppPort(ABC):
         language: str,
         params: list[str],
         button_param: str = "",
+        header_image_url: str = "",
     ) -> str:
         """Send one approved template. `to` is digits with country code, no '+'.
         Returns the provider's message id for tracing."""

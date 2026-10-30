@@ -35,6 +35,18 @@ class NotificationsConfig(AppConfig):
         )
         # settlements' seam: the organizer's payout confirmation.
         bus.subscribe(events.PAYOUT_RELEASED, handlers.handle_payout_released)
+        bus.subscribe(events.PAYOUT_FAILED, handlers.handle_payout_failed)
+
+        # --- lifecycle messages (NOTIFICATIONS_BRIEF) -----------------------
+        bus.subscribe(events.EVENT_CHANGED, handlers.handle_event_changed)
+        bus.subscribe(events.BOOKING_CANCELLED, handlers.handle_booking_expired)
+        bus.subscribe(events.EVENT_PUBLISHED, handlers.handle_followed_organiser_published)
+        bus.subscribe(events.ORGANIZATION_VERIFIED, handlers.handle_organization_verified)
+        bus.subscribe(
+            events.ORGANIZATION_VERIFICATION_REJECTED,
+            handlers.handle_organization_verification_rejected,
+        )
+        bus.subscribe(events.COHOST_ADDED, handlers.handle_cohost_added)
 
         # --- operator alerts ------------------------------------------------
         # Everything below is a decision waiting on a human. These events were

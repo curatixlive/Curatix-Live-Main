@@ -33,6 +33,9 @@ dependencies = [
   "gunicorn>=22.0,<23.0",
   "requests>=2.32,<3.0",
   "python-json-logger>=2.0,<3.0",
+  # The ticket QR as a PNG (`GET /tickets/qr/<token>.png`), which a WhatsApp
+  # ticket message carries as its image header. Pure Python, no system deps.
+  "segno>=1.6,<2",
   # The shared booking receipt (`apps/booking/receipt_pdf.py`).
   #
   # BASE, not an optional extra, and that is the whole point. A previous

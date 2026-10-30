@@ -3511,6 +3511,32 @@ sessions and no streaming, so it costs nothing while idle).
 - Rate limit `THROTTLE_AGENT` (60/min) is per PERSON, not per IP — an assistant
   runs from its vendor's servers, so an IP key would share one bucket.
 
+## Events go straight to live; the platform no longer approves them
+
+`EventService.PUBLISH_STRAIGHT_TO_LIVE = True`. An organiser's Publish makes the
+event public immediately; the ONE gate is the organisation's verification
+(`verified_level`). The admin "All events" screen is a browser (search, status
+tabs, open/delete) with no approve/send-back step, and `MODERATABLE_STATUSES`
+now lists live/paused/finished/cancelled/archived beside the legacy
+pending_review/rejected so old rows stay reachable. The review states and
+endpoints still exist for performers and legacy rows; do not delete them.
+
+A **material edit** (start, end, venue, address, city) to a live or paused event
+publishes `EVENT_CHANGED`; `notifications` tells every ticket holder by email
+and, if opted in, WhatsApp. Adding a co-host or team member publishes
+`COHOST_ADDED`.
+
+## The time-based messages (`notifications.lifecycle`)
+
+`apps/notifications/lifecycle.py` is one sweep (scheduled every 5 minutes, also
+listed in `.github/workflows/free-scheduler.yml`) with six rules: hold about to
+expire, event day (08:00 IST on), pre-sale opening, sales milestones (80/90/100%,
+highest only), offer closed, and the organiser's morning sales summary
+(`User.daily_summary_opt_out`). Each rule is wrapped separately and keys its
+messages for exactly-once, so overlapping sweeps send nothing twice. WhatsApp
+tickets: one message per ticket with its own QR image
+(`GET /tickets/qr/<token>.png`, public, valid only for a signed token).
+
 ## WhatsApp: a companion beside the email, never instead of it
 
 `WhatsAppPort` (`core/ports/whatsapp_port.py`) with three adapters selected by

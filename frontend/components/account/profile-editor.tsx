@@ -197,6 +197,23 @@ export function ProfileEditor() {
                 onCheckedChange={(on: boolean) => patch({ whatsappOptIn: on })}
               />
             </div>
+
+            <div className="flex items-start justify-between gap-4 rounded-xl border border-border p-3 sm:col-span-2">
+              <span className="min-w-0">
+                <label htmlFor="profile-daily-summary" className="block text-body-sm font-semibold">
+                  Morning sales summary
+                </label>
+                <span className="block text-caption text-muted-foreground">
+                  If you run events: one email each morning with yesterday&apos;s tickets and
+                  revenue. Only sent on days you sold something.
+                </span>
+              </span>
+              <Switch
+                id="profile-daily-summary"
+                checked={!form.dailySummaryOptOut}
+                onCheckedChange={(on: boolean) => patch({ dailySummaryOptOut: !on })}
+              />
+            </div>
           </Group>
 
           <Group title="About you">

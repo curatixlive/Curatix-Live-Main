@@ -126,6 +126,21 @@ class NotificationType(models.TextChoices):
     CAMPAIGN_PROMO = "campaign_promo", "Organiser campaign"
     # "How was it?" — sent once, to a paid attendee, after the event has ended.
     REVIEW_REQUEST = "review_request", "Post-event review request"
+    # ── Lifecycle messages (NOTIFICATIONS_BRIEF §3) ─────────────────────────
+    HOLD_EXPIRING = "hold_expiring", "Tickets on hold about to expire"
+    EVENT_DAY = "event_day", "Event-day message"
+    EVENT_CHANGED = "event_changed", "Event date, time or venue changed"
+    BOOKING_EXPIRED = "booking_expired", "Booking expired, nothing charged"
+    PRESALE_OPENING = "presale_opening", "Pre-sale opening (followers)"
+    FOLLOWED_NEW_EVENT = "followed_new_event", "New event from an organiser you follow"
+    ORG_VERIFIED = "org_verified", "Organisation verified"
+    ORG_REJECTED = "org_rejected", "Organisation verification declined"
+    SALES_MILESTONE = "sales_milestone", "Tickets sold milestone (organiser)"
+    OFFER_CLOSED = "offer_closed", "Offer filled or closed (organiser)"
+    PAYOUT_FAILED_ORGANIZER = "payout_failed_organizer", "Payout failed (organiser)"
+    ADMIN_PAYOUT_FAILED = "admin_payout_failed", "Admin: payout failed"
+    COHOST_ADDED = "cohost_added", "Added as co-host or team member"
+    DAILY_SALES_SUMMARY = "daily_sales_summary", "Daily sales summary (organiser)"
     # WhatsApp siblings. Each is sent BESIDE its email (never instead of it), and
     # only to somebody who opted in with a phone number on file.
     WA_BOOKING_CONFIRMED = "wa_booking_confirmed", "WhatsApp: booking confirmed"
@@ -139,6 +154,20 @@ class NotificationType(models.TextChoices):
     WA_PASSWORD_RESET = "wa_password_reset", "WhatsApp: password reset code"
     WA_WAITLIST_JOINED = "wa_waitlist_joined", "WhatsApp: waitlist entry (organiser)"
     WA_CAMPAIGN = "wa_campaign", "WhatsApp: organiser campaign"
+    WA_TICKET = "wa_ticket", "WhatsApp: ticket with QR"
+    WA_HOLD_EXPIRING = "wa_hold_expiring", "WhatsApp: hold about to expire"
+    WA_EVENT_DAY = "wa_event_day", "WhatsApp: event day"
+    WA_EVENT_CHANGED = "wa_event_changed", "WhatsApp: event changed"
+    WA_BOOKING_EXPIRED = "wa_booking_expired", "WhatsApp: booking expired"
+    WA_PRESALE_OPENING = "wa_presale_opening", "WhatsApp: pre-sale opening"
+    WA_FOLLOWED_NEW_EVENT = "wa_followed_new_event", "WhatsApp: new event from followed organiser"
+    WA_ORG_VERIFIED = "wa_org_verified", "WhatsApp: organisation verified"
+    WA_ORG_REJECTED = "wa_org_rejected", "WhatsApp: organisation declined"
+    WA_SALES_MILESTONE = "wa_sales_milestone", "WhatsApp: sales milestone"
+    WA_OFFER_CLOSED = "wa_offer_closed", "WhatsApp: offer filled or closed"
+    WA_PAYOUT_FAILED = "wa_payout_failed", "WhatsApp: payout failed"
+    WA_COHOST_ADDED = "wa_cohost_added", "WhatsApp: added as co-host"
+    WA_DAILY_SALES_SUMMARY = "wa_daily_sales_summary", "WhatsApp: daily sales summary"
 
 
 class NotificationLog(models.Model):

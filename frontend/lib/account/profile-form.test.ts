@@ -17,6 +17,7 @@ const EMPTY: ProfileForm = {
   genderSelfDescribed: '',
   city: '',
   whatsappOptIn: false,
+  dailySummaryOptOut: false,
 };
 
 const form = (over: Partial<ProfileForm> = {}): ProfileForm => ({ ...EMPTY, ...over });

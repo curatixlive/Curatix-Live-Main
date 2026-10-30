@@ -271,6 +271,7 @@ sending, so nothing is faked — an SMS simply does not go out.
 | `WHATSAPP_API_VERSION` | Optional | `v21.0` | Meta adapter | Graph API version in the request URL. |
 | `WHATSAPP_TEMPLATE_LANGUAGE` | Optional | `en` | `apps/notifications/whatsapp.py` | Language code the templates were approved in. |
 | `WHATSAPP_TEMPLATE_NAMES` | Optional | empty | `apps/notifications/whatsapp.py` | `type=name,...` override for a template Meta made you rename. |
+| `PUBLIC_API_URL` | Recommended | empty | `apps/notifications` | This API's public address (e.g. `https://curatix.onrender.com/api/v1`). Meta fetches the WhatsApp ticket's QR image from `{PUBLIC_API_URL}/tickets/qr/<token>.png`; blank sends the ticket without the image. |
 | `SMS_API_KEY` | Future | `""` | `HttpSmsAdapter` | MSG91 / Twilio / Gupshup. |
 | `SMS_API_BASE_URL` | Future | `""` | `HttpSmsAdapter` | Provider's API base. |
 | `SMS_SENDER_ID` | Future | `""` | `HttpSmsAdapter` | 6-character DLT-approved header. |

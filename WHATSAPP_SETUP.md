@@ -189,6 +189,161 @@ campaigns is not built yet.
 - **Sample values (Meta asks for these):** `{{1}}` = Asha; `{{2}}` = Groove Collective; `{{3}}` = Winter series. Early access opens Friday.; `{{4}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
 
 
+### 12. `curatix_ticket` (UTILITY)
+
+- **Header:** add an IMAGE header (sample: any QR picture). Each ticket's own QR code is sent here; Meta fetches it from `PUBLIC_API_URL/tickets/qr/<token>.png`, so set `PUBLIC_API_URL` (e.g. `https://curatix.onrender.com/api/v1`) on Render first. Without it a single booking confirmation is sent instead of one message per ticket.
+- **Sent when:** ticket, on its own trigger.
+- **Body:**
+
+  ```
+  Hi {{1}}, here is your ticket for {{2}}. When: {{3}}. Where: {{4}}. Ticket: {{5}}. Booking reference: {{6}}. Directions: {{7}} - show this QR code at the gate.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Asha; `{{2}}` = Sunburn Jazz Night; `{{3}}` = Sat 23 Aug 2026, 8:10 pm; `{{4}}` = Phoenix Arena, Mumbai; `{{5}}` = General entry; `{{6}}` = 3F1D9C22; `{{7}}` = https://maps.google.com/?q=Phoenix+Arena
+
+### 13. `curatix_hold_expiring` (UTILITY)
+
+- **Sent when:** hold expiring, beside the hold expiring email.
+- **Body:**
+
+  ```
+  Hi {{1}}, your tickets for {{2}} are on hold for {{3}} more minutes and nothing has been charged. Finish booking here: {{4}} before they go back on sale.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Asha; `{{2}}` = Sunburn Jazz Night; `{{3}}` = 4; `{{4}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
+### 14. `curatix_event_day` (UTILITY)
+
+- **Sent when:** event day, beside the event day email.
+- **Body:**
+
+  ```
+  Hi {{1}}, {{2}} is today! Gates open {{3}} at {{4}}. Directions: {{5}} - keep your QR ticket ready ({{6}}) and see you there.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Asha; `{{2}}` = Sunburn Jazz Night; `{{3}}` = 7:00 pm; `{{4}}` = Phoenix Arena, Mumbai; `{{5}}` = https://maps.google.com/?q=Phoenix+Arena; `{{6}}` = https://curatix-live.vercel.app/account/tickets
+
+### 15. `curatix_event_changed` (UTILITY)
+
+- **Sent when:** event changed, beside the event changed email.
+- **Body:**
+
+  ```
+  Hi {{1}}, an update for {{2}}: {{3}}. Your ticket is still valid. If you cannot go any more you can ask for a refund: {{4}} - sorry for the change.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Asha; `{{2}}` = Sunburn Jazz Night; `{{3}}` = venue: Hall B; `{{4}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
+### 16. `curatix_booking_expired` (UTILITY)
+
+- **Sent when:** booking expired, beside the booking expired email.
+- **Body:**
+
+  ```
+  Hi {{1}}, your booking for {{2}} was not completed in time, so the tickets went back on sale. Nothing was charged. Book again: {{3}} if you still want to go.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Asha; `{{2}}` = Sunburn Jazz Night; `{{3}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
+### 17. `curatix_presale_opening` (UTILITY)
+
+- **Sent when:** presale opening, beside the presale opening email.
+- **Body:**
+
+  ```
+  Hi {{1}}, because you follow {{2}}, pre-sale for {{3}} is open now, before general sale. Book early: {{4}} - tickets are limited.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Asha; `{{2}}` = Groove Collective; `{{3}}` = Sunburn Jazz Night; `{{4}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
+### 18. `curatix_new_event` (MARKETING)
+
+- **Sent when:** followed new event, beside the followed new event email.
+- **Body:**
+
+  ```
+  Hi {{1}}, {{2}} just announced {{3}} on {{4}}. See it here: {{5}} - you get this because you follow them; turn off WhatsApp updates in your profile to stop.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Asha; `{{2}}` = Groove Collective; `{{3}}` = Sunburn Jazz Night; `{{4}}` = Sat 23 Aug 2026, 8:10 pm; `{{5}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
+### 19. `curatix_org_verified` (UTILITY)
+
+- **Sent when:** org verified, beside the org verified email.
+- **Body:**
+
+  ```
+  Good news: {{1}} is verified on Curatix. You can publish events now and they go on sale straight away. Create one: {{2}} - welcome aboard!
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Groove Collective; `{{2}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
+### 20. `curatix_org_declined` (UTILITY)
+
+- **Sent when:** org rejected, beside the org rejected email.
+- **Body:**
+
+  ```
+  We could not verify {{1}} yet. Reason: {{2}}. Update your details and apply again: {{3}} - reply to this message if you need help.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Groove Collective; `{{2}}` = PAN image was blurry; `{{3}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
+### 21. `curatix_sales_milestone` (UTILITY)
+
+- **Sent when:** sales milestone, beside the sales milestone email.
+- **Body:**
+
+  ```
+  Good news: {{1}} has reached {{2}}% sold: {{3}} of {{4}} tickets. See your dashboard: {{5}} - keep it going!
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Sunburn Jazz Night; `{{2}}` = 90; `{{3}}` = 90; `{{4}}` = 100; `{{5}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
+### 22. `curatix_offer_closed` (UTILITY)
+
+- **Sent when:** offer closed, beside the offer closed email.
+- **Body:**
+
+  ```
+  Offer update: {{1}} on {{2}} for {{3}} has ended: {{4}}. Tickets now sell at {{5}}. Dashboard: {{6}} - add another offer if you like.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Early bird; `{{2}}` = General; `{{3}}` = Sunburn Jazz Night; `{{4}}` = it sold out; `{{5}}` = Rs 1,200; `{{6}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
+### 23. `curatix_payout_failed` (UTILITY)
+
+- **Sent when:** payout failed, beside the payout failed organizer email.
+- **Body:**
+
+  ```
+  Your payout for {{1}} did not go through: {{2}}. The money is still owed to you. Check your payout details: {{3}} - reply if you need help.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Sunburn Jazz Night; `{{2}}` = bank rejected the transfer; `{{3}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
+### 24. `curatix_cohost_added` (UTILITY)
+
+- **Sent when:** cohost added, beside the cohost added email.
+- **Body:**
+
+  ```
+  Hi {{1}}, {{2}} added you to help run {{3}} on Curatix. Open your dashboard: {{4}} - you can already see what they shared with you.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Asha; `{{2}}` = Groove Collective; `{{3}}` = Sunburn Jazz Night; `{{4}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
+### 25. `curatix_daily_summary` (UTILITY)
+
+- **Sent when:** daily sales summary, beside the daily sales summary email.
+- **Body:**
+
+  ```
+  Hi {{1}}, yesterday you sold {{2}} tickets for {{3}}. Full breakdown: {{4}} - turn this off in Settings, Notifications.
+  ```
+
+- **Sample values (Meta asks for these):** `{{1}}` = Asha; `{{2}}` = 42; `{{3}}` = Rs 52,000; `{{4}}` = https://curatix-live.vercel.app/events/sunburn-jazz-night
+
 ## Not built yet
 
 - **Delivery receipts and replies.** Meta's webhook (delivered/read, and a

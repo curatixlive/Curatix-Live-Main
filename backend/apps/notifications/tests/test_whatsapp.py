@@ -39,7 +39,9 @@ class RecordingWhatsApp(WhatsAppPort):
     def __init__(self) -> None:
         self.sent: list[dict] = []
 
-    def send_template(self, *, to, template, language, params, button_param=""):
+    def send_template(
+        self, *, to, template, language, params, button_param="", header_image_url=""
+    ):
         self.sent.append(
             {
                 "to": to,
@@ -47,6 +49,7 @@ class RecordingWhatsApp(WhatsAppPort):
                 "language": language,
                 "params": params,
                 "button": button_param,
+                "image": header_image_url,
             }
         )
         return f"wamid.{len(self.sent)}"
@@ -79,8 +82,9 @@ def user(email: str, *, phone: str = "98765 43210", opt_in: bool = True) -> User
 
 
 def send_ticket(service, recipient: str, key: str = "ticket:1"):
+    """Any email that has a plain WhatsApp companion: the event reminder."""
     return service.notify(
-        notification_type=NotificationType.TICKET_DELIVERY,
+        notification_type=NotificationType.EVENT_REMINDER,
         recipient=recipient,
         context=TICKET_CONTEXT,
         dedupe_key=key,
@@ -98,7 +102,7 @@ def test_an_opted_in_buyer_gets_the_whatsapp_beside_the_email():
     assert len(wa.sent) == 1
     message = wa.sent[0]
     assert message["to"] == "919876543210"
-    assert message["template"] == "curatix_booking_confirmed"
+    assert message["template"] == "curatix_event_reminder"
     assert message["params"][:2] == ["Asha", "Sunburn Jazz Night"]
     log = NotificationLog.objects.get(dedupe_key="ticket:1:wa")
     assert log.channel == NotificationChannel.WHATSAPP
@@ -249,3 +253,93 @@ def test_no_template_starts_or_ends_with_a_slot():
         body = spec.body.strip()
         assert not body.startswith("{{"), spec.name
         assert not body.endswith("}}"), spec.name
+
+
+def _paid_booking_with_tickets(opt_in: bool = True, n: int = 2):
+    """A confirmed booking for an opted-in buyer, with `n` signed tickets."""
+    import datetime as dt
+
+    from django.utils import timezone
+
+    from apps.booking.models import Booking, BookingStatus, Ticket
+    from apps.events.models import Event, EventStatus
+    from apps.organizations.models import Organization
+    from apps.ticketing.models import TicketType
+
+    owner = User.objects.create_user(email="wa-owner@example.com", password="x" * 14)
+    event = Event.objects.create(
+        organization=Organization.objects.create(owner=owner, name="Groove"),
+        title="Sunburn Jazz Night",
+        venue="Phoenix Arena",
+        city="Mumbai",
+        starts_at=timezone.now() + dt.timedelta(days=5),
+        status=EventStatus.LIVE,
+    )
+    tier = TicketType.objects.create(event=event, name="Gold", price_minor=50_000, quantity=50)
+    buyer = user("wa-buyer@example.com", opt_in=opt_in)
+    booking = Booking.objects.create(
+        user=buyer,
+        event=event,
+        status=BookingStatus.PAID,
+        hold_expires_at=timezone.now(),
+        total_amount_minor=100_000,
+        platform_fee_minor=0,
+    )
+    for i in range(n):
+        Ticket.objects.create(booking=booking, ticket_type=tier, qr_token=f"v1.tok{i}.sig")
+    return booking, buyer
+
+
+def test_each_ticket_goes_on_whatsapp_with_its_own_qr_image(settings):
+    from apps.notifications.handlers import handle_booking_confirmed
+
+    settings.PUBLIC_API_URL = "https://api.example/api/v1"
+    wa = RecordingWhatsApp()
+    booking, buyer = _paid_booking_with_tickets(n=2)
+    service, _ = build(wa)
+    with mock.patch("config.di.build_notification_service", return_value=service):
+        handle_booking_confirmed({"booking_id": str(booking.id), "user_id": str(buyer.id)})
+
+    assert [m["template"] for m in wa.sent] == ["curatix_ticket", "curatix_ticket"]
+    assert {m["image"] for m in wa.sent} == {
+        "https://api.example/api/v1/tickets/qr/v1.tok0.sig.png",
+        "https://api.example/api/v1/tickets/qr/v1.tok1.sig.png",
+    }
+    assert "Gold" in wa.sent[0]["params"][4] and "Phoenix Arena" in wa.sent[0]["params"][3]
+
+
+def test_without_a_public_api_address_one_confirmation_goes_instead(settings):
+    from apps.notifications.handlers import handle_booking_confirmed
+
+    settings.PUBLIC_API_URL = ""
+    wa = RecordingWhatsApp()
+    booking, buyer = _paid_booking_with_tickets(n=2)
+    service, _ = build(wa)
+    with mock.patch("config.di.build_notification_service", return_value=service):
+        handle_booking_confirmed({"booking_id": str(booking.id), "user_id": str(buyer.id)})
+
+    assert [m["template"] for m in wa.sent] == ["curatix_booking_confirmed"]
+    assert wa.sent[0]["image"] == ""
+
+
+def test_a_buyer_who_did_not_opt_in_gets_no_whatsapp_ticket(settings):
+    from apps.notifications.handlers import handle_booking_confirmed
+
+    settings.PUBLIC_API_URL = "https://api.example/api/v1"
+    wa = RecordingWhatsApp()
+    booking, buyer = _paid_booking_with_tickets(opt_in=False)
+    service, _ = build(wa)
+    with mock.patch("config.di.build_notification_service", return_value=service):
+        handle_booking_confirmed({"booking_id": str(booking.id), "user_id": str(buyer.id)})
+    assert wa.sent == []
+
+
+def test_the_qr_image_is_served_only_for_a_signed_token(client, settings):
+    from apps.booking.qr import sign_ticket
+
+    settings.TICKET_QR_SIGNING_KEY = "k" * 32
+    token = sign_ticket(ticket_id="t1", event_id="e1", secret=settings.TICKET_QR_SIGNING_KEY)
+    ok = client.get(f"/api/v1/tickets/qr/{token}.png")
+    assert ok.status_code == 200 and ok["Content-Type"] == "image/png"
+    assert ok.content.startswith(b"\x89PNG")
+    assert client.get("/api/v1/tickets/qr/v1.forged.sig.png").status_code == 404

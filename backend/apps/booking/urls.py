@@ -11,6 +11,7 @@ urlpatterns = [
         name="admin-fee-override",
     ),
     path("events/<uuid:event_id>/fees", api.EventFeesView.as_view(), name="event-fees"),
+    path("tickets/qr/<str:token>.png", api.TicketQrImageView.as_view(), name="ticket-qr-image"),
     path("bookings", api.BookingCreateView.as_view(), name="booking-create"),
     path("bookings/<uuid:booking_id>", api.BookingDetailView.as_view(), name="booking-detail"),
     path(

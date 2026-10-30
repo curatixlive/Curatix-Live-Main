@@ -98,6 +98,7 @@ class RenderedMessage:
     #: carries the template NAME on this channel.
     whatsapp_params: tuple[str, ...] = ()
     whatsapp_button: str = ""
+    whatsapp_image: str = ""
 
 
 # Which channel each type is delivered on. The single source of truth for
@@ -1796,6 +1797,374 @@ _TEMPLATES: dict[str, Callable[[dict], RenderedMessage]] = {
 }
 
 
+# ── Lifecycle messages (NOTIFICATIONS_BRIEF §3) ─────────────────────────────
+#
+# One shape for all of them (`_standard`): a label in the masthead, a heading, a
+# lead sentence, an optional facts block, one button, an optional note. The
+# plain-text alternative is built from the same pieces, so the two can never
+# say different things.
+
+
+def _standard(
+    *,
+    subject: str,
+    preheader: str,
+    label: str,
+    heading_text: str,
+    lead: str,
+    facts_rows: list[tuple[str, str]] | None = None,
+    button_label: str = "",
+    url: str = "",
+    note: str = "",
+    eyebrow_text: str = "",
+) -> RenderedMessage:
+    rows = [(k, v) for k, v in (facts_rows or []) if v]
+    text = [lead]
+    if rows:
+        text += [""] + [f"{k}: {v}" for k, v in rows]
+    if url:
+        text += ["", f"{button_label}: {url}"]
+    if note:
+        text += ["", note]
+    blocks = []
+    if eyebrow_text:
+        blocks.append(ui.eyebrow(eyebrow_text))
+    blocks += [ui.heading(heading_text), ui.paragraph(lead)]
+    if rows:
+        blocks.append(ui.facts(rows))
+    if url and button_label:
+        blocks.append(ui.button(button_label, url))
+    if note:
+        blocks.append(ui.callout(note))
+    return RenderedMessage(
+        subject=subject,
+        body="\n".join(text),
+        html=ui.render_email(
+            title=subject, preheader=preheader, masthead_label=label, blocks=blocks
+        ),
+    )
+
+
+def _event_rows(ctx: dict) -> list[tuple[str, str]]:
+    return [
+        ("Event", str(ctx.get("event_title") or "")),
+        ("When", str(ctx.get("event_when") or "")),
+        ("Where", str(ctx.get("event_where") or "")),
+    ]
+
+
+def _hold_expiring(ctx: dict) -> RenderedMessage:
+    title = str(ctx["event_title"])
+    minutes = int(ctx.get("minutes_left") or 0)
+    left = f"{minutes} minute{'s' if minutes != 1 else ''}" if minutes > 0 else "a few minutes"
+    return _standard(
+        subject=f"Your tickets for {title} are held for {left} more",
+        preheader="Finish paying before the hold runs out.",
+        label="Tickets on hold",
+        heading_text="Your tickets are still waiting for you",
+        lead=(
+            f"Hi {ctx.get('name') or 'there'}, we are holding your tickets for {title} for "
+            f"{left} more. After that they go back on sale."
+        ),
+        facts_rows=_event_rows(ctx) + [("Tickets", str(ctx.get("tickets") or ""))],
+        button_label="Finish booking",
+        url=str(ctx.get("url") or ""),
+        note="Nothing has been charged yet.",
+    )
+
+
+def _event_day(ctx: dict) -> RenderedMessage:
+    title = str(ctx["event_title"])
+    return _standard(
+        subject=f"Today: {title}",
+        preheader=f"{ctx.get('event_when', '')} at {ctx.get('event_where', '')}",
+        label="It's today",
+        heading_text=f"{title} is today",
+        lead=(
+            f"Hi {ctx.get('name') or 'there'}, see you later! Here is everything you need at "
+            f"the door."
+        ),
+        facts_rows=_event_rows(ctx)
+        + [
+            ("Gates open", str(ctx.get("gates_open") or "")),
+            ("Directions", str(ctx.get("maps_url") or "")),
+        ],
+        button_label="Show my QR tickets",
+        url=str(ctx.get("tickets_url") or ""),
+        note="Keep your QR ticket on your phone, with the brightness up, ready at the gate.",
+    )
+
+
+_CHANGE_LABELS = {
+    "starts_at": "Starts",
+    "ends_at": "Ends",
+    "venue": "Venue",
+    "address": "Address",
+    "city": "City",
+}
+
+
+def _event_changed(ctx: dict) -> RenderedMessage:
+    title = str(ctx["event_title"])
+    changes: list[tuple[str, str]] = [
+        (_CHANGE_LABELS.get(field, field), f"{before or '-'} → {after or '-'}")
+        for field, before, after in ctx.get("changes", [])
+    ]
+    return _standard(
+        subject=f"Change to {title}",
+        preheader="The date, time or venue of your event has changed.",
+        label="Event update",
+        eyebrow_text="Please read",
+        heading_text=f"{title} has changed",
+        lead=(
+            f"Hi {ctx.get('name') or 'there'}, the organiser has changed the details of an "
+            f"event you have tickets for. Your tickets are still valid."
+        ),
+        facts_rows=changes + _event_rows(ctx),
+        button_label="See the event",
+        url=str(ctx.get("url") or ""),
+        note="If you can no longer go, you can request a refund from your ticket page.",
+    )
+
+
+def _booking_expired(ctx: dict) -> RenderedMessage:
+    title = str(ctx["event_title"])
+    return _standard(
+        subject=f"Your booking for {title} was not completed",
+        preheader="The hold ran out. Nothing was charged.",
+        label="Booking expired",
+        heading_text="Your tickets were released",
+        lead=(
+            f"Hi {ctx.get('name') or 'there'}, your payment for {title} did not complete in "
+            f"time, so the tickets went back on sale. Nothing was charged."
+        ),
+        facts_rows=_event_rows(ctx),
+        button_label="Book again",
+        url=str(ctx.get("url") or ""),
+    )
+
+
+def _presale_opening(ctx: dict) -> RenderedMessage:
+    title = str(ctx["event_title"])
+    organiser = str(ctx.get("organiser") or "An organiser you follow")
+    return _standard(
+        subject=f"Pre-sale is open: {title}",
+        preheader=f"Early access from {organiser}, before general sale.",
+        label="Pre-sale",
+        heading_text="Your early access has started",
+        lead=(
+            f"Hi {ctx.get('name') or 'there'}, because you follow {organiser}, you can book "
+            f"{title} before general sale."
+        ),
+        facts_rows=_event_rows(ctx),
+        button_label="Book early",
+        url=str(ctx.get("url") or ""),
+    )
+
+
+def _followed_new_event(ctx: dict) -> RenderedMessage:
+    title = str(ctx["event_title"])
+    organiser = str(ctx.get("organiser") or "An organiser you follow")
+    return _standard(
+        subject=f"New from {organiser}: {title}",
+        preheader=f"{ctx.get('event_when', '')} · {ctx.get('event_where', '')}",
+        label="New event",
+        heading_text=f"{organiser} just announced {title}",
+        lead=(
+            f"Hi {ctx.get('name') or 'there'}, a new event from an organiser you follow is on sale."
+        ),
+        facts_rows=_event_rows(ctx),
+        button_label="See the event",
+        url=str(ctx.get("url") or ""),
+        note="You get this because you follow this organiser. Unfollow from their page to stop.",
+    )
+
+
+def _org_verified(ctx: dict) -> RenderedMessage:
+    name = str(ctx["organization_name"])
+    return _standard(
+        subject=f"{name} is verified",
+        preheader="You can publish events and take bookings now.",
+        label="Verified",
+        heading_text="You are verified",
+        lead=(
+            f"Good news: {name} is verified on {BRAND_NAME}. You can publish events, and they "
+            f"go on sale straight away."
+        ),
+        button_label="Create an event",
+        url=str(ctx.get("url") or ""),
+    )
+
+
+def _org_rejected(ctx: dict) -> RenderedMessage:
+    name = str(ctx["organization_name"])
+    return _standard(
+        subject=f"We could not verify {name} yet",
+        preheader="See what to change and apply again.",
+        label="Verification",
+        heading_text="Your verification needs changes",
+        lead=f"We were not able to verify {name} with the details provided.",
+        facts_rows=[("Reason", str(ctx.get("notes") or "No reason was given."))],
+        button_label="Update and reapply",
+        url=str(ctx.get("url") or ""),
+        note="Reply to this email if anything is unclear.",
+    )
+
+
+def _sales_milestone(ctx: dict) -> RenderedMessage:
+    title = str(ctx["event_title"])
+    pct = int(ctx.get("percent") or 0)
+    sold_out = pct >= 100
+    return _standard(
+        subject=f"{title} is sold out" if sold_out else f"{title} is {pct}% sold",
+        preheader=f"{ctx.get('sold', '')} of {ctx.get('capacity', '')} tickets sold.",
+        label="Sales",
+        heading_text="Sold out!" if sold_out else f"{pct}% of tickets sold",
+        lead=(
+            f"{title} has sold every ticket."
+            if sold_out
+            else f"{title} has passed {pct}% of its tickets."
+        ),
+        facts_rows=[
+            ("Sold", f"{ctx.get('sold', '')} of {ctx.get('capacity', '')}"),
+            ("When", str(ctx.get("event_when") or "")),
+        ],
+        button_label="Open the event dashboard",
+        url=str(ctx.get("url") or ""),
+        note="Add more tickets from the event editor if you have room." if sold_out else "",
+    )
+
+
+def _offer_closed(ctx: dict) -> RenderedMessage:
+    title = str(ctx["event_title"])
+    offer = str(ctx.get("offer") or "An offer")
+    why = str(ctx.get("why") or "")
+    return _standard(
+        subject=f"{offer} has ended for {title}",
+        preheader=why,
+        label="Offer update",
+        heading_text=f"{offer} has ended",
+        lead=f"{offer} on {ctx.get('ticket_type') or 'a ticket type'} for {title} has ended: {why}",
+        facts_rows=[
+            ("Ticket type", str(ctx.get("ticket_type") or "")),
+            ("Now selling at", str(ctx.get("next_price") or "")),
+        ],
+        button_label="Open the event dashboard",
+        url=str(ctx.get("url") or ""),
+    )
+
+
+def _payout_failed_organizer(ctx: dict) -> RenderedMessage:
+    title = str(ctx["event_title"])
+    return _standard(
+        subject=f"Your payout for {title} did not go through",
+        preheader="We will look into it. Your money is still owed to you.",
+        label="Payout",
+        eyebrow_text="Action may be needed",
+        heading_text="Your payout did not go through",
+        lead=(
+            f"We tried to pay you for {title} and the transfer failed. The amount is still "
+            f"owed to you and nothing is lost."
+        ),
+        facts_rows=[
+            ("Reason", str(ctx.get("reason") or "")),
+            ("Amount", str(ctx.get("amount") or "")),
+        ],
+        button_label="Check your payout details",
+        url=str(ctx.get("url") or ""),
+        note="The most common cause is bank details that need updating. Reply if you need help.",
+    )
+
+
+def _admin_payout_failed(ctx: dict) -> RenderedMessage:
+    return _admin_alert(
+        subject=f"Payout failed: {ctx['event_title']}",
+        preheader="An organiser payout was dead-lettered.",
+        heading_text="A payout failed after every retry",
+        lead="A settlement could not be paid out and is still owed to the organiser.",
+        facts_rows=[
+            ("Event", str(ctx["event_title"])),
+            ("Organiser", str(ctx.get("organiser") or "")),
+            ("Reason", str(ctx.get("reason") or "")),
+            ("Settlement ID", str(ctx.get("settlement_id") or "")),
+        ],
+        queue_label="Open settlements",
+        queue_path="/admin/settlements",
+        note="Fix the cause, then release it again from the settlement's page.",
+    )
+
+
+def _cohost_added(ctx: dict) -> RenderedMessage:
+    scope_event = str(ctx.get("event_title") or "")
+    organiser = str(ctx.get("organiser") or "An organiser")
+    what = f"the event {scope_event}" if scope_event else f"every {organiser} event"
+    return _standard(
+        subject=f"{organiser} added you to help run {scope_event or 'their events'}",
+        preheader="You now have access in your organiser dashboard.",
+        label="Team access",
+        heading_text="You have been given access",
+        lead=f"Hi {ctx.get('name') or 'there'}, {organiser} added you to help run {what}.",
+        facts_rows=[("You can", str(ctx.get("permissions") or ""))],
+        button_label="Open your dashboard",
+        url=str(ctx.get("url") or ""),
+    )
+
+
+def _daily_sales_summary(ctx: dict) -> RenderedMessage:
+    day = str(ctx.get("day") or "yesterday")
+    rows = [
+        (str(e["title"]), f"{e['tickets']} tickets · {e['revenue']}") for e in ctx.get("events", [])
+    ]
+    return _standard(
+        subject=f"Your sales for {day}: {ctx.get('tickets', 0)} tickets",
+        preheader=f"{ctx.get('tickets', 0)} tickets · {ctx.get('revenue', '')}",
+        label="Daily summary",
+        heading_text=f"{day}: {ctx.get('tickets', 0)} tickets, {ctx.get('revenue', '')}",
+        lead=f"Hi {ctx.get('name') or 'there'}, here is what sold {day}.",
+        facts_rows=rows,
+        button_label="Open your dashboard",
+        url=str(ctx.get("url") or ""),
+        note="Turn this summary off in Settings → Notifications.",
+    )
+
+
+_TEMPLATES.update(
+    {
+        NotificationType.HOLD_EXPIRING: _hold_expiring,
+        NotificationType.EVENT_DAY: _event_day,
+        NotificationType.EVENT_CHANGED: _event_changed,
+        NotificationType.BOOKING_EXPIRED: _booking_expired,
+        NotificationType.PRESALE_OPENING: _presale_opening,
+        NotificationType.FOLLOWED_NEW_EVENT: _followed_new_event,
+        NotificationType.ORG_VERIFIED: _org_verified,
+        NotificationType.ORG_REJECTED: _org_rejected,
+        NotificationType.SALES_MILESTONE: _sales_milestone,
+        NotificationType.OFFER_CLOSED: _offer_closed,
+        NotificationType.PAYOUT_FAILED_ORGANIZER: _payout_failed_organizer,
+        NotificationType.ADMIN_PAYOUT_FAILED: _admin_payout_failed,
+        NotificationType.COHOST_ADDED: _cohost_added,
+        NotificationType.DAILY_SALES_SUMMARY: _daily_sales_summary,
+    }
+)
+for _lifecycle_type in (
+    NotificationType.HOLD_EXPIRING,
+    NotificationType.EVENT_DAY,
+    NotificationType.EVENT_CHANGED,
+    NotificationType.BOOKING_EXPIRED,
+    NotificationType.PRESALE_OPENING,
+    NotificationType.FOLLOWED_NEW_EVENT,
+    NotificationType.ORG_VERIFIED,
+    NotificationType.ORG_REJECTED,
+    NotificationType.SALES_MILESTONE,
+    NotificationType.OFFER_CLOSED,
+    NotificationType.PAYOUT_FAILED_ORGANIZER,
+    NotificationType.ADMIN_PAYOUT_FAILED,
+    NotificationType.COHOST_ADDED,
+    NotificationType.DAILY_SALES_SUMMARY,
+):
+    CHANNEL_BY_TYPE[_lifecycle_type] = NotificationChannel.EMAIL
+
+
 # ── WhatsApp: one approved template per type (`whatsapp.py`) ───────────────
 
 
@@ -1813,6 +2182,7 @@ def _whatsapp_renderer(notification_type: str) -> Callable[[dict], RenderedMessa
             body=body,
             whatsapp_params=params,
             whatsapp_button=spec.button(ctx),
+            whatsapp_image=spec.image(ctx),
         )
 
     return render

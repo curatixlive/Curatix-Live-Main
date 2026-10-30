@@ -52,6 +52,21 @@ EVENT_ARCHIVED = "events.event_archived"
 #: the two are one fact, and two differently-worded cancellation emails
 #: for the same outcome is how one of them ends up out of date.
 EVENT_CANCELLED_BY_ORGANIZER = "events.event_cancelled_by_organizer"
+#: A LIVE event's date, time or place changed. Payload: {event_id, version,
+#: changes: {field: [before, after]}} — ticket holders are told what moved.
+EVENT_CHANGED = "events.event_changed"
+#: Somebody was given access to help run one event, or every event of an
+#: organisation. Payload: {user_id, organization_id, event_id ("" for team),
+#: scope: "event" | "team"}.
+COHOST_ADDED = "events.cohost_added"
+
+# apps.wallet (published by the wallet/payout module; consumed by notifications)
+WALLET_PAYOUT_FAILED = "wallet.payout_failed"
+WALLET_PAYOUT_PAID = "wallet.payout_paid"
+WALLET_KYC_VERIFIED = "wallet.kyc_verified"
+WALLET_KYC_REJECTED = "wallet.kyc_rejected"
+# apps.performers (Hire a Band is admin-mediated): a request changed status
+HIRE_REQUEST_STATUS_CHANGED = "performers.hire_request_status_changed"
 
 # apps.ticketing
 TICKET_TYPE_ADDED = "ticketing.ticket_type_added"

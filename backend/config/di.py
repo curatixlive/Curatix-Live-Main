@@ -1207,6 +1207,12 @@ def build_notification_service() -> NotificationService:
     )
 
 
+def build_lifecycle_service():
+    from apps.notifications.lifecycle import LifecycleService
+
+    return LifecycleService(notifier=build_notification_service())
+
+
 def build_reminder_service() -> ReminderService:
     from apps.accounts.repositories import UserRepository
     from apps.booking.repositories import TicketRepository

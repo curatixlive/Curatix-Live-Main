@@ -23,6 +23,7 @@ class ConsoleWhatsAppAdapter(WhatsAppPort):
         language: str,
         params: list[str],
         button_param: str = "",
+        header_image_url: str = "",
     ) -> str:
         ref = f"console-wa-{uuid.uuid4().hex[:12]}"
         logger.info(
@@ -32,6 +33,7 @@ class ConsoleWhatsAppAdapter(WhatsAppPort):
                 "language": language,
                 "params": params,
                 "has_button": bool(button_param),
+                "image": header_image_url,
                 "ref": ref,
             },
         )

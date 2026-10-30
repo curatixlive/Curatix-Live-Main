@@ -34,9 +34,11 @@ from config.di import build_booking_service, task_queue_port
 from core.audit import record_audit
 from core.errors import InvalidInputError
 from core.events import (
+    COHOST_ADDED,
     EVENT_APPROVED,
     EVENT_ARCHIVED,
     EVENT_CANCELLED_BY_ORGANIZER,
+    EVENT_CHANGED,
     EVENT_CREATED,
     EVENT_DELETED_BY_OPERATOR,
     EVENT_PUBLISHED,
@@ -300,6 +302,13 @@ class _Settlement:
                     "events.make_good.hold_release_failed",
                     extra={"booking_id": str(booking_id)},
                 )
+
+
+def _change_text(value) -> str:
+    """A changed field as text for a payload: ISO for a datetime, else str."""
+    if value is None:
+        return ""
+    return value.isoformat() if hasattr(value, "isoformat") else str(value)
 
 
 class EventService:
@@ -601,6 +610,18 @@ class EventService:
                 applied_changes["slug"] = new_slug
 
         was_live = event.status == EventStatus.LIVE
+        # What a ticket holder must be told about: the WHEN and the WHERE of an
+        # event they have a ticket to. The editor sends its whole surface on
+        # every save, so a field being present is not a change — only a
+        # different value is.
+        material = {}
+        if event.status in (EventStatus.LIVE, EventStatus.PAUSED):
+            for field in ("starts_at", "ends_at", "venue", "address", "city"):
+                if field in applied_changes and applied_changes[field] != getattr(event, field):
+                    material[field] = [
+                        _change_text(getattr(event, field)),
+                        _change_text(applied_changes[field]),
+                    ]
 
         with UnitOfWork() as uow:
             applied = self._events.update_if_version_matches(
@@ -609,6 +630,17 @@ class EventService:
             if not applied:
                 # The row moved on (a concurrent edit) since the client's read.
                 raise StaleEventVersionError()
+
+            if material:
+                uow.publish(
+                    EVENT_CHANGED,
+                    {
+                        "event_id": str(event.id),
+                        "version": expected_version + 1,
+                        "changes": material,
+                    },
+                    aggregate_id=str(event.id),
+                )
 
             uow.publish(
                 EVENT_UPDATED,
@@ -3228,9 +3260,20 @@ class EventCoHostService:
             raise InvalidInputError("They are already a co-host of this event.")
         if self._cohosts.count_for_event(event.id) >= MAX_COHOSTS_PER_EVENT:
             raise InvalidInputError(f"An event can have at most {MAX_COHOSTS_PER_EVENT} co-hosts.")
-        row = self._cohosts.create(
-            event_id=event.id, user_id=user.id, permissions=self._normalise(permissions)
-        )
+        with UnitOfWork() as uow:
+            row = self._cohosts.create(
+                event_id=event.id, user_id=user.id, permissions=self._normalise(permissions)
+            )
+            uow.publish(
+                COHOST_ADDED,
+                {
+                    "user_id": str(user.id),
+                    "organization_id": str(event.organization_id),
+                    "event_id": str(event.id),
+                    "scope": "event",
+                },
+                aggregate_id=str(row.id),
+            )
         record_audit(
             actor_id=str(actor_id),
             action="event.cohost_added",
@@ -3315,11 +3358,22 @@ class OrganizationCrewService:
             raise InvalidInputError("They are already on your crew.")
         if self._crew.count_for_org(org.id) >= MAX_CREW_PER_ORG:
             raise InvalidInputError(f"A crew can have at most {MAX_CREW_PER_ORG} people.")
-        row = self._crew.create(
-            organization_id=org.id,
-            user_id=user.id,
-            permissions=EventCoHostService._normalise(permissions),
-        )
+        with UnitOfWork() as uow:
+            row = self._crew.create(
+                organization_id=org.id,
+                user_id=user.id,
+                permissions=EventCoHostService._normalise(permissions),
+            )
+            uow.publish(
+                COHOST_ADDED,
+                {
+                    "user_id": str(user.id),
+                    "organization_id": str(org.id),
+                    "event_id": "",
+                    "scope": "team",
+                },
+                aggregate_id=str(row.id),
+            )
         record_audit(
             actor_id=str(actor_id),
             action="organization.crew_added",

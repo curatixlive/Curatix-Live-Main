@@ -144,6 +144,16 @@ SCHEDULE: tuple[ScheduledJob, ...] = (
         payload={"limit": 200},
         why="Re-enqueues sends claimed but never dispatched.",
     ),
+    ScheduledJob(
+        task_name="notifications.lifecycle",
+        # Five minutes. The sharpest rule is the hold-expiring warning against a
+        # 10-minute hold: a 5-minute tick lands it once, with minutes still left.
+        # Every rule is exactly-once through the notification ledger, so an
+        # overlapping or repeated sweep sends nothing twice.
+        interval_seconds=300,
+        payload={},
+        why="Time-based messages: hold expiring, event day, pre-sale, milestones, daily summary.",
+    ),
 )
 
 

@@ -57,6 +57,70 @@ def _directions_url(event: Event) -> str:
     return f"https://www.google.com/maps/search/?api=1&query={quote(destination, safe='')}"
 
 
+def _ticket_line(ticket) -> str:
+    """What the door and the buyer need to tell one ticket from another:
+    its type, then its section and seat when assigned, then the gender price
+    it was bought at."""
+    parts = [ticket.ticket_type.name]
+    if ticket.seat_label:
+        seat = f"{ticket.seat_section} {ticket.seat_label}".strip()
+        parts.append(f"seat {seat}")
+    if ticket.gender:
+        parts.append(f"{ticket.gender} ticket")
+    return ", ".join(parts)
+
+
+def _send_whatsapp_tickets(*, service, user, event, booking_id: str, reference: str, tickets):
+    """The tickets themselves on WhatsApp, for somebody who opted in.
+
+    ONE MESSAGE PER TICKET, each with its own QR as the image — a group booking
+    is several people through a door, and each needs a code they can scan
+    straight from their own chat. Without an image link (`PUBLIC_API_URL` unset,
+    so Meta has nowhere to fetch it) a single confirmation goes instead, because
+    a template with an image header cannot be sent without an image. Never
+    raises: the email has already been claimed.
+    """
+    from apps.notifications.repositories import WhatsAppRecipientRepository
+    from apps.notifications.whatsapp import TEMPLATES
+
+    if not service.whatsapp_available():
+        return
+    try:
+        number = WhatsAppRecipientRepository().opted_in_number(user.email)
+        if not number:
+            return
+        base = {
+            "name": user.full_name,
+            "event_title": event.title,
+            "event_when": format_when(event.starts_at),
+            "event_where": f"{event.venue}, {event.city}",
+            "booking_reference": reference,
+            "maps_url": _directions_url(event),
+        }
+        has_image = bool(TEMPLATES[NotificationType.WA_TICKET].image({"qr_token": "x"}))
+        if has_image and tickets:
+            for ticket in tickets:
+                service.notify(
+                    notification_type=NotificationType.WA_TICKET,
+                    recipient=number,
+                    context={
+                        **base,
+                        "ticket_line": _ticket_line(ticket),
+                        "qr_token": ticket.qr_token,
+                    },
+                    dedupe_key=f"wa_ticket:{ticket.id}",
+                )
+        else:
+            service.notify(
+                notification_type=NotificationType.WA_BOOKING_CONFIRMED,
+                recipient=number,
+                context=base,
+                dedupe_key=f"wa_booking:{booking_id}",
+            )
+    except Exception:
+        logger.exception("notifications.whatsapp_tickets_failed", extra={"booking_id": booking_id})
+
+
 def handle_user_registered(payload: dict) -> None:
     """USER_REGISTERED -> welcome email. (Consolidated here from accounts.)"""
     from config.di import build_notification_service
@@ -214,6 +278,14 @@ def handle_booking_confirmed(payload: dict) -> None:
             "payment": payment_context,
         },
         dedupe_key=f"ticket_delivery:{booking_id}:email:{user.email}",
+    )
+    _send_whatsapp_tickets(
+        service=service,
+        user=user,
+        event=event,
+        booking_id=str(booking_id),
+        reference=reference,
+        tickets=list(TicketRepository().list_for_booking(booking_id)),
     )
     # An SMS confirmation — skipped cleanly if the user has no phone on file.
     service.notify(
@@ -861,3 +933,238 @@ def _when_display(iso: str) -> str:
         return datetime.fromisoformat(iso).strftime("%a, %d %b %Y at %I:%M %p").replace(" 0", " ")
     except (TypeError, ValueError):
         return str(iso)
+
+
+# --- the brief's event-driven messages --------------------------------------
+#
+# Each is a thin observer: load what the message needs, `notify` once per
+# recipient under a key that is unique per (fact, person), and never raise into
+# the bus — a message that cannot be built must not undo the business write that
+# published the event. WhatsApp companions are attached by COMPANIONS in
+# whatsapp.py, so nothing here names a channel.
+
+
+def _site_path(path: str) -> str:
+    site = _site_url()
+    return f"{site}{path}" if site else ""
+
+
+def _event_context(event) -> dict:
+    return {
+        "event_title": event.title,
+        "event_when": format_when(event.starts_at),
+        "event_where": f"{event.venue}, {event.city}",
+        "maps_url": _directions_url(event),
+        "url": _site_path(f"/events/{event.id}"),
+    }
+
+
+def handle_event_changed(payload: dict) -> None:
+    """EVENT_CHANGED -> every ticket holder, by email (and WhatsApp if opted in).
+
+    Published only for a live/paused event whose date, time or venue moved.
+    Deduped per (event, version, person): a second edit is a second message,
+    a redelivery of the same edit is not.
+    """
+    from apps.accounts.repositories import UserRepository
+    from apps.booking.repositories import TicketRepository
+    from apps.events.repositories import EventRepository
+    from config.di import build_notification_service
+
+    event = EventRepository().get_active_by_id(payload["event_id"])
+    if event is None:
+        return
+    holder_ids = TicketRepository().list_holder_user_ids_for_event(event.id)
+    if not holder_ids:
+        return
+    service = build_notification_service()
+    context = {**_event_context(event), "changes": payload.get("changes", [])}
+    version = payload.get("version", "")
+    for user in UserRepository().list_by_ids(holder_ids):
+        try:
+            service.notify(
+                notification_type=NotificationType.EVENT_CHANGED,
+                recipient=user.email,
+                context={"name": user.full_name, **context},
+                dedupe_key=f"event_changed:{event.id}:{version}:{user.id}",
+            )
+        except Exception:
+            logger.exception(
+                "notifications.event_changed.failed",
+                extra={"event_id": str(event.id), "user_id": str(user.id)},
+            )
+
+
+def handle_booking_expired(payload: dict) -> None:
+    """BOOKING_CANCELLED(reason=expired) -> tell the buyer the hold ran out.
+
+    Only the sweeper's `expired` reason: a customer who pressed cancel knows,
+    and a failed payment order already showed its own screen.
+    """
+    if payload.get("reason") != "expired":
+        return
+    from apps.booking.repositories import BookingRepository
+    from config.di import build_notification_service
+
+    booking = BookingRepository().get_by_id(payload["booking_id"])
+    if booking is None:
+        return
+    build_notification_service().notify(
+        notification_type=NotificationType.BOOKING_EXPIRED,
+        recipient=booking.user.email,
+        context={
+            "name": booking.user.full_name,
+            **_event_context(booking.event),
+            "url": _site_path(f"/events/{booking.event_id}"),
+        },
+        dedupe_key=f"booking_expired:{booking.id}:{booking.user_id}",
+    )
+
+
+def handle_followed_organiser_published(payload: dict) -> None:
+    """EVENT_PUBLISHED -> followers who asked to be told (new event announcement)."""
+    from apps.accounts.repositories import UserRepository
+    from apps.events.repositories import EventRepository
+    from apps.organizations.repositories import OrganizationFollowRepository
+    from config.di import build_notification_service
+
+    event = EventRepository().get_active_by_id(payload["event_id"])
+    if event is None or event.invite_only:
+        return
+    ids = OrganizationFollowRepository().follower_user_ids_for_notify(event.organization_id)
+    if not ids:
+        return
+    service = build_notification_service()
+    context = {**_event_context(event), "organiser": event.organization.name}
+    for user in UserRepository().list_by_ids(ids):
+        try:
+            service.notify(
+                notification_type=NotificationType.FOLLOWED_NEW_EVENT,
+                recipient=user.email,
+                context={"name": user.full_name, **context},
+                dedupe_key=f"followed_new_event:{event.id}:{user.id}",
+            )
+        except Exception:
+            logger.exception(
+                "notifications.followed_new_event.failed",
+                extra={"event_id": str(event.id), "user_id": str(user.id)},
+            )
+
+
+def _owner_of(organization_id: str):
+    from apps.accounts.repositories import UserRepository
+    from apps.organizations.repositories import OrganizationRepository
+
+    org = OrganizationRepository().get_by_id(organization_id)
+    if org is None:
+        return None, None
+    return org, UserRepository().get_by_id(org.owner_id)
+
+
+def handle_organization_verified(payload: dict) -> None:
+    """ORGANIZATION_VERIFIED -> the owner: you can publish now."""
+    from config.di import build_notification_service
+
+    org, owner = _owner_of(payload["organization_id"])
+    if org is None or owner is None:
+        return
+    build_notification_service().notify(
+        notification_type=NotificationType.ORG_VERIFIED,
+        recipient=owner.email,
+        context={
+            "name": owner.full_name,
+            "organization_name": org.name,
+            "url": _site_path("/dashboard/events/new"),
+        },
+        dedupe_key=f"org_verified:{org.id}:{owner.id}",
+    )
+
+
+def handle_organization_verification_rejected(payload: dict) -> None:
+    """ORGANIZATION_VERIFICATION_REJECTED -> the owner, with the reviewer's reason."""
+    from config.di import build_notification_service
+
+    org, owner = _owner_of(payload["organization_id"])
+    if org is None or owner is None:
+        return
+    import hashlib
+
+    note_digest = hashlib.sha1(str(payload.get("notes", "")).encode()).hexdigest()[:10]
+    build_notification_service().notify(
+        notification_type=NotificationType.ORG_REJECTED,
+        recipient=owner.email,
+        context={
+            "name": owner.full_name,
+            "organization_name": org.name,
+            "notes": payload.get("notes", ""),
+            "url": _site_path("/dashboard"),
+        },
+        # Keyed on the reviewer's note as well: a second rejection after a
+        # resubmission is a new fact and deserves its own message.
+        dedupe_key=f"org_rejected:{org.id}:{owner.id}:{note_digest}",
+    )
+
+
+def handle_payout_failed(payload: dict) -> None:
+    """PAYOUT_FAILED -> the organiser (still owed) AND the operators."""
+    from apps.settlements.repositories import SettlementRepository
+    from config.di import build_notification_service
+
+    settlement = SettlementRepository().get_by_id(payload["settlement_id"])
+    if settlement is None:
+        return
+    event = settlement.event
+    owner = event.organization.owner
+    reason = payload.get("reason", "")
+    service = build_notification_service()
+    service.notify(
+        notification_type=NotificationType.PAYOUT_FAILED_ORGANIZER,
+        recipient=owner.email,
+        context={
+            "name": owner.full_name,
+            "event_title": event.title,
+            "reason": reason,
+            "amount": _amount_display(max(settlement.net, 0)),
+            "url": _site_path("/dashboard/payouts"),
+        },
+        dedupe_key=f"payout_failed:{settlement.id}:email:{owner.email}",
+    )
+    if _platform_admin_emails():
+        _alert_admins(
+            notification_type=NotificationType.ADMIN_PAYOUT_FAILED,
+            context={
+                "event_title": event.title,
+                "organiser": event.organization.name,
+                "reason": reason,
+                "settlement_id": str(settlement.id),
+            },
+            dedupe_scope=f"admin_payout_failed:{settlement.id}",
+        )
+
+
+def handle_cohost_added(payload: dict) -> None:
+    """COHOST_ADDED -> the person who was just given access."""
+    from apps.accounts.repositories import UserRepository
+    from apps.events.repositories import EventRepository
+    from config.di import build_notification_service
+
+    user = UserRepository().get_by_id(payload["user_id"])
+    org, _owner = _owner_of(payload["organization_id"])
+    if user is None or org is None:
+        return
+    event_title = ""
+    if payload.get("event_id"):
+        event = EventRepository().get_active_by_id(payload["event_id"])
+        event_title = event.title if event else ""
+    build_notification_service().notify(
+        notification_type=NotificationType.COHOST_ADDED,
+        recipient=user.email,
+        context={
+            "name": user.full_name,
+            "organiser": org.name,
+            "event_title": event_title,
+            "permissions": "see sales, attendees and check people in as the organiser allows",
+            "url": _site_path("/dashboard"),
+        },
+        dedupe_key=f"cohost_added:{org.id}:{payload.get('event_id', '')}:{user.id}",
+    )

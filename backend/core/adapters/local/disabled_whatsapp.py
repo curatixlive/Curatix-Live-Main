@@ -38,6 +38,7 @@ class DisabledWhatsAppAdapter(WhatsAppPort):
         language: str,
         params: list[str],
         button_param: str = "",
+        header_image_url: str = "",
     ) -> str:
         # No `to` in the log: a phone number is personal data.
         logger.error("disabled_whatsapp.send_attempted", extra={"template": template})

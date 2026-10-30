@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import cast
 
 from django.conf import settings
+from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
@@ -548,4 +549,29 @@ class EventFeesView(APIView):
 
         response = Response(build_fee_policy_service().for_event(event_id))
         response["Cache-Control"] = "public, max-age=60"
+        return response
+
+
+class TicketQrImageView(APIView):
+    """GET /tickets/qr/{token}.png — the ticket QR as an image, for WhatsApp.
+
+    Public, because Meta's servers fetch it with no credentials. Only a token
+    with a valid signature is drawn (404 otherwise), so this cannot be used to
+    mint a QR the door would accept. Cached for a day: a token never changes.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+
+    @extend_schema(responses={200: None}, operation_id="ticket_qr_image")
+    def get(self, request: Request, token: str) -> HttpResponse:
+        from core.errors import NotFoundError
+
+        from .qr import verify_ticket_token
+        from .qr_image import ticket_qr_png
+
+        if verify_ticket_token(token, secret=settings.TICKET_QR_SIGNING_KEY) is None:
+            raise NotFoundError("No such ticket.")
+        response = HttpResponse(ticket_qr_png(token), content_type="image/png")
+        response["Cache-Control"] = "public, max-age=86400, immutable"
         return response

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from core.tasks import register_task
 
-from .services import DISPATCH_TASK, EVENT_REMINDER_TASK, SWEEP_STUCK_TASK
+from .services import DISPATCH_TASK, EVENT_REMINDER_TASK, LIFECYCLE_TASK, SWEEP_STUCK_TASK
 
 
 @register_task(DISPATCH_TASK)
@@ -36,3 +36,12 @@ def sweep_stuck(payload: dict) -> None:
         older_than_seconds=int(payload.get("older_than_seconds", 300)),
         limit=int(payload.get("limit", 200)),
     )
+
+
+@register_task(LIFECYCLE_TASK)
+def run_lifecycle(payload: dict) -> None:
+    """The time-based messages (hold expiring, event day, milestones, daily
+    summary...). Scheduler-fired; every rule is exactly-once via the ledger."""
+    from config.di import build_lifecycle_service
+
+    build_lifecycle_service().run()
