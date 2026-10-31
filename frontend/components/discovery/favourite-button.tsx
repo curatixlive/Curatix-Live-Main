@@ -103,7 +103,7 @@ export function FavouriteButton({
       <Bookmark
         key={`bookmark-${beat}`}
         className={cn(
-          'size-[18px] transition-colors duration-fast',
+          'size-5 transition-colors duration-fast',
           // Saved is carried by the shape going solid AND by the brand violet,
           // so it reads without relying on colour alone.
           saved && 'fill-primary text-primary',
