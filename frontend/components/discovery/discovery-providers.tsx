@@ -10,11 +10,9 @@ import { SHELL_ID } from '@/lib/utils/focus-trap';
 /**
  * EVERYTHING A DISCOVERY SURFACE NEEDS MOUNTED AROUND IT.
  *
- * Three providers and the mobile event deck, as one thing — because there are
- * two places that render the landing page now (the public `/` and the
- * organizer's `/dashboard/home`), and a second hand-assembled stack is how one
- * of them ends up missing a provider. That failure is not subtle when it
- * happens and it is invisible until it does: a card that opens the deck throws
+ * Three providers and the mobile event deck, as one thing — one stack rather than
+ * hand-assembled ones, because a route missing a provider renders flawlessly and
+ * is invisible until it does: a card that opens the deck throws
  * "must be used within EventDeckProvider" on press, not on render.
  *
  * ── WHY IT OWNS `#site-shell` ────────────────────────────────────────────

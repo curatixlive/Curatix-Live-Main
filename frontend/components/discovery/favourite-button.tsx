@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Heart } from 'lucide-react';
+import { Bookmark } from 'lucide-react';
 import { useIsSaved } from '@/lib/discovery/use-favourites';
 import { cn } from '@/lib/utils/cn';
 
@@ -76,7 +76,12 @@ export function FavouriteButton({
         toggle();
       }}
       className={cn(
-        'glass-media relative inline-flex size-9 items-center justify-center rounded-full border text-on-gradient',
+        // A BOOKMARK on a frosted white pill. It was a heart on a dark grey disc:
+        // the disc read as a heavy blob on a light card, and a heart says
+        // "like" where this means "keep for later" (which is what the Saved
+        // list is). White frost works on a poster, on a card and in dark mode.
+        'relative inline-flex size-9 items-center justify-center rounded-full border border-border/70',
+        'bg-surface/90 text-foreground shadow-md backdrop-blur-md',
         'transition duration-fast ease-out hover:scale-[1.06] active:scale-95',
         'motion-reduce:hover:scale-100',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
@@ -95,23 +100,16 @@ export function FavouriteButton({
           className="pointer-events-none absolute inset-0 animate-ring-out rounded-full border-2 border-current motion-reduce:animate-none motion-reduce:opacity-0"
         />
       ) : null}
-      <Heart
-        key={`heart-${beat}`}
+      <Bookmark
+        key={`bookmark-${beat}`}
         className={cn(
-          'size-4 transition-colors duration-fast',
-          // ONLY THE FILL CHANGES. The stroke stays the ambient ink, so the
-          // heart's OUTLINE keeps its contrast wherever this button is used —
-          // white on a dark scrim over an arbitrary poster, muted ink on the
-          // light bordered variant — and the saved state is carried by the
-          // shape going solid, which is what a filled heart means everywhere.
-          //
-          // It was `fill-accent text-accent`. `--accent` was pink; it is the
-          // deeper wayfinding VIOLET now, and recolouring the stroke as well as
-          // the fill dropped the whole glyph to ~1.3:1 against the scrim — a
-          // state change you could only see if you already knew it was there.
-          saved && 'fill-destructive',
+          'size-[18px] transition-colors duration-fast',
+          // Saved is carried by the shape going solid AND by the brand violet,
+          // so it reads without relying on colour alone.
+          saved && 'fill-primary text-primary',
           beat > 0 && saved && 'animate-heart-pop motion-reduce:animate-none',
         )}
+        strokeWidth={1.75}
         aria-hidden
       />
     </button>

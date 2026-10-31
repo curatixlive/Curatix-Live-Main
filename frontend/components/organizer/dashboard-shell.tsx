@@ -60,13 +60,11 @@ import { BackButton, MobileMenu } from './mobile-menu';
  * signed-out visitor a screenful of failing widgets.
  */
 /**
- * Routes that lay themselves out.
- *
- * `/dashboard/home` is the attendee landing page rendered inside the
- * organizer shell — it is built from `Section`/`Container`, which already own
- * the gutter and the max width, so the shell must not add a second set.
+ * Routes that lay themselves out (and so must not get the shell's own gutter and
+ * max width). None today: the only one was `/dashboard/home`, the attendee
+ * landing page, which no longer exists inside the organiser portal.
  */
-const FULL_BLEED_ROUTES = new Set(['/dashboard/home']);
+const FULL_BLEED_ROUTES = new Set<string>();
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '/dashboard';

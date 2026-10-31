@@ -173,7 +173,17 @@ export function StatCard({
 
       {/* `tabular-nums`: a row of these updates on a poll, and proportional
           digits change width as the value changes, so the whole row twitches. */}
-      <span className={VALUE_ROW}>{value}</span>
+      <span
+        className={cn(
+          VALUE_ROW,
+          // A money figure like "₹11,351.12" is ten characters; at the full
+          // heading size it does not fit a two-up phone card and was cut to
+          // "₹11,351.…". One size down, it fits and the amount is readable.
+          typeof value === 'string' && value.length > 8 && 'text-h4',
+        )}
+      >
+        {value}
+      </span>
 
       {progress ? (
         <ProgressBar value={progress.value} aria-label={progress.label} className="mt-0.5" />

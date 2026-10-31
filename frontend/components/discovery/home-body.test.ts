@@ -3,21 +3,12 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * ONE LANDING PAGE, TWO MOUNTS.
+ * THE LANDING PAGE BELONGS TO THE ATTENDEE SITE ONLY.
  *
- * An organizer pressing Home used to be sent to `/`, which is a different
- * route GROUP — so the attendee shell took over and the four-tab public bar
- * replaced the organizer's own. The fix is `/dashboard/home`: the same landing
- * page rendered under the dashboard layout, where the chrome stays put.
- *
- * That means one page arrangement in two route groups, and this is the file
- * that stops it becoming two. A source scan rather than a render, for the same
- * reason `static-routes.test.ts` reads the filesystem: the claim is about how
- * the two routes are COMPOSED, and there is no rendered output in which
- * "these two pages share a component" is visible.
- *
- * Every assertion here fails silently in production. A second copy of the
- * sections renders perfectly — identically, the week it is written.
+ * The organiser portal once rendered a copy of it at `/dashboard/home`, so a Home
+ * tab could show it inside the dashboard. That mixed the two products and was
+ * removed; this file keeps it from coming back. Source scans rather than
+ * renders, because the claim is about how the routes are COMPOSED.
  */
 
 const ROOT = process.cwd();
@@ -27,7 +18,7 @@ const PUBLIC_PAGE = 'app/(site)/page.tsx';
 const ORGANIZER_PAGE = 'app/(organizer)/dashboard/home/page.tsx';
 const SITE_LAYOUT = 'app/(site)/layout.tsx';
 
-describe('both landing routes render the same body', () => {
+describe("the landing page is the ATTENDEE site's alone", () => {
   it('the public route delegates to HomeBody', () => {
     const source = read(PUBLIC_PAGE);
     expect(source).toContain('HomeBody');
@@ -36,64 +27,44 @@ describe('both landing routes render the same body', () => {
     expect(source).not.toContain('<AllEvents');
   });
 
-  it('the organizer route delegates to the same component', () => {
+  it('the organiser portal has NO copy of it: its old home route just redirects', () => {
+    // `/dashboard/home` used to render the attendee landing page (posters, save
+    // buttons, featured events) inside the organiser dashboard. The two are
+    // separate products now; a bookmarked URL lands on the organiser overview.
     const source = read(ORGANIZER_PAGE);
-    expect(source).toContain("from '@/components/discovery/home-body'");
-    expect(source).toContain('<HomeBody />');
-    expect(source).not.toContain('<Showcase');
+    expect(source).toContain("redirect('/dashboard')");
+    expect(source).not.toContain('HomeBody');
+    expect(source).not.toContain('DiscoveryProviders');
+    for (const attendee of ['SiteHeader', 'SiteFooter', 'SiteBottomNav', 'AnnouncementBar']) {
+      expect(source).not.toContain(attendee);
+    }
   });
 });
 
 describe('what stays on the public URL only', () => {
-  it('keeps the canonical and the WebSite structured data off the dashboard copy', () => {
-    // They are claims about `/`. The dashboard group is `noindex`, and telling
-    // a crawler that the copy behind a login is the same document is the one
-    // thing this split could get actively wrong.
-    // Matched on the CODE, not on the word: both files discuss the split in
-    // prose, and a scan that trips over its own documentation is a scan
-    // nobody trusts the next time it goes red.
+  it('keeps the canonical and the WebSite structured data on the public page', () => {
     expect(read(PUBLIC_PAGE)).toContain('alternates: { canonical');
     expect(read(PUBLIC_PAGE)).toContain('webSiteJsonLd({');
-
-    const organizer = read(ORGANIZER_PAGE);
-    expect(organizer).not.toContain('alternates:');
-    expect(organizer).not.toContain('webSiteJsonLd({');
   });
 });
 
-describe('there is ONE discovery provider stack', () => {
-  it('both mounts go through DiscoveryProviders', () => {
+describe('the attendee layout mounts the discovery providers once', () => {
+  it('goes through DiscoveryProviders and does not hand-roll them', () => {
     // A discovery card opens the mobile event deck on press. A route missing
-    // `EventDeckProvider` renders flawlessly and throws on the first tap —
-    // which is exactly the failure a second hand-assembled stack produces.
-    expect(read(SITE_LAYOUT)).toContain('<DiscoveryProviders');
-    expect(read(ORGANIZER_PAGE)).toContain('<DiscoveryProviders');
-  });
-
-  it('neither one hand-rolls the providers beside it', () => {
-    for (const path of [SITE_LAYOUT, ORGANIZER_PAGE]) {
-      const source = read(path);
-      expect(source).not.toContain('<LocationProvider');
-      expect(source).not.toContain('<SearchProvider');
-      expect(source).not.toContain('<EventDeckProvider');
-      // The deck is mounted by the providers component, once.
-      expect(source).not.toContain('<EventWidgetDeck');
-    }
+    // `EventDeckProvider` renders flawlessly and throws on the first tap.
+    const source = read(SITE_LAYOUT);
+    expect(source).toContain('<DiscoveryProviders');
+    expect(source).not.toContain('<LocationProvider');
+    expect(source).not.toContain('<SearchProvider');
+    expect(source).not.toContain('<EventDeckProvider');
+    expect(source).not.toContain('<EventWidgetDeck');
   });
 });
 
-describe('the organizer route keeps the dashboard chrome', () => {
-  it('lives under the dashboard segment, which is what makes the bar stay', () => {
-    // The whole bug was the route GROUP changing. `(organizer)/dashboard/...`
-    // is what keeps `DashboardShell` — and therefore the organizer's own
-    // header and bottom bar — wrapped around it.
-    expect(ORGANIZER_PAGE.startsWith('app/(organizer)/dashboard/')).toBe(true);
-  });
-
-  it('does not pull in any attendee chrome', () => {
-    const source = read(ORGANIZER_PAGE);
-    for (const attendee of ['SiteHeader', 'SiteFooter', 'SiteBottomNav', 'AnnouncementBar']) {
-      expect(source).not.toContain(attendee);
-    }
+describe('the attendee site never shows the organiser bar', () => {
+  it('SiteBottomNav has no organiser navigation in it', () => {
+    const source = read('components/shell/site-bottom-nav.tsx');
+    expect(source).not.toContain('OrganizerFooterNav');
+    expect(source).not.toContain('useScope');
   });
 });

@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils/cn';
  * It reads `ORGANIZER_SECTIONS`, the same list the sidebar and the ⌘K palette
  * read, so a section added there appears here with no further change.
  */
-export function MobileMenu() {
+export function MobileMenu({ variant = 'icon' }: { variant?: 'icon' | 'tab' }) {
   const pathname = usePathname() ?? '';
   const [open, setOpen] = React.useState(false);
 
@@ -35,13 +35,30 @@ export function MobileMenu() {
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <button
-          type="button"
-          aria-label="Open menu"
-          className="inline-flex h-control w-control shrink-0 items-center justify-center rounded-full text-foreground transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
-        >
-          <Menu className="size-5" aria-hidden />
-        </button>
+        {variant === 'tab' ? (
+          <button
+            type="button"
+            aria-label="Open menu"
+            className={cn(
+              'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-2xl px-0 py-2 text-caption text-muted-foreground',
+              'transition-colors duration-slow ease-out hover:text-foreground motion-reduce:transition-none',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+            )}
+          >
+            <span aria-hidden className="inline-flex items-center justify-center px-3 py-0.5">
+              <Menu className="size-5" />
+            </span>
+            <span className="max-w-full truncate">Menu</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            aria-label="Open menu"
+            className="inline-flex h-control w-control shrink-0 items-center justify-center rounded-full text-foreground transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+          >
+            <Menu className="size-5" aria-hidden />
+          </button>
+        )}
       </DrawerTrigger>
       <DrawerContent side="left" bare hideClose aria-describedby={undefined} className="max-w-xs">
         <DrawerTitle className="border-b border-border px-4 py-3">Organizer menu</DrawerTitle>

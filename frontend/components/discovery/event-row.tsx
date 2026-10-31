@@ -209,7 +209,7 @@ export function EventRow({
               <FavouriteButton
                 eventId={event.id}
                 title={event.title}
-                className="relative z-10 size-11 border-border bg-surface text-muted-foreground hover:text-foreground sm:size-9"
+                className="relative z-10 size-11 sm:size-9"
               />
               {/* Absent below `sm`, and it has to be: at 238px of row the
                   price, a 44px heart and a 112px pill do not fit, and this is

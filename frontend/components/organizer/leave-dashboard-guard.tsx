@@ -16,9 +16,8 @@ import {
 /**
  * "YOU ARE LEAVING THE ORGANIZER DASHBOARD."
  *
- * The dashboard now renders attendee content — the landing page at
- * `/dashboard/home`, an event's public page behind "View public page", the
- * deck's Book tickets — and every one of those links leads into the ATTENDEE
+ * The dashboard still links out to attendee pages — an event's public page behind
+ * "View public page", the deck's Book tickets — and every one of those links leads into the ATTENDEE
  * shell. Following one silently swaps the whole chrome: the organizer's header
  * and bottom bar vanish and the four-tab public bar takes their place, which
  * reads as the app having thrown them out. This asks first.

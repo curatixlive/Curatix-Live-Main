@@ -18,6 +18,7 @@ from typing import cast
 from uuid import UUID
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -755,3 +756,55 @@ class CampaignSendView(OrganizerView):
             **kwargs,
         )
         return _no_store(Response(result))
+
+
+class CoHostedEventsView(APIView):
+    """GET /organizer/cohosted-events — the events somebody else lets me help run.
+
+    One card's worth per event: the poster, the headline numbers and what this
+    person may do. It lives HERE and not in `events` because the numbers (tickets
+    sold, capacity, check-ins, revenue) come from ticketing, booking and payments
+    rows, and `events` must not depend on them.
+
+    **Money follows the `finance` permission, exactly as the analytics page
+    does:** revenue is `null` — not zero — for a co-host without it, so a card
+    cannot say "₹0" about a figure that was simply withheld.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses={200: None})
+    def get(self, request: Request) -> Response:
+        from apps.events.repositories import EventCoHostRepository
+
+        user = cast(User, request.user)
+        rows = EventCoHostRepository().events_for_user(user.id)
+        ids = [row.event_id for row in rows]
+        repo = OrganizerRepository()
+        capacity = repo.capacity_by_event(ids) if ids else {}
+        checkins = repo.checkins_by_event(ids) if ids else {}
+        revenue = repo.revenue_by_event(ids) if ids else {}
+        data = []
+        for row in rows:
+            perms = dict(row.permissions or {})
+            cap, sold, _tiers = capacity.get(row.event_id, (0, 0, 0))
+            data.append(
+                {
+                    "event_id": str(row.event_id),
+                    "title": row.event.title,
+                    "status": row.event.status,
+                    "starts_at": row.event.starts_at.isoformat(),
+                    "ends_at": row.event.ends_at.isoformat() if row.event.ends_at else None,
+                    "city": row.event.city,
+                    "venue": row.event.venue,
+                    "poster_url": row.event.poster_url or "",
+                    "host": row.event.organization.name,
+                    "permissions": perms,
+                    "via": getattr(row, "via", "event"),
+                    "capacity": cap,
+                    "tickets_sold": sold,
+                    "checked_in": checkins.get(row.event_id, 0),
+                    "revenue_minor": revenue.get(row.event_id, 0) if perms.get("finance") else None,
+                }
+            )
+        return _no_store(Response({"data": data}))

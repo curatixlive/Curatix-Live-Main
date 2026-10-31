@@ -55,9 +55,18 @@ export type CoHostedEvent = {
   title: string;
   status: string;
   starts_at: string;
+  ends_at: string | null;
   city: string;
+  venue: string;
+  /** Empty when the event has no cover; the card draws a placeholder. */
+  poster_url: string;
   host: string;
   permissions: CoHostPermissions;
+  capacity: number;
+  tickets_sold: number;
+  checked_in: number;
+  /** `null` — not zero — when this person lacks the `finance` right. */
+  revenue_minor: number | null;
 };
 
 export const fetchCoHostedEvents = () =>

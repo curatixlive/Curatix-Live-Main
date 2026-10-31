@@ -28,9 +28,8 @@ import { SITE_NAME, SITE_URL } from '@/lib/seo/metadata';
  * "trending near you"), the shared search overlay (header, hero and ⌘K all
  * drive one instance, code-split until first opened) and the mobile event deck
  * — is `DiscoveryProviders`. It is a component rather than three nested
- * providers written out here because the organizer dashboard renders the same
- * landing page at `/dashboard/home`, and a second hand-assembled stack is how
- * one of them ends up missing a provider.
+ * providers written out here because a hand-assembled stack is how a route
+ * ends up missing a provider.
  */
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {

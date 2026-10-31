@@ -43,8 +43,8 @@ class TestManaging:
             "attendees": True,
             "checkin": True,
             "finance": False,
-            "bookings": False,
-            "edit": False,
+            "bookings": True,
+            "edit": True,
         }
 
     def test_the_host_can_choose_per_person(self, world, helper) -> None:
@@ -150,14 +150,24 @@ class TestWhatACoHostSees:
 
 
 class TestBookingsAndEditRights:
-    """`bookings` (purchases list) and `edit` (event details) are opt-in per person."""
+    """`bookings` (purchases list) and `edit` (event details) are ON for a new co-host
+    — everything except money — and the host can switch either off per person."""
 
     def _bookings_url(self, world) -> str:
         return f"/api/v1/organizer/bookings?event_id={world.event.id}"
 
-    def test_bookings_are_hidden_from_a_cohost_by_default(self, world, helper) -> None:
+    def test_bookings_are_visible_to_a_new_cohost_by_default(self, world, helper) -> None:
         add(world, helper)
+        assert auth(helper).get(self._bookings_url(world)).status_code == 200
+
+    def test_bookings_are_hidden_once_the_host_switches_them_off(self, world, helper) -> None:
+        add(world, helper, permissions={"bookings": False})
         assert auth(helper).get(self._bookings_url(world)).status_code == 404
+
+    def test_the_default_cohost_still_sees_no_money(self, world, helper) -> None:
+        add(world, helper)
+        rows = auth(helper).get(self._bookings_url(world)).json()["data"]
+        assert rows and all(row["total_amount_minor"] is None for row in rows)
 
     def test_a_stranger_cannot_read_an_events_bookings(self, world, helper) -> None:
         assert auth(helper).get(self._bookings_url(world)).status_code == 404
@@ -199,9 +209,13 @@ class TestBookingsAndEditRights:
             format="json",
         )
 
-    def test_edit_is_refused_by_default(self, world, helper) -> None:
-        add(world, helper)
+    def test_edit_is_refused_once_the_host_switches_it_off(self, world, helper) -> None:
+        add(world, helper, permissions={"edit": False})
         assert self._patch(world, helper, title="Hijacked").status_code == 403
+
+    def test_edit_is_allowed_for_a_new_cohost_by_default(self, world, helper) -> None:
+        add(world, helper)
+        assert self._patch(world, helper, title="Fresh title").status_code == 200
 
     def test_a_cohost_with_edit_changes_the_details(self, world, helper) -> None:
         from apps.events.models import Event
@@ -252,3 +266,30 @@ class TestOnePermissionAtATime:
         url = f"{cohosts_url(world.event.id)}/{row['id']}"
         response = auth(world.owner).patch(url, {"permissions": {"payouts": True}}, format="json")
         assert response.status_code == 422
+
+
+class TestCoHostedEventsCards:
+    """`GET /organizer/cohosted-events` — the card data, and money follows `finance`."""
+
+    URL = "/api/v1/organizer/cohosted-events"
+
+    def test_a_card_carries_the_poster_and_the_headline_numbers(self, world, helper) -> None:
+        add(world, helper)
+        rows = auth(helper).get(self.URL).json()["data"]
+        row = next(r for r in rows if r["event_id"] == str(world.event.id))
+        for key in ("poster_url", "venue", "capacity", "tickets_sold", "checked_in", "ends_at"):
+            assert key in row
+        assert row["host"]
+
+    def test_revenue_is_withheld_not_zero_without_finance(self, world, helper) -> None:
+        add(world, helper)
+        row = auth(helper).get(self.URL).json()["data"][0]
+        assert row["revenue_minor"] is None
+
+    def test_revenue_appears_with_finance(self, world, helper) -> None:
+        add(world, helper, permissions={"finance": True})
+        row = auth(helper).get(self.URL).json()["data"][0]
+        assert isinstance(row["revenue_minor"], int)
+
+    def test_a_stranger_sees_nothing(self, world, helper) -> None:
+        assert auth(helper).get(self.URL).json()["data"] == []

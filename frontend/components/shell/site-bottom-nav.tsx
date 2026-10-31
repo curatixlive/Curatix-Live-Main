@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { CalendarDays, Home, Heart, Music4 } from 'lucide-react';
+import { Bookmark, CalendarDays, Home, Music4 } from 'lucide-react';
 import { BottomNav } from './bottom-nav';
 
 /**
@@ -28,7 +28,7 @@ export function SiteBottomNav() {
         // mobile Saved tab 404'd from the moment it shipped. The bottom nav is
         // the ONLY route to saved events on a phone, so it took the whole
         // feature with it.
-        { href: '/account/saved', label: 'Saved', icon: <Heart className="size-5" /> },
+        { href: '/account/saved', label: 'Saved', icon: <Bookmark className="size-5" /> },
         { href: '/hire', label: 'Hire', icon: <Music4 className="size-5" /> },
       ]}
     />

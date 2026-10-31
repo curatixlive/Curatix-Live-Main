@@ -29,11 +29,11 @@ import {
  *
  * ── WHY IT LEFT `app/(site)/page.tsx` ────────────────────────────────────
  *
- * An organizer pressing Home in their bottom bar used to be sent to `/`, which
- * is a different route GROUP: the attendee shell took over, so the four-tab
- * public bar (Home, Events, Saved, Hire) replaced the organizer's own and they
- * had left the product. The landing page is now rendered INSIDE the dashboard
- * at `/dashboard/home`, where the organizer chrome stays put.
+ * The landing page is the ATTENDEE site's alone. It was once also rendered inside
+ * the organiser dashboard (at `/dashboard/home`) so a Home tab could show it
+ * without swapping the shell; that put attendee content — posters, save buttons —
+ * inside the organiser's console, and was removed. `/dashboard/home` now just
+ * redirects to the organiser overview.
  *
  * That needs the same page in two route groups, and this is the one copy of
  * it. A second arrangement of these nine sections for the organizer's version

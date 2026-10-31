@@ -41,11 +41,6 @@ urlpatterns = [
         name="organization-crew-detail",
     ),
     path(
-        "organizer/cohosted-events",
-        api.CoHostedEventsView.as_view(),
-        name="organizer-cohosted-events",
-    ),
-    path(
         "events/<uuid:event_id>/invites",
         api.EventInviteView.as_view(),
         name="event-invites",

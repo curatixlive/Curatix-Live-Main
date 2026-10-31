@@ -560,37 +560,6 @@ class OrganizationCrewDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CoHostedEventsView(APIView):
-    """GET /organizer/cohosted-events — the events somebody else lets me help run."""
-
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(responses={200: None})
-    def get(self, request: Request) -> Response:
-        from .repositories import EventCoHostRepository
-
-        rows = EventCoHostRepository().events_for_user(cast(User, request.user).id)
-        return _no_store(
-            Response(
-                {
-                    "data": [
-                        {
-                            "event_id": str(row.event_id),
-                            "title": row.event.title,
-                            "status": row.event.status,
-                            "starts_at": row.event.starts_at.isoformat(),
-                            "city": row.event.city,
-                            "host": row.event.organization.name,
-                            "permissions": dict(row.permissions or {}),
-                            "via": getattr(row, "via", "event"),
-                        }
-                        for row in rows
-                    ]
-                }
-            )
-        )
-
-
 class OrganizerEventListView(APIView):
     permission_classes = [IsAuthenticated]
     pagination_class = OrganizerEventCursorPagination

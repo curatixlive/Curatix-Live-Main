@@ -3,7 +3,8 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, CalendarDays, Home, Plus, QrCode } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, Plus, QrCode } from 'lucide-react';
+import { MobileMenu } from '@/components/organizer/mobile-menu';
 import { isActive } from '@/components/shell/bottom-nav';
 import { useScrollDirection } from '@/lib/utils/use-scroll-direction';
 import { cn } from '@/lib/utils/cn';
@@ -24,31 +25,16 @@ import { cn } from '@/lib/utils/cn';
  * both bars. Two navigations that disagree about which page you are on is the
  * drift that avoids.
  *
- * ── HOME IS THE LANDING PAGE, RENDERED INSIDE THE DASHBOARD ─────────────
+ * ── ORGANISER DESTINATIONS ONLY ─────────────────────────────────────────
  *
- * Home used to point at `/`, and that was the bug: `/` is a different route
- * GROUP, so pressing it swapped the whole shell and the four-tab attendee bar
- * (Home, Events, Saved, Hire) replaced this one. Somebody asking for the
- * landing page was shown the landing page AND handed a different product.
+ * Overview, My events, Create (the raised `+`), Scan, and Menu — the last opens
+ * the full section list (Bookings, Payouts, Campaigns…) in a drawer, so every
+ * screen is one press away on a phone.
  *
- * `/dashboard/home` renders the identical `HomeBody` under the dashboard
- * layout, so the header, this bar and the active tab all stay exactly where
- * they were. Nothing about the chrome moves; only the content does.
- *
- * That still moved a real destination out of the bar, and `/dashboard` is not
- * optional: it is the landing that carries the attention panel, today's
- * figures AND the sections grid, which is the only route to the eight
- * organizer screens this bar has no room for. So `Dashboard` points at
- * `/dashboard` rather than at `/dashboard/analytics`, and analytics is reached
- * from that grid.
- *
- * Without that swap, taking Home off `/dashboard` would have stranded
- * Bookings, Customers, Promotions, Payouts, Refunds, Crew, Reviews, Support
- * and Activity behind no link at all on a phone.
- *
- * The PUBLIC `/` is still reachable, from the account menu's own links — an
- * organizer who wants to leave the dashboard should do it deliberately, not by
- * pressing the tab labelled Home.
+ * There is deliberately NO "Home" tab. It used to render the attendee landing
+ * page (posters, save buttons, featured events) inside the dashboard, which put
+ * the attendee product inside the organiser's. The two are separate: nothing in
+ * this bar leads to a public page, and the public site never shows this bar.
  *
  * ── THE ACTIVE MARK IS VIOLET HERE, AND BUTTER ON THE PUBLIC SITE ────────
  *
@@ -104,15 +90,22 @@ type NavItem = {
   exact?: boolean;
 };
 
+// ORGANISER DESTINATIONS ONLY. This bar used to start with a "Home" tab that
+// rendered the attendee landing page inside the dashboard, which mixed the two
+// products. The organiser portal and the attendee site are separate: nothing
+// here leads to a public page, and the last tab opens the full section list.
 const LEFT: NavItem[] = [
-  // The landing page, rendered INSIDE the dashboard. See the note above.
-  { href: '/dashboard/home', label: 'Home', icon: <Home className="size-5" />, exact: true },
+  {
+    href: '/dashboard',
+    label: 'Overview',
+    icon: <LayoutDashboard className="size-5" />,
+    exact: true,
+  },
   { href: '/dashboard/events', label: 'My events', icon: <CalendarDays className="size-5" /> },
 ];
 
 const RIGHT: NavItem[] = [
   { href: '/dashboard/check-in', label: 'Scan', icon: <QrCode className="size-5" /> },
-  { href: '/dashboard', label: 'Dashboard', icon: <BarChart3 className="size-5" />, exact: true },
 ];
 
 export function OrganizerFooterNav({ className }: { className?: string }) {
@@ -220,6 +213,7 @@ export function OrganizerFooterNav({ className }: { className?: string }) {
         {RIGHT.map((item) => (
           <Tab key={item.href} item={item} pathname={pathname} />
         ))}
+        <MobileMenu variant="tab" />
       </nav>
     </div>
   );

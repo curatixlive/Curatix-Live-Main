@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/dashboard/events',
+  useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
 }));
+vi.mock('@/lib/auth/auth-provider', () => ({
+  useAuth: () => ({ signOut: () => Promise.resolve() }),
+}));
+vi.mock('@/components/shell/theme-toggle', () => ({ ThemeToggle: () => null }));
 
 import { ORGANIZER_SECTIONS } from '@/lib/organizer/nav';
 import { OrganizerFooterNav, ORGANIZER_NAV_CLEARANCE } from './organizer-footer-nav';
@@ -13,15 +18,12 @@ import { OrganizerFooterNav, ORGANIZER_NAV_CLEARANCE } from './organizer-footer-
  * safe rather than merely tidy.
  */
 describe('OrganizerFooterNav', () => {
-  it('offers the five destinations, with Create as an action', () => {
+  it('offers ONLY organiser destinations, with Create as an action and Menu for the rest', () => {
     render(<OrganizerFooterNav />);
     const nav = screen.getByRole('navigation', { name: 'Organizer' });
 
-    // THE LANDING PAGE, rendered inside the dashboard. Pointing this at `/`
-    // swaps the whole route group, so the attendee's four-tab bar replaces
-    // this one — the chrome changing under somebody is the bug this pins.
-    expect(within(nav).getByRole('link', { name: 'Home' }).getAttribute('href')).toBe(
-      '/dashboard/home',
+    expect(within(nav).getByRole('link', { name: 'Overview' }).getAttribute('href')).toBe(
+      '/dashboard',
     );
     expect(within(nav).getByRole('link', { name: 'My events' }).getAttribute('href')).toBe(
       '/dashboard/events',
@@ -29,18 +31,25 @@ describe('OrganizerFooterNav', () => {
     expect(within(nav).getByRole('link', { name: 'Scan' }).getAttribute('href')).toBe(
       '/dashboard/check-in',
     );
-    // The organizer's OWN landing, which is where Home used to point. It
-    // carries the sections grid, so this tab is what keeps the eight screens
-    // the bar has no room for reachable at all.
-    expect(within(nav).getByRole('link', { name: 'Dashboard' }).getAttribute('href')).toBe(
-      '/dashboard',
-    );
-
     // The centre button is a lone glyph, so its accessible name has to be
     // written rather than inherited from a label that is not drawn.
     expect(within(nav).getByRole('link', { name: 'Create an event' }).getAttribute('href')).toBe(
       '/dashboard/events/new',
     );
+    // Everything the bar has no room for sits behind Menu.
+    expect(within(nav).getByRole('button', { name: 'Open menu' })).toBeTruthy();
+  });
+
+  it('has NO route into the attendee site: no Home tab, no public link', () => {
+    // The organiser portal and the attendee site are separate products. A
+    // "Home" tab used to render the attendee landing page inside the dashboard.
+    render(<OrganizerFooterNav />);
+    const nav = screen.getByRole('navigation', { name: 'Organizer' });
+    expect(within(nav).queryByRole('link', { name: 'Home' })).toBeNull();
+    const hrefs = within(nav)
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('href') ?? '');
+    expect(hrefs.every((href) => href.startsWith('/dashboard'))).toBe(true);
   });
 
   it('marks the current tab', () => {
@@ -49,11 +58,10 @@ describe('OrganizerFooterNav', () => {
     expect(screen.getByRole('link', { name: 'My events' }).getAttribute('aria-current')).toBe(
       'page',
     );
-    // Dashboard must NOT also claim to be current: every organizer route
+    // Overview must NOT also claim to be current: every organizer route
     // starts with `/dashboard`, so a naive prefix match lights it on every
-    // screen. Home is `/`, which `isActive` special-cases for the same reason.
-    expect(screen.getByRole('link', { name: 'Dashboard' }).getAttribute('aria-current')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('aria-current')).toBeNull();
+    // screen.
+    expect(screen.getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBeNull();
   });
 
   it('wears the DEEPER frost, and carries its own elevation', () => {
@@ -126,7 +134,7 @@ describe('OrganizerFooterNav', () => {
     // A nav whose items lose their names is four anonymous glyphs to a screen
     // reader.
     render(<OrganizerFooterNav />);
-    for (const label of ['Home', 'My events', 'Scan', 'Dashboard']) {
+    for (const label of ['Overview', 'My events', 'Scan', 'Menu']) {
       expect(screen.getByText(label)).toBeTruthy();
     }
   });
@@ -143,10 +151,10 @@ describe('OrganizerFooterNav', () => {
 });
 
 describe('nothing is stranded by removing the drawer', () => {
-  it('every section is either on the bar or on the landing page', () => {
+  it('every section is either on the bar or in the Menu drawer', () => {
     // THE REASON THE HAMBURGER COULD GO. The organizer has thirteen
     // destinations and the bar has five; the rest are rendered by
-    // `AllSections` on Home, driven by this same list. If somebody adds a
+    // the Menu drawer, driven by this same list (`ORGANIZER_SECTIONS`). If somebody adds a
     // section and neither place shows it, it is routable and reachable from
     // nothing — which is worse than the drawer, not cleaner.
     const onTheBar = new Set([

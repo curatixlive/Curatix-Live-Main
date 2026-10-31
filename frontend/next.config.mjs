@@ -121,6 +121,16 @@ const nextConfig = {
     // in production.
     remotePatterns: remotePatterns(),
   },
+  // LOCAL DEVELOPMENT ONLY. With local file storage the API hands back posters as
+  // relative `/media/...` paths, which the browser asks THIS server for and gets a
+  // 404 (a grey broken image on every card). In production posters are absolute
+  // storage URLs, so this is never reached there; it is gated off so it cannot
+  // proxy anything on a deployed site.
+  async rewrites() {
+    if (process.env.NODE_ENV === 'production') return [];
+    const api = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    return [{ source: '/media/:path*', destination: `${api.replace(/\/$/, '')}/media/:path*` }];
+  },
   async headers() {
     // Immutable caching for the self-hosted font/static assets; page-level cache
     // headers (ISR / edge) are added per-route as public pages are built, to
