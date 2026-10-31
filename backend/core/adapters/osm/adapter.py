@@ -48,7 +48,9 @@ _ID_RE = re.compile(r"^osm:([NWR])(\d+)$")
 
 
 class OsmMapsAdapter(MapsPort):
-    def __init__(self, *, contact: str = "", session: requests.Session | None = None) -> None:
+    def __init__(self, *, contact: str = "", session: Any = None) -> None:
+        # `Any`: anything with `.get` and `.headers`. Typed loosely so tests can
+        # hand in a stub instead of a real `requests.Session`.
         self._session = session or requests.Session()
         # Both services ask for an identifying agent and ban the default one.
         self._session.headers["User-Agent"] = f"Curatix/1.0 ({contact or 'https://curatix.live'})"
