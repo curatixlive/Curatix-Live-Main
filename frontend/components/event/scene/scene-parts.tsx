@@ -348,14 +348,20 @@ export function FactsGrid({ detail }: { detail: EventDetail | null }) {
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-5 rounded-2xl border border-border bg-surface p-4">
       {facts.map((fact) => (
-        <div key={fact.label} className="flex items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <fact.icon className="size-5" aria-hidden />
+        // A <dl> may hold <dt>/<dd> only directly, or inside ONE wrapping <div>
+        // per group. The text used to sit in a second nested <div>, which axe
+        // reports as invalid markup and a screen reader announces as a stray
+        // list. Laid out with a grid instead: the icon spans both rows and the
+        // term and its value sit beside it.
+        <div key={fact.label} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3">
+          <span
+            className="row-span-2 flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary"
+            aria-hidden
+          >
+            <fact.icon className="size-5" />
           </span>
-          <div className="flex min-w-0 flex-col">
-            <dt className="truncate text-caption text-muted-foreground">{fact.label}</dt>
-            <dd className="truncate text-body-sm font-semibold text-foreground">{fact.value}</dd>
-          </div>
+          <dt className="truncate text-caption text-muted-foreground">{fact.label}</dt>
+          <dd className="truncate text-body-sm font-semibold text-foreground">{fact.value}</dd>
         </div>
       ))}
     </dl>
