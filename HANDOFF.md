@@ -289,6 +289,32 @@ any account reads automatically.
   event page width on tablet, rail gutters, funnel action bar, truncated copy).
 - **Still not built**: a whole-site visual QA on a real device matrix, and the
   items in `PENDING_TASKS.md` / `frontend/BACKLOG.md`.
+- **Session of 30–31 Oct 2026 (what changed, and what is still held back)**
+  - **Live:** self-hosted fonts (`next/font/local`, so a Google outage cannot fail the
+    build); venue search that works with no Google key (OpenStreetMap fallback,
+    `MAPS_FALLBACK=osm`) and no longer sends an invalid Places type; promo codes can
+    be queued before an event is saved (created automatically on first save);
+    tags are optional (minimum removed, backend and frontend); the lifecycle
+    notification sweep and WhatsApp ticket QR; the organiser and attendee portals are
+    separate (the organiser bar is Overview / My events / + / Scan / Menu, and
+    `/dashboard/home` just redirects to `/dashboard`); the save control is a
+    bookmark; co-hosted events are poster cards, and a NEW co-host gets everything
+    except finance by default; the location prompt no longer opens mid-hydration
+    (it caused an intermittent React #418 on about 1 in 5 first visits).
+  - **NOT live — held back on purpose:** the wallet / GST billing / admin-mediated
+    Hire a Band commit (local branch `main`, one commit on top of `curatix/main`).
+    Before it can ship, the owner must set on Render
+    `VENDOR_PAYOUT_BACKEND=cashfree` (the new code refuses to boot on the fake
+    backend) and choose `PAYOUTS_MODE` (`wallet` turns OFF the automatic organiser
+    payout release; `settlements` keeps it). Then run `migrate_safe` on production
+    FIRST (wallet 0001, billing 0001, booking 0013 — a NOT NULL column, so do it
+    immediately before the push — performers 0006, notifications 0019/0020), then push.
+  - **Deploy recipe used:** make fixes in a clean worktree of `curatix/main`, test
+    it (backend suite, ruff, mypy, `makemigrations --check`, frontend `tsc`, eslint,
+    vitest AND `next build`), push, then rebase the local branch onto it.
+  - **Testing notes:** the local stack does not survive a laptop restart (start
+    Postgres, the backend and `npm run dev` again); a full `next build` overwrites
+    the `.next` folder a running `next dev` is using, so restart dev after one.
 - Full list: `PENDING_TASKS.md` and `frontend/BACKLOG.md`.
 
 ---
