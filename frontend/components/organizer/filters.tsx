@@ -81,7 +81,7 @@ export function SearchField({
   }, [draft]);
 
   return (
-    <div className={cn('relative min-w-0 flex-1 sm:max-w-xs', className)}>
+    <div className={cn('relative min-w-40 flex-1 sm:max-w-xs', className)}>
       <label htmlFor={id} className="sr-only">
         {label}
       </label>
