@@ -315,6 +315,16 @@ any account reads automatically.
   - **Testing notes:** the local stack does not survive a laptop restart (start
     Postgres, the backend and `npm run dev` again); a full `next build` overwrites
     the `.next` folder a running `next dev` is using, so restart dev after one.
+- **Known, low severity, NOT fixed — intermittent React #418 on the live home page.**
+  About one first visit in five logs a minified hydration error in the browser
+  console on https://curatix-live.vercel.app/ (React recovers by re-rendering; the
+  page works). It does NOT reproduce locally in dev, nor in a local production
+  build against the live API (0 of 30 loads), so it depends on how Vercel serves
+  the cached page. Ruled out: campaign schedule windows (none set), the
+  location prompt (made post-load-only, still happens), the carousel (starts at
+  slide 0). Next step if it matters: capture the failing document with a Vercel
+  preview deployment and `NEXT_PUBLIC_*` source maps, or bisect by removing home
+  sections one at a time on a preview URL.
 - Full list: `PENDING_TASKS.md` and `frontend/BACKLOG.md`.
 
 ---
