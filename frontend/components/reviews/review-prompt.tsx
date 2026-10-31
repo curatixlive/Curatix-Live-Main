@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Star, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth/auth-provider';
 import { fetchPendingReviews, type PendingReview } from '@/lib/api/reviews';
-import { Modal, ModalContent } from '@/components/ui/modal';
+import { Modal, ModalContent, ModalDescription, ModalTitle } from '@/components/ui/modal';
 import { cn } from '@/lib/utils/cn';
 import { PosterThumb } from '@/components/ticketing/primitives';
 import { ReviewForm } from './review-form';
@@ -119,9 +119,13 @@ export function ReviewPrompt() {
               <p className="text-caption uppercase tracking-wide text-foreground-subtle">
                 You went to
               </p>
-              <h2 className="truncate text-body-lg font-semibold text-foreground">
-                {target.title}
-              </h2>
+              {/* The dialog's real title (Radix `Title`), not just a heading: a
+                  dialog with no title is announced as an unnamed dialog. */}
+              <ModalTitle asChild>
+                <h2 className="truncate text-body-lg font-semibold text-foreground">
+                  {target.title}
+                </h2>
+              </ModalTitle>
               <p className="truncate text-caption text-muted-foreground">
                 {formatAttended(target.ended_at)} · {target.venue}
               </p>
@@ -138,9 +142,9 @@ export function ReviewPrompt() {
 
           {/* One line on why, and it is a true one: the rating is what the next
               person sees. No "help us improve", which is about us. */}
-          <p className="text-body-sm text-muted-foreground">
+          <ModalDescription className="text-body-sm text-muted-foreground">
             A rating takes a second and tells the next person whether to go.
-          </p>
+          </ModalDescription>
 
           <ReviewForm eventId={target.event_id} onDone={() => dismiss(target.event_id)} />
 

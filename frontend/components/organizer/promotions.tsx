@@ -179,7 +179,11 @@ function EmptyPromotions({ onAdd }: { onAdd: () => void }) {
 function CouponTable({ rows, onEdit }: { rows: Coupon[]; onEdit: (coupon: Coupon) => void }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-      <div className="overflow-x-auto">
+      {/* `relative`: the Edit column's sr-only label is absolutely positioned, and
+          an absolute child escapes an overflow clip unless this wrapper is its
+          containing block — which stretched the whole page 250px wider than a
+          phone. */}
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[44rem] border-collapse text-left">
           <thead>
             <tr className="border-b border-border bg-muted/40">

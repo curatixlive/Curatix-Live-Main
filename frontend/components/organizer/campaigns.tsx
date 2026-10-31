@@ -280,7 +280,7 @@ function Composer({ cities, whatsappAvailable }: { cities: string[]; whatsappAva
           send.mutate();
         }}
       >
-        <fieldset className="flex flex-col gap-2">
+        <fieldset className="flex min-w-0 flex-col gap-2">
           <legend className="mb-2 text-label">Send to</legend>
           <AudienceBuilder
             rules={rules}
@@ -299,7 +299,7 @@ function Composer({ cities, whatsappAvailable }: { cities: string[]; whatsappAva
           />
         </fieldset>
 
-        <fieldset className="flex flex-col gap-2">
+        <fieldset className="flex min-w-0 flex-col gap-2">
           <legend className="mb-1 text-label">Send by</legend>
           <div className="flex flex-wrap gap-2">
             <ChannelChip
