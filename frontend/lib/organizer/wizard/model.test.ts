@@ -8,6 +8,7 @@ import {
   SHORT_DESCRIPTION_WORDS_MIN,
   UNSAVED_DRAFT_BLOCKER,
   canCreate,
+  createGaps,
   completion,
   countWords,
   endDateTimeFor,
@@ -284,29 +285,15 @@ describe('publishBlockers', () => {
     expect(publishBlockers(draft)).toContain('One or more ticket types have not saved yet.');
   });
 
-  it('mirrors the server tag minimum, and says how many are missing', () => {
-    // Mirrors `events.publish_checks._require_tags`. Counting DOWN is the
-    // point: "pick 5 more" is actionable where "at least 7 required" makes
-    // somebody count their own chips.
+  it('does not require any tags to publish', () => {
+    // The owner removed the 7-tag minimum. Tags help people find an event but
+    // never block it, so a draft with none has no tag blocker.
     const draft = draftWith({
       eventId: 'evt-1',
       tiers: [tierWith({ serverId: 'tt-1', version: 1 })],
-      tags: ['outdoor', 'networking'],
+      tags: [],
     });
-    expect(publishBlockers(draft)).toEqual([
-      `Pick ${MIN_TAGS_TO_PUBLISH - 2} more tags so people browsing can find this event.`,
-    ]);
-  });
-
-  it('says "tag" rather than "tags" when exactly one is missing', () => {
-    const draft = draftWith({
-      eventId: 'evt-1',
-      tiers: [tierWith({ serverId: 'tt-1', version: 1 })],
-      tags: PUBLISHABLE_TAGS.slice(0, MIN_TAGS_TO_PUBLISH - 1),
-    });
-    expect(publishBlockers(draft)).toEqual([
-      'Pick 1 more tag so people browsing can find this event.',
-    ]);
+    expect(publishBlockers(draft)).toEqual([]);
   });
 
   it('mirrors the server poster gate', () => {
@@ -334,6 +321,37 @@ describe('publishBlockers', () => {
     // below 100% before the picker had been scrolled to.
     const fresh = emptyDraft('org-1');
     expect(validate(fresh).some((issue) => issue.field === 'tags')).toBe(false);
+  });
+});
+
+describe('createGaps', () => {
+  it('names every field the draft still needs before it can save', () => {
+    expect(createGaps(emptyDraft(''))).toEqual([
+      'Choose the organisation running it',
+      'A title',
+      'A venue',
+      'A city',
+      'A start date and time',
+    ]);
+  });
+
+  it('is empty exactly when canCreate is true', () => {
+    const ready = {
+      ...emptyDraft('org-1'),
+      title: 'Show',
+      venue: 'Hall',
+      city: 'Pune',
+      startsAt: '2099-01-01T10:00',
+    };
+    expect(createGaps(ready)).toEqual([]);
+    expect(canCreate(ready)).toBe(true);
+    const past = { ...ready, startsAt: '2001-01-01T10:00' };
+    expect(createGaps(past)).toEqual(['A start time in the future']);
+    expect(canCreate(past)).toBe(false);
+  });
+
+  it('starts a new draft with no queued promo codes', () => {
+    expect(emptyDraft('org-1').pendingCoupons).toEqual([]);
   });
 });
 

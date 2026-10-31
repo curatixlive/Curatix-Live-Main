@@ -23,7 +23,13 @@ import { useToast } from '@/components/ui/toast';
 import { useInvalidateOrganizer } from '@/lib/organizer/queries';
 import { describePublishFailure } from '@/lib/organizer/publish-error';
 import { FlatFormContext } from './fields';
-import { completion, stepStatus, validate, type StepId } from '@/lib/organizer/wizard/model';
+import {
+  completion,
+  createGaps,
+  stepStatus,
+  validate,
+  type StepId,
+} from '@/lib/organizer/wizard/model';
 import { checklistItems } from '@/lib/organizer/wizard/checklist';
 import {
   PHASES,
@@ -35,7 +41,7 @@ import {
   type PhaseId,
   type PhaseMember,
 } from '@/lib/organizer/wizard/phases';
-import { CouponsStep } from './coupons-step';
+import { CouponsStep, usePendingCouponFlush } from './coupons-step';
 
 /**
  * The step a phase OPENS on.
@@ -291,6 +297,8 @@ export function EventWizard({
     toast({ title: 'Draft saved', description: 'Everything so far is stored.' });
   }, [wizard.savedAt, toast]);
   const { draft, update, setTiers } = wizard;
+  // Creates promo codes typed before the event existed, once it has an id.
+  usePendingCouponFlush(draft, update);
   // A co-host with the `edit` right opens the SAME editor on somebody else's
   // event. They change the page, never the sale: tickets, coupons, access and
   // publishing stay with the host (the API refuses them anyway — hiding them is
@@ -460,7 +468,7 @@ export function EventWizard({
       case 'details':
         return <DetailsStep draft={draft} update={update} issues={shownIssues} />;
       case 'coupons':
-        return <CouponsStep draft={draft} save={save} />;
+        return <CouponsStep draft={draft} update={update} save={save} />;
       case 'schedule':
         return <ScheduleStep draft={draft} update={update} issues={shownIssues} save={save} />;
       case 'tickets':
@@ -483,6 +491,7 @@ export function EventWizard({
             )}
             <SeatingPanel
               eventId={draft.eventId}
+              gaps={createGaps(draft)}
               venue={draft.venue}
               city={draft.city}
               placeId={draft.placeId}

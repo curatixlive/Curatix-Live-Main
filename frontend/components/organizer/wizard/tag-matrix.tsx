@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Check } from 'lucide-react';
-import { MAX_TAGS, MIN_TAGS_TO_PUBLISH, TAG_DIMENSIONS } from '@/lib/events/taxonomy';
+import { MAX_TAGS, TAG_DIMENSIONS } from '@/lib/events/taxonomy';
 import { cn } from '@/lib/utils/cn';
 
 /**
@@ -45,7 +45,6 @@ export function TagMatrix({
 }) {
   const chosen = React.useMemo(() => new Set(value), [value]);
   const full = value.length >= MAX_TAGS;
-  const remaining = MIN_TAGS_TO_PUBLISH - value.length;
 
   const toggle = (slug: string) => {
     if (chosen.has(slug)) {
@@ -66,17 +65,14 @@ export function TagMatrix({
           role="status"
           aria-live="polite"
         >
-          {remaining > 0 ? (
-            <>
-              <span className="font-medium text-foreground">
-                {value.length} of {MIN_TAGS_TO_PUBLISH}
-              </span>{' '}
-              — pick {remaining} more to publish.
-            </>
+          {value.length === 0 ? (
+            <>Optional — tags help people find this event. Pick up to {MAX_TAGS}.</>
           ) : (
             <>
-              <span className="font-medium text-foreground">{value.length} tags</span> — enough to
-              publish. Up to {MAX_TAGS}.
+              <span className="font-medium text-foreground">
+                {value.length} tag{value.length === 1 ? '' : 's'}
+              </span>{' '}
+              — up to {MAX_TAGS}.
             </>
           )}
         </p>

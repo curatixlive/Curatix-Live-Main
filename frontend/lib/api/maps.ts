@@ -107,6 +107,18 @@ const query = (params: Record<string, string | number | boolean | undefined>) =>
 /** Whether this deployment has a Maps key at all. Ask BEFORE rendering. */
 export const fetchMapsConfig = () => api.get<MapsConfig>('/maps/config', { auth: false });
 
+/**
+ * Venues, as an organiser types one. Its OWN endpoint, so the client never
+ * names a Google place type: the general endpoint below takes exactly one, and
+ * the venue picker used to send `establishment|geocode`, which it refuses with
+ * a 422 on every keystroke — a search box that never suggested anything.
+ */
+export const fetchVenueSuggestions = (params: {
+  q: string;
+  session_token?: string;
+  country?: string;
+}) => api.get<{ data: PlaceSuggestion[] }>(`/maps/venues/autocomplete${query(params)}`);
+
 export const fetchPlaceSuggestions = (params: {
   q: string;
   session_token?: string;

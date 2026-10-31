@@ -6,7 +6,7 @@ import { Check, Loader2, MapPin, Search, X } from 'lucide-react';
 import {
   fetchMapsConfig,
   fetchPlaceDetail,
-  fetchPlaceSuggestions,
+  fetchVenueSuggestions,
   type PlaceSuggestion,
 } from '@/lib/api/maps';
 import { cn } from '@/lib/utils/cn';
@@ -114,12 +114,10 @@ export function VenueAutocomplete({
   const suggestions = useQuery({
     queryKey: ['maps', 'autocomplete', debounced, country],
     queryFn: () =>
-      fetchPlaceSuggestions({
+      fetchVenueSuggestions({
         q: debounced,
         session_token: sessionToken.current,
         country,
-        // Businesses AND addresses: a venue is often neither purely one.
-        types: 'establishment|geocode',
       }),
     // Below two characters Google returns noise and still bills for it.
     enabled: mapsAvailable && open && debounced.trim().length >= 2,

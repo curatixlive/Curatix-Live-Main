@@ -15,7 +15,7 @@ from __future__ import annotations
 import pytest
 
 from apps.events.models import Event
-from apps.events.taxonomy import ALL_TAGS, MAX_TAGS, MIN_TAGS_TO_PUBLISH
+from apps.events.taxonomy import ALL_TAGS, MAX_TAGS
 
 from .conftest import *  # noqa: F401,F403 — reuse the module's fixtures
 
@@ -28,20 +28,16 @@ class TestThePublishGate:
     fired on save would stop somebody keeping a draft while they think.
     """
 
-    def test_an_event_without_enough_tags_cannot_be_submitted(
+    def test_an_event_with_no_tags_can_be_published(
         self, authed_client, make_event, add_ticket_type
     ):
-        draft = make_event(status="draft", tags=["outdoor"])
-        # Satisfy ticketing's gate, so the refusal can only be about tags.
+        """Tags are optional: the owner removed the 7-tag minimum."""
+        draft = make_event(status="draft", tags=[])
         add_ticket_type(draft)
 
         response = authed_client.post(f"/api/v1/events/{draft.id}/publish", format="json")
 
-        assert response.status_code == 409
-        assert response.json()["error"]["code"] == "event_not_publishable"
-        # The message NAMES the number, so an organizer knows how far off they
-        # are rather than only that something is wrong.
-        assert str(MIN_TAGS_TO_PUBLISH) in response.json()["error"]["message"]
+        assert response.status_code == 200
 
     def test_an_event_with_enough_tags_is_submitted(
         self, authed_client, make_event, add_ticket_type

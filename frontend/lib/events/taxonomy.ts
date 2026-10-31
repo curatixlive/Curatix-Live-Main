@@ -204,14 +204,17 @@ export const TAG_DIMENSIONS: readonly TagDimension[] = [
 export const MAX_TAGS = 10;
 
 /**
- * Required to PUBLISH, never to save.
+ * Tags are OPTIONAL: the owner removed the minimum (it was 7). Kept at 0 so
+ * the gate stays one number to raise again. Mirrors the backend constant.
+ *
+ * Formerly: required to PUBLISH, never to save.
  *
  * The wizard autosaves on a keystroke, so a save-time minimum would mean
  * somebody who has typed a title cannot keep it while they think about tags.
  * This number belongs in `publishBlockers`, beside "at least one ticket type"
  * — never in `validate()`, which would paint the step red on an empty form.
  */
-export const MIN_TAGS_TO_PUBLISH = 7;
+export const MIN_TAGS_TO_PUBLISH = 0;
 
 /** Every legal tag slug, for validating a hand-edited URL or stored draft. */
 export const ALL_TAGS: ReadonlySet<string> = new Set(

@@ -13,11 +13,12 @@ describe('checklistItems', () => {
     ]);
   });
 
-  it('includes the server readiness gate: tickets, tags and the poster', () => {
+  it('includes the server readiness gate: tickets and the poster (tags are optional)', () => {
     const texts = checklistItems(draft(), [], []).map((item) => item.text);
     expect(texts).toContain('Add at least one ticket type.');
     expect(texts).toContain(POSTER_BLOCKER);
-    expect(texts.some((text) => /tag/i.test(text))).toBe(true);
+    // The owner removed the tag minimum: an empty tag list is not a blocker.
+    expect(texts.some((text) => /tag/i.test(text))).toBe(false);
   });
 
   it('leaves out the unsaved-draft blocker, which autosave resolves itself', () => {

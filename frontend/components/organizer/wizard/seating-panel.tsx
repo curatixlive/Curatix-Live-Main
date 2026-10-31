@@ -46,6 +46,7 @@ const TINTS = [
 
 export function SeatingPanel({
   eventId,
+  gaps = [],
   venue,
   city,
   placeId,
@@ -53,6 +54,8 @@ export function SeatingPanel({
   onSeated,
 }: {
   eventId: string | null;
+  /** What the draft still needs before it can save (see `createGaps`). */
+  gaps?: string[];
   venue: string;
   city: string;
   placeId: string;
@@ -131,8 +134,10 @@ export function SeatingPanel({
 
       {!eventId ? (
         <p className="text-body-sm text-muted-foreground">
-          Seats belong to a saved event. Fill in the basics, venue and date first — the draft saves
-          itself — then come back here.
+          Seats belong to a saved event.{' '}
+          {gaps.length
+            ? `Still needed before it can save: ${gaps.join(', ').toLowerCase()}.`
+            : 'Saving now — this unlocks in a moment.'}
         </p>
       ) : null}
 

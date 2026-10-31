@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils/cn';
 import { NotificationBell } from './notification-bell';
 import { OrganizerPalette } from './command-palette';
 import { LeaveDashboardGuard } from './leave-dashboard-guard';
+import { BackButton, MobileMenu } from './mobile-menu';
 
 /**
  * The organizer dashboard's frame: sidebar, top bar, and the guard around both.
@@ -321,6 +322,11 @@ export function TopBar() {
 
           NOT the public home. Home is the bottom bar's job now, and a logo in
           an organizer shell that quietly exits the product is a trapdoor. */}
+      {/* Phone only (each hides itself at `lg`): the menu that opens every
+          section from any screen, and a way back off a sub-page. */}
+      <MobileMenu />
+      <BackButton />
+
       <Link
         href="/dashboard"
         aria-label="Curatix dashboard"

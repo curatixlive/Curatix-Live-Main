@@ -18,8 +18,8 @@ import { formatMoney } from '@/lib/discovery/format';
 import { Button, Input, Label } from '@/components/ui';
 import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils/cn';
-import type { Draft } from '@/lib/organizer/wizard/model';
-import { AccordionCard, NeedsSavedDraft, type DraftSave } from './fields';
+import { createGaps, type Draft, type PendingCoupon } from '@/lib/organizer/wizard/model';
+import { AccordionCard, type DraftSave } from './fields';
 
 /**
  * PROMO CODES, IN THE PIPELINE THAT CREATES THE EVENT THEY DISCOUNT.
@@ -58,16 +58,19 @@ import { AccordionCard, NeedsSavedDraft, type DraftSave } from './fields';
 
 const MIN_CODE_LENGTH = 3;
 
-export function CouponsStep({ draft, save }: { draft: Draft; save?: DraftSave }) {
+export function CouponsStep({
+  draft,
+  update,
+}: {
+  draft: Draft;
+  update: (changes: Partial<Draft>) => void;
+  /** Kept so the call site does not change; saving is automatic. */
+  save?: DraftSave;
+}) {
   if (!draft.eventId) {
     return (
       <AccordionCard toggle title="Coupons">
-        <NeedsSavedDraft
-          title="Add a promo code once the draft exists"
-          what="A code is attached to this event, so it needs the event to have been created. That happens automatically as soon as there is a title."
-          missing={draft.title.trim() ? [] : ['A title']}
-          save={save}
-        />
+        <PendingCoupons draft={draft} update={update} />
       </AccordionCard>
     );
   }
@@ -77,6 +80,143 @@ export function CouponsStep({ draft, save }: { draft: Draft; save?: DraftSave })
       <CouponManager eventId={draft.eventId} organizationId={draft.organizationId} />
     </AccordionCard>
   );
+}
+
+/**
+ * Codes typed before the event has been saved.
+ *
+ * The organiser can build them now; they sit on the draft and are created the
+ * moment the event gets an id (`usePendingCouponFlush`, mounted by the wizard so
+ * it runs whichever step is open when the save lands). Nothing is lost if the
+ * tab closes first — the draft, and so the list, is kept in local storage.
+ */
+function PendingCoupons({
+  draft,
+  update,
+}: {
+  draft: Draft;
+  update: (changes: Partial<Draft>) => void;
+}) {
+  const gaps = createGaps(draft);
+  const queued = draft.pendingCoupons;
+
+  if (!draft.organizationId) {
+    return (
+      <p className="text-body-sm text-muted-foreground">
+        Choose which organisation is running this event first — a code belongs to the organisation
+        whose tickets it discounts.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-stack">
+      <p className="max-w-prose text-caption text-muted-foreground">
+        Add as many codes as you like. They go live on this event automatically as soon as it is
+        saved
+        {gaps.length ? <> — still needed: {gaps.join(', ').toLowerCase()}</> : null}. You fund the
+        discount, so our fee is charged on what the customer actually pays.
+      </p>
+
+      {queued.length ? (
+        <ul className="flex flex-col gap-2">
+          {queued.map((coupon) => (
+            <li
+              key={coupon.code}
+              className="flex flex-wrap items-center justify-between gap-x-stack gap-y-1.5 rounded-lg bg-sunken px-3 py-2"
+            >
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <BadgePercent className="size-3.5 shrink-0 text-primary" aria-hidden />
+                <span className="truncate font-mono text-body-sm font-semibold">{coupon.code}</span>
+                <span className="shrink-0 text-caption text-muted-foreground">
+                  {pendingTerms(coupon)} · goes live when the event saves
+                </span>
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Remove ${coupon.code}`}
+                onClick={() =>
+                  update({ pendingCoupons: queued.filter((item) => item.code !== coupon.code) })
+                }
+                className="size-8 text-muted-foreground"
+              >
+                <Trash2 className="size-4" aria-hidden />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <AddCoupon
+        organizationId={draft.organizationId}
+        eventId={null}
+        existing={[]}
+        queuedCodes={queued.map((coupon) => coupon.code)}
+        onQueue={(coupon) => update({ pendingCoupons: [...queued, coupon] })}
+        onAdded={() => undefined}
+      />
+    </div>
+  );
+}
+
+function pendingTerms(coupon: PendingCoupon): string {
+  return coupon.kind === 'percent'
+    ? `${String(coupon.value)}% off`
+    : `${formatMoney(coupon.value)} off`;
+}
+
+/**
+ * Creates the queued codes once the event exists.
+ *
+ * Mounted by the wizard itself rather than by the Coupons step: the save that
+ * gives the event its id can land while any step is open, and a flush that only
+ * ran on this one would leave codes waiting until somebody happened to visit it.
+ * Each code is removed from the draft only after the server accepted it, so a
+ * failure leaves it queued and the next save retries; a code the server refuses
+ * (already exists, bad terms) is dropped with a message instead of retrying
+ * forever.
+ */
+export function usePendingCouponFlush(
+  draft: Draft,
+  update: (changes: Partial<Draft>) => void,
+): void {
+  const { toast } = useToast();
+  const client = useQueryClient();
+  const running = React.useRef(false);
+  const { eventId, organizationId, pendingCoupons } = draft;
+
+  React.useEffect(() => {
+    if (!eventId || !organizationId || !pendingCoupons.length || running.current) return;
+    running.current = true;
+    void (async () => {
+      let remaining = pendingCoupons;
+      for (const coupon of pendingCoupons) {
+        try {
+          await createCoupon(organizationId, { ...coupon, event_id: eventId });
+          remaining = remaining.filter((item) => item.code !== coupon.code);
+          toast({ variant: 'success', title: `${coupon.code} is live on this event` });
+        } catch (error) {
+          const status = (error as { status?: number }).status;
+          // A 4xx is a refusal that retrying cannot change; anything else
+          // (offline, 5xx) stays queued for the next save.
+          if (status && status >= 400 && status < 500) {
+            remaining = remaining.filter((item) => item.code !== coupon.code);
+            toast({
+              variant: 'warning',
+              title: `${coupon.code} could not be added: ${errorMessage(error)}`,
+            });
+          }
+        }
+      }
+      if (remaining.length !== pendingCoupons.length) {
+        update({ pendingCoupons: remaining });
+        void client.invalidateQueries({ queryKey: ['organizer', 'coupons', organizationId] });
+      }
+      running.current = false;
+    })();
+  }, [eventId, organizationId, pendingCoupons, update, toast, client]);
 }
 
 function CouponManager({ eventId, organizationId }: { eventId: string; organizationId: string }) {
@@ -239,11 +379,16 @@ function AddCoupon({
   organizationId,
   eventId,
   existing,
+  queuedCodes = [],
+  onQueue,
   onAdded,
 }: {
   organizationId: string;
-  eventId: string;
+  /** Null while the event is unsaved: the code is queued instead of created. */
+  eventId: string | null;
   existing: Coupon[];
+  queuedCodes?: string[];
+  onQueue?: (coupon: PendingCoupon) => void;
   onAdded: (code: string) => void;
 }) {
   const [code, setCode] = React.useState('');
@@ -255,17 +400,19 @@ function AddCoupon({
   const [tierIds, setTierIds] = React.useState<string[]>([]);
   const tierList = useQuery({
     queryKey: ['organizer', 'event-tiers', eventId],
-    queryFn: () => fetchOwnerEventTiers(eventId),
+    queryFn: () => fetchOwnerEventTiers(eventId as string),
+    enabled: Boolean(eventId),
     staleTime: 30_000,
   });
-  const tiers = tierList.data ?? [];
+  const tiers = eventId ? (tierList.data ?? []) : [];
 
   // UPPER-CASE, because that is how the server stores and compares them. Doing
   // it as they type means the code on screen is the code they will hand out,
   // rather than one that is silently transformed on save.
   const normalised = code.trim().toUpperCase();
   const amount = Number(value);
-  const duplicate = existing.some((coupon) => coupon.code === normalised);
+  const duplicate =
+    existing.some((coupon) => coupon.code === normalised) || queuedCodes.includes(normalised);
 
   const valid =
     normalised.length >= MIN_CODE_LENGTH &&
@@ -275,8 +422,8 @@ function AddCoupon({
     (kind === 'fixed' || amount <= 100);
 
   const create = useMutation({
-    mutationFn: () =>
-      createCoupon(organizationId, {
+    mutationFn: async () => {
+      const input = {
         code: normalised,
         kind,
         // A percentage is a whole percent; a fixed amount is MINOR UNITS.
@@ -284,9 +431,17 @@ function AddCoupon({
         // figure sent here would discount a hundredth of what was typed.
         value: kind === 'percent' ? Math.round(amount) : Math.round(amount * 100),
         max_redemptions: limit.trim() ? Math.max(1, Math.round(Number(limit))) : null,
+      };
+      if (!eventId) {
+        onQueue?.(input);
+        return null;
+      }
+      return createCoupon(organizationId, {
+        ...input,
         event_id: eventId,
         ...(tierIds.length ? { ticket_type_ids: tierIds } : {}),
-      }),
+      });
+    },
     onSuccess: () => {
       onAdded(normalised);
       setCode('');

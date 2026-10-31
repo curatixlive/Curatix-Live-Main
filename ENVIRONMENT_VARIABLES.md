@@ -140,6 +140,7 @@ one rotation. Do not create a key per service.
 | --- | --- | --- | --- | --- |
 | `GOOGLE_MAPS_API_KEY` | Optional | `""` | `di.maps_port()` → `GoogleMapsAdapter` | Server key for Places, Geocoding, Directions, Distance Matrix and Places Photos. Blank disables Maps honestly: every `/maps/` endpoint answers 503 and the UI shows an address plus a directions link instead of an empty map. |
 | `GOOGLE_MAPS_REGION` | Optional | `""` (set to `in`) | `GoogleMapsAdapter` | ccTLD bias for geocoding and autocomplete. Without it an Indian venue search returns a lot of Springfields. |
+| `MAPS_FALLBACK` | Optional | `osm` | `OsmMapsAdapter` | What answers venue search while `GOOGLE_MAPS_API_KEY` is unset: `osm` (free OpenStreetMap Photon + Nominatim; place suggestions and pins, no directions) or `disabled`. Ignored once a Google key is set. |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Optional | `""` | `lib/maps/use-google-maps.ts` | **Frontend.** Maps JavaScript API only — a map must render client-side. Same key VALUE is fine; restrict it by HTTP referrer in the console. Public by necessity: anything the browser uses is in the page source. |
 
 Enable on the key: **Places API, Geocoding API, Directions API, Distance Matrix

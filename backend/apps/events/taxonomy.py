@@ -251,12 +251,15 @@ TAG_DIMENSION_BY_TAG: dict[str, str] = {
 #: a way to appear in every filter at once.
 MAX_TAGS = 10
 
-#: Required to PUBLISH, never to save. A draft with two tags saves perfectly
+#: Tags are OPTIONAL. The owner removed the minimum (it was 7): an organiser may
+#: publish with none, and the check in `publish_checks` is kept at 0 so the gate
+#: is one number to raise again rather than code to rewrite. It was: required to
+#: PUBLISH, never to save. A draft with two tags saves perfectly
 #: well — the wizard is local-first and autosaves on a keystroke, so a
 #: save-time minimum would mean somebody who has typed a title cannot keep it
 #: while they think about tags. The gate belongs where completeness is already
 #: decided, next to "has at least one ticket type".
-MIN_TAGS_TO_PUBLISH = 7
+MIN_TAGS_TO_PUBLISH = 0
 
 
 def unknown_tags(tags: list[str]) -> list[str]:

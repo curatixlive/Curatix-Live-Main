@@ -512,6 +512,13 @@ def maps_port() -> MapsPort:
     from core.adapters.google_maps.adapter import DisabledMapsAdapter, GoogleMapsAdapter
 
     if not settings.GOOGLE_MAPS_API_KEY:
+        # No Google key: venue search still works through OpenStreetMap
+        # (Photon + Nominatim), which needs none. `MAPS_FALLBACK=disabled`
+        # restores the old refuse-everything behaviour.
+        if settings.MAPS_FALLBACK == "osm":
+            from core.adapters.osm.adapter import OsmMapsAdapter
+
+            return OsmMapsAdapter(contact=settings.PUBLIC_SITE_URL)
         return DisabledMapsAdapter()
     return GoogleMapsAdapter(
         api_key=settings.GOOGLE_MAPS_API_KEY,

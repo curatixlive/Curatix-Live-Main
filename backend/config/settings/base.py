@@ -572,6 +572,11 @@ CHECKIN_WINDOW_GRACE_AFTER_MINUTES = env.int("CHECKIN_WINDOW_GRACE_AFTER_MINUTES
 GOOGLE_MAPS_API_KEY = env.str("GOOGLE_MAPS_API_KEY", default="")
 # Biases geocoding and autocomplete toward a country. `in` for India.
 GOOGLE_MAPS_REGION = env.str("GOOGLE_MAPS_REGION", default="")
+# What answers venue search when GOOGLE_MAPS_API_KEY is unset: `osm` (free
+# OpenStreetMap Photon + Nominatim, no key; places and pins only, no
+# directions) or `disabled` (refuse everything, as before). Ignored once a
+# Google key is set.
+MAPS_FALLBACK = env.str("MAPS_FALLBACK", default="osm")
 
 # --- Google OAuth (Calendar) ---------------------------------------------
 # ONE OAuth client, reused by every Google feature. Calendar asks for its own

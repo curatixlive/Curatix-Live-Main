@@ -6,7 +6,7 @@ import { Button, Input, Switch } from '@/components/ui';
 import { errorMessage } from '@/lib/api/errors';
 import { sendInvites, whatsappInviteUrl } from '@/lib/api/event-access-admin';
 import { generateAccessCode } from '@/lib/booking/access';
-import type { Draft } from '@/lib/organizer/wizard/model';
+import { createGaps, type Draft } from '@/lib/organizer/wizard/model';
 import type { DraftSave } from './fields';
 
 /**
@@ -37,6 +37,7 @@ export function AccessPanel({
   const [copied, setCopied] = React.useState(false);
 
   const code = draft.accessCode.trim();
+  const gaps = createGaps(draft);
   const saved = save.state === 'saved' && Boolean(draft.eventId);
   const eventUrl =
     typeof window !== 'undefined' && draft.eventId
@@ -153,7 +154,10 @@ export function AccessPanel({
         </label>
         {!draft.eventId ? (
           <p className="text-caption text-muted-foreground">
-            Save the event first — the draft saves itself once the basics are filled in.
+            Invitations go out once the event is saved.{' '}
+            {gaps.length
+              ? `Still needed: ${gaps.join(', ').toLowerCase()}.`
+              : 'Saving now — this unlocks in a moment.'}
           </p>
         ) : !code ? (
           <p className="text-caption text-muted-foreground">

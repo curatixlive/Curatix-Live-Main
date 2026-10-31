@@ -179,6 +179,16 @@ export type DraftTier = {
   phases: DraftPhase[];
 };
 
+/** A promo code waiting for its event to be saved. `value` is a whole percent
+ *  for `percent` and MINOR UNITS (paise) for `fixed`, exactly as the API takes
+ *  it. */
+export type PendingCoupon = {
+  code: string;
+  kind: 'percent' | 'fixed';
+  value: number;
+  max_redemptions: number | null;
+};
+
 export type Draft = {
   /** Set once `POST /events` has run. Null while the draft is local-only. */
   eventId: string | null;
@@ -313,6 +323,13 @@ export type Draft = {
   seoTitle: string;
   seoDescription: string;
   tiers: DraftTier[];
+  /**
+   * Promo codes typed BEFORE the event exists. A coupon is created with an
+   * `event_id`, so these wait here (and in local storage with the rest of the
+   * draft) and the wizard creates them the moment the first save gives the
+   * event an id. Never sent with the event itself.
+   */
+  pendingCoupons: PendingCoupon[];
 };
 
 export type DraftPolicy = {
@@ -487,6 +504,7 @@ export function emptyDraft(organizationId = ''): Draft {
     seoTitle: '',
     seoDescription: '',
     tiers: [],
+    pendingCoupons: [],
   };
 }
 
@@ -632,6 +650,8 @@ export function restoreDraft(
     // onto a fresh one: a tier written before phases existed has no `phases`
     // array, and `tier.phases.map(...)` on an `undefined` is a white screen
     // holding somebody's half-written event.
+    // Older stored drafts predate this field; `undefined.map` is a white screen.
+    pendingCoupons: Array.isArray(stored.pendingCoupons) ? stored.pendingCoupons : [],
     tiers: Array.isArray(stored.tiers)
       ? stored.tiers.map((tier) => ({
           ...tier,
@@ -1805,7 +1825,24 @@ export function draftFromEvent(
     seoTitle: event.seo_title ?? '',
     seoDescription: event.seo_description ?? '',
     tiers: tiersToDraft(tiers),
+    pendingCoupons: [],
   };
+}
+
+/**
+ * What `canCreate` is still waiting for, in words — so a panel that needs a
+ * saved event can name the missing fields instead of promising "this unlocks in
+ * a moment" over a draft that will never save without them.
+ */
+export function createGaps(draft: Draft): string[] {
+  const gaps: string[] = [];
+  if (!draft.organizationId) gaps.push('Choose the organisation running it');
+  if (!draft.title.trim()) gaps.push('A title');
+  if (!draft.venue.trim()) gaps.push('A venue');
+  if (!draft.city.trim()) gaps.push('A city');
+  if (!draft.startsAt) gaps.push('A start date and time');
+  else if (new Date(draft.startsAt) <= new Date()) gaps.push('A start time in the future');
+  return gaps;
 }
 
 /** True once `POST /events` has everything its serializer requires. */
