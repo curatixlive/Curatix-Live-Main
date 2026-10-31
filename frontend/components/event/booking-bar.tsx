@@ -7,7 +7,7 @@ import type { TicketTier } from '@/lib/api/types';
 import { formatFromPrice } from '@/lib/discovery/format';
 import {
   availabilityLabel,
-  bookingCtaLabel,
+  bookingBarLabel,
   canStartBooking,
   isUrgent,
   summariseTiers,
@@ -147,9 +147,9 @@ export function BookingBar({
         ) : !bookable ? (
           <span
             aria-disabled="true"
-            className="ml-auto inline-flex h-control shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-border bg-sunken px-pill text-label text-muted-foreground"
+            className="ml-auto inline-flex h-control shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-border bg-sunken px-5 text-label text-muted-foreground"
           >
-            {bookingCtaLabel(state)}
+            {bookingBarLabel(state)}
           </span>
         ) : (
           <BookTicketsAction

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TicketTier } from '@/lib/api/types';
 import {
   availabilityLabel,
+  bookingBarLabel,
   bookingCtaLabel,
   canStartBooking,
   eligibleBands,
@@ -357,5 +358,21 @@ describe('the sale window', () => {
         'Sales open Fri, 2 Oct · 7:00 pm',
       );
     });
+  });
+});
+
+describe('bookingBarLabel', () => {
+  it('is short when sales have not opened, so it cannot squeeze the price in a sticky bar', () => {
+    const label = bookingBarLabel({ kind: 'not_on_sale', opensAt: '2030-01-04T10:00:00Z' });
+    expect(label).toBe('Coming soon');
+    // The long form is what used to push the price out of the bar.
+    expect(label.length).toBeLessThan(
+      bookingCtaLabel({ kind: 'not_on_sale', opensAt: '2030-01-04T10:00:00Z' }).length,
+    );
+  });
+
+  it('is the normal label in every other state', () => {
+    expect(bookingBarLabel({ kind: 'available', left: 50 })).toBe('Book tickets');
+    expect(bookingBarLabel({ kind: 'sold_out' })).toBe('Sold out');
   });
 });

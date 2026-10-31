@@ -2,8 +2,6 @@
 
 import * as React from 'react';
 import { CalendarDays, Home, Heart, Music4 } from 'lucide-react';
-import { OrganizerFooterNav } from '@/components/organizer/organizer-footer-nav';
-import { useScope } from '@/lib/identity/scope';
 import { BottomNav } from './bottom-nav';
 
 /**
@@ -20,13 +18,6 @@ import { BottomNav } from './bottom-nav';
  * token and not a second copy of the number.
  */
 export function SiteBottomNav() {
-  // A verified organiser gets THEIR bar (My events, Scan, Create, Dashboard)
-  // on the public pages too — the attendee four (Home, Events, Saved, Hire)
-  // are no use to somebody who has just signed in to run events. Hidden from
-  // `md` like the attendee bar, so tablets keep the header navigation.
-  const { isOrganizer } = useScope();
-  if (isOrganizer) return <OrganizerFooterNav className="md:hidden" />;
-
   return (
     <BottomNav
       items={[

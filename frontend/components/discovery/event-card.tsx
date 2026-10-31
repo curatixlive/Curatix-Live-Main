@@ -258,7 +258,13 @@ export function EventCard({
               eventId={event.id}
               title={event.title}
               className={cn(
+                // LIGHT, SMALL AND SEATED IN THE CORNER. It used to inherit the dark
+                // frosted disc made for sitting over a poster; on a white card that
+                // read as a grey blob the size of a thumb, crowding the title. Same
+                // light treatment the list row uses, with a hairline and a soft
+                // shadow so it still lifts off a busy poster edge.
                 'absolute right-2.5 top-2.5 z-10 size-11 shrink-0 sm:right-3 sm:top-3 sm:size-9',
+                'border-border bg-surface/95 text-muted-foreground shadow-sm hover:text-foreground',
                 'lg:opacity-0 lg:transition-opacity lg:duration-fast',
                 'lg:focus-visible:opacity-100 lg:group-focus-within/card:opacity-100 lg:group-hover/card:opacity-100',
                 'lg:motion-reduce:opacity-100',

@@ -23,8 +23,13 @@ import {
   THUMB_SIZE_PX,
   shouldDock,
 } from '@/lib/discovery/deck-metrics';
-import { formatFromPrice } from '@/lib/discovery/format';
-import { bookingCtaLabel, canStartBooking, summariseTiers } from '@/lib/discovery/tiers';
+import { formatEventDate, formatFromPrice } from '@/lib/discovery/format';
+import {
+  availabilityLabel,
+  bookingBarLabel,
+  canStartBooking,
+  summariseTiers,
+} from '@/lib/discovery/tiers';
 import type { EventQuestion } from '@/lib/api/event-content';
 import type { EventCard as EventCardData, TicketTier } from '@/lib/api/types';
 import {
@@ -1185,7 +1190,17 @@ function BookingBar({
   const price = formatFromPrice(event.from_price);
   const saleState = tiers ? summariseTiers(tiers).state : null;
   const bookable = saleState === null || canStartBooking(saleState);
-  const label = saleState === null ? 'Book tickets' : bookingCtaLabel(saleState);
+  const label = saleState === null ? 'Book tickets' : bookingBarLabel(saleState);
+  // Where sales have not opened, the date goes UNDER the price (it has the room
+  // here); the button only says "Coming soon" so it cannot squeeze the price.
+  const caption =
+    saleState?.kind === 'not_on_sale'
+      ? saleState.opensAt
+        ? `Opens ${formatEventDate(saleState.opensAt)}`
+        : availabilityLabel(saleState)
+      : price !== null && price !== 'Free'
+        ? 'onwards'
+        : null;
 
   return (
     /* ── A FLOATING CARD, NOT A DOCKED BAR ───────────────────────────────
@@ -1233,15 +1248,17 @@ function BookingBar({
           <span className="truncate text-h4 font-extrabold tabular-nums text-foreground">
             {price === null ? 'See tickets' : price === 'Free' ? 'Free entry' : price}
           </span>
-          {price !== null && price !== 'Free' ? (
-            <span className="text-caption font-semibold text-muted-foreground">onwards</span>
+          {caption ? (
+            <span className="truncate text-caption font-semibold text-muted-foreground">
+              {caption}
+            </span>
           ) : null}
         </div>
 
         {!bookable ? (
           <span
             aria-disabled="true"
-            className="ml-auto inline-flex h-12 shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-border bg-sunken px-7 text-body-sm font-extrabold text-muted-foreground"
+            className="ml-auto inline-flex h-12 shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-border bg-sunken px-5 text-body-sm font-extrabold text-muted-foreground"
           >
             {label}
           </span>

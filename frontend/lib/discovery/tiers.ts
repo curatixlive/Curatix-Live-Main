@@ -335,6 +335,19 @@ export const canStartBooking = (state: AvailabilityState): boolean =>
  * The DATE only, not the time: this is a pill beside a price, and the line
  * above it already carries the exact moment via `availabilityLabel`.
  */
+/**
+ * The label for a button in a SPACE-STARVED bar (the mobile sticky booking bar).
+ *
+ * `bookingCtaLabel` says "Booking opens Fri, 6 Nov" when sales have not
+ * started, which is ~190px of unshrinkable pill — and in a bar that also has to
+ * show a price, the price lost: it truncated to "fr…" under the button. The
+ * date is not lost here; the same bars print it as the secondary line under the
+ * price (`availabilityLabel`), where it has the room to include the time.
+ */
+export function bookingBarLabel(state: AvailabilityState): string {
+  return state.kind === 'not_on_sale' ? 'Coming soon' : bookingCtaLabel(state);
+}
+
 export function bookingCtaLabel(state: AvailabilityState): string {
   if (state.kind === 'sold_out') return 'Sold out';
   if (state.kind === 'not_on_sale') {
