@@ -1,8 +1,17 @@
-import { JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google';
+import localFont from 'next/font/local';
 
 /**
- * Self-hosted fonts via next/font (subset + `display: swap`, so no layout shift
- * and no render-blocking network). Each exposes a CSS variable that the
+ * Self-hosted fonts via next/font/local (`display: swap`, so no layout shift
+ * and no render-blocking network).
+ *
+ * ── WHY LOCAL AND NOT `next/font/google` ─────────────────────────────────
+ * The Google loader fetches fonts.googleapis.com AT BUILD TIME and parses the
+ * CSS it gets back. When that response is not the shape the loader expects it
+ * throws `Cannot read properties of null (reading '1')` and the whole build
+ * fails — which broke the release and e2e pipelines with no code change. The
+ * latin variable files now live beside this module (OFL licensed, copies of
+ * the fontsource packages), so a build needs no network and cannot be broken
+ * by a third party. Variable files: one download covers every weight. Each exposes a CSS variable that the
  * Tailwind `fontFamily` tokens consume — nothing in the app names a font
  * directly.
  *
@@ -25,28 +34,28 @@ import { JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google';
  * `font-display`, so putting a real display face back later is a change to
  * this file and nothing else.
  */
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
+const jakarta = localFont({
+  src: './fonts/plus-jakarta-sans-latin-wght-normal.woff2',
   display: 'swap',
-  // The full range the type scale actually uses: 500 for chips and labels,
-  // 800 for the hero. Listing only what is used keeps the payload honest.
-  weight: ['400', '500', '600', '700', '800'],
+  // The variable file's own axis (200-800); the type scale uses 400-800.
+  weight: '200 800',
   variable: '--font-sans',
 });
 
-const jakartaDisplay = Plus_Jakarta_Sans({
-  subsets: ['latin'],
+const jakartaDisplay = localFont({
+  src: './fonts/plus-jakarta-sans-latin-wght-normal.woff2',
   display: 'swap',
-  weight: ['600', '700', '800'],
+  weight: '200 800',
   variable: '--font-display',
 });
 
 export const fontSans = jakarta;
 export const fontDisplay = jakartaDisplay;
 
-export const fontMono = JetBrains_Mono({
-  subsets: ['latin'],
+export const fontMono = localFont({
+  src: './fonts/jetbrains-mono-latin-wght-normal.woff2',
   display: 'swap',
+  weight: '100 800',
   variable: '--font-mono',
 });
 
