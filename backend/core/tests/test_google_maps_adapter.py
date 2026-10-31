@@ -420,13 +420,44 @@ class TestDisabledAdapter:
         assert caught.value.reason == "not_configured"
 
 
-def test_di_returns_the_disabled_adapter_without_a_key(settings):
+def test_di_returns_the_disabled_adapter_without_a_key_when_the_fallback_is_off(settings):
     from config.di import maps_port
 
     settings.GOOGLE_MAPS_API_KEY = ""
+    settings.MAPS_FALLBACK = "disabled"
     maps_port.cache_clear()
     try:
         assert maps_port().is_configured() is False
+    finally:
+        maps_port.cache_clear()
+
+
+def test_di_falls_back_to_openstreetmap_without_a_key_by_default(settings):
+    """No Google key must not mean a dead venue search: the free OSM adapter
+    answers, so suggestions and pins work out of the box."""
+    from config.di import maps_port
+    from core.adapters.osm.adapter import OsmMapsAdapter
+
+    settings.GOOGLE_MAPS_API_KEY = ""
+    settings.MAPS_FALLBACK = "osm"
+    maps_port.cache_clear()
+    try:
+        adapter = maps_port()
+        assert isinstance(adapter, OsmMapsAdapter)
+        assert adapter.is_configured() is True
+    finally:
+        maps_port.cache_clear()
+
+
+def test_a_google_key_always_wins_over_the_fallback(settings):
+    from config.di import maps_port
+    from core.adapters.google_maps.adapter import GoogleMapsAdapter
+
+    settings.GOOGLE_MAPS_API_KEY = "test-key"
+    settings.MAPS_FALLBACK = "osm"
+    maps_port.cache_clear()
+    try:
+        assert isinstance(maps_port(), GoogleMapsAdapter)
     finally:
         maps_port.cache_clear()
 
