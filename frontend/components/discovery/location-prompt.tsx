@@ -59,9 +59,42 @@ export function LocationPrompt() {
   const { status: authStatus, user } = useAuth();
   const [elapsed, setElapsed] = React.useState(false);
 
+  // ── OPEN ONLY ONCE THE PAGE HAS FINISHED HYDRATING ──────────────────────
+  //
+  // This used to be a bare 2.5s timer from mount. On a slow phone, or a cold
+  // server, the page's streamed sections can still be hydrating at that point,
+  // and a Radix dialog that opens in the middle of it makes React report a
+  // hydration mismatch (error #418) and re-render the page from scratch — which
+  // intermittently dropped the page's own heading. It reproduced on roughly one
+  // fresh visit in five on the live site.
+  //
+  // So the clock starts at the window `load` event, and the dialog then waits for
+  // an idle moment. A fast device still sees it ~2.5s after the page settles; a
+  // slow one sees it later, which is better than seeing it break the page.
   React.useEffect(() => {
-    const timer = window.setTimeout(() => setElapsed(true), APPEAR_DELAY_MS);
-    return () => window.clearTimeout(timer);
+    let cancelled = false;
+    let timer: number | undefined;
+    let idle: number | undefined;
+    const show = () => {
+      if (!cancelled) setElapsed(true);
+    };
+    const arm = () => {
+      timer = window.setTimeout(() => {
+        if ('requestIdleCallback' in window) {
+          idle = window.requestIdleCallback(show, { timeout: 4000 });
+        } else {
+          show();
+        }
+      }, APPEAR_DELAY_MS);
+    };
+    if (document.readyState === 'complete') arm();
+    else window.addEventListener('load', arm, { once: true });
+    return () => {
+      cancelled = true;
+      window.removeEventListener('load', arm);
+      if (timer !== undefined) window.clearTimeout(timer);
+      if (idle !== undefined && 'cancelIdleCallback' in window) window.cancelIdleCallback(idle);
+    };
   }, []);
 
   // Onboarding owns the screen until it is finished. `authStatus` is

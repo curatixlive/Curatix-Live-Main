@@ -106,7 +106,7 @@ export default async function HirePage() {
 
       {/* ── THE ENQUIRY ────────────────────────────────────────────────── */}
       <Container className="py-8 sm:py-10">
-        <BriefForm />
+        <BriefForm headingLevel="h2" />
       </Container>
 
       {/* ── THE ACTS, WHEN THERE ARE ANY ───────────────────────────────── */}

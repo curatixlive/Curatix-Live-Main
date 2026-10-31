@@ -133,7 +133,15 @@ const SLIDER_MIN = 5_000;
 const SLIDER_MAX = 1_000_000;
 const SLIDER_STEP = 5_000;
 
-export function BriefForm() {
+export function BriefForm({
+  headingLevel = 'h1',
+}: {
+  /** `h2` when the form sits under a page that already has its own `<h1>` (the
+   *  /hire landing); `h1` when it IS the page (/hire/new). A page with two `<h1>`s has
+   *  no clear outline for a screen reader or a crawler. */
+  headingLevel?: 'h1' | 'h2';
+} = {}) {
+  const Heading = headingLevel;
   const params = useSearchParams();
   const { status, user } = useAuth();
 
@@ -290,7 +298,7 @@ export function BriefForm() {
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 py-6 text-center">
         <SceneOnboardingDone className="h-40 w-52" />
         <div className="flex flex-col gap-2">
-          <h1 className="text-h3 sm:text-h2">We have your enquiry</h1>
+          <Heading className="text-h3 sm:text-h2">We have your enquiry</Heading>
           {/* NO TIMEFRAME. Nothing here measures or enforces one, so "within
               24 hours" would be a number with nothing behind it — and the
               first person it disappoints is somebody already waiting. What it
@@ -335,7 +343,7 @@ export function BriefForm() {
       <aside className="flex flex-col gap-block lg:sticky lg:top-sticky-top-lg lg:self-start">
         <header className="flex items-start gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <h1 className="text-h4 sm:text-h3">Tell us about your event</h1>
+            <Heading className="text-h4 sm:text-h3">Tell us about your event</Heading>
             <p className="text-body-sm text-muted-foreground">
               Five short questions. A person on our team reads every one.
             </p>

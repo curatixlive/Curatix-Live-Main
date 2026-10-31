@@ -111,7 +111,12 @@ export function AudienceBuilder({
                     days: '',
                   })
                 }
-                className={cn(SELECT, 'min-w-0 flex-1')}
+                // On a phone this select takes its own full-width line: squeezed beside the
+                // other two it was ~60px wide and read "Boug…".
+                className={cn(
+                  SELECT,
+                  'order-3 min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-0',
+                )}
               >
                 {(Object.keys(RULE_LABELS) as RuleType[]).map((type) => (
                   <option key={type} value={type}>
@@ -124,6 +129,7 @@ export function AudienceBuilder({
                 variant="ghost"
                 size="icon"
                 aria-label={`Remove rule ${index + 1}`}
+                className="ml-auto sm:ml-0"
                 disabled={rules.length === 1}
                 onClick={() => onRules(rules.filter((r) => r.key !== rule.key))}
               >
